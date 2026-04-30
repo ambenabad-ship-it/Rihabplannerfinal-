@@ -7,6 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&family=Tajawal:wght@400;500;700;800&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- Supabase JS client — used for cross-device sync of planning history.
+     Falls back to localStorage when supabase-config.js still has placeholder
+     values (so the app works offline / before the user has set up Supabase). -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-config.js"></script>
 <!-- Standard SheetJS for reading .xlsx (handles modern Excel zip formats) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>window.XLSX_READ = window.XLSX;</script>
@@ -2697,6 +2702,117 @@
   }
   .card:not(.locked) .lock-overlay { display: none; }
 
+  /* ---------- Supabase auth chip (fixed bottom-right) ---------- */
+  .sb-auth-chip {
+    position: fixed; bottom: 16px; right: 16px; z-index: 8500;
+    background: var(--bg-elev); color: var(--text);
+    border: 1px solid var(--border); border-radius: 999px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+    padding: 6px 10px; font-size: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .sb-auth-chip .sb-auth-in {
+    border: none; background: transparent; color: var(--primary);
+    font-weight: 600; cursor: pointer; padding: 2px 4px;
+  }
+  .sb-auth-chip .sb-auth-out {
+    border: none; background: transparent; color: var(--danger);
+    font-size: 11px; cursor: pointer;
+  }
+  .sb-auth-chip .sb-auth-email { font-weight: 600; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sb-auth-form {
+    position: absolute; right: 0; bottom: calc(100% + 8px);
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px; min-width: 240px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .sb-auth-form input { padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+  .sb-auth-form .sb-auth-go { padding: 7px 10px; }
+  .sb-auth-form .sb-auth-signup, .sb-auth-form .sb-auth-cancel {
+    background: transparent; border: 1px solid var(--border); padding: 5px 8px;
+    border-radius: 6px; font-size: 11px; cursor: pointer;
+  }
+  .sb-auth-form .sb-auth-cancel {
+    position: absolute; top: 6px; right: 6px; border: none; font-size: 14px;
+    color: var(--text-soft);
+  }
+  .sb-auth-form .sb-auth-msg { color: var(--danger); font-size: 11px; min-height: 14px; }
+
+  /* ---------- History page ---------- */
+  .hist-toolbar {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .hist-period {
+    display: inline-flex; gap: 4px; padding: 4px;
+    background: var(--bg-muted); border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .hist-period-btn {
+    padding: 6px 12px; border: none; background: transparent;
+    border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+    color: var(--text-muted);
+  }
+  .hist-period-btn.active { background: var(--bg-elev); color: var(--text); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06); }
+  .hist-period-btn:hover:not(.active) { color: var(--text); }
+  .hist-actions { display: flex; gap: 8px; margin-left: auto; }
+  .hist-totals {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px; margin-bottom: 16px;
+  }
+  .hist-tot {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .hist-tot-label {
+    font-size: 11px; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.04em; font-weight: 600; margin-bottom: 4px;
+  }
+  .hist-tot-value { font-size: 18px; font-weight: 700; color: var(--text); }
+  .hist-tot-sub { font-size: 11px; color: var(--text-soft); margin-top: 2px; }
+  .hist-chart-wrap {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+  }
+  .hist-chart-title {
+    font-size: 12px; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.04em; font-weight: 600; margin-bottom: 8px;
+  }
+  .hist-chart svg { display: block; width: 100%; height: 220px; }
+  .hist-chart .hist-empty {
+    padding: 36px 12px; text-align: center; color: var(--text-soft); font-size: 13px;
+  }
+  .hist-list { display: flex; flex-direction: column; gap: 10px; }
+  .hist-card {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .hist-card-head {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px; margin-bottom: 10px;
+  }
+  .hist-card-date { font-weight: 700; font-size: 14px; color: var(--text); }
+  .hist-card-meta { font-size: 11px; color: var(--text-soft); }
+  .hist-card-delete {
+    background: transparent; border: 1px solid var(--border); color: var(--danger);
+    padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer;
+  }
+  .hist-card-delete:hover { background: var(--danger-50); }
+  .hist-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+  }
+  .hist-kpi { font-size: 12px; }
+  .hist-kpi-label { color: var(--text-muted); font-size: 11px; }
+  .hist-kpi-value { color: var(--text); font-weight: 600; font-size: 13px; }
+  .hist-empty-state {
+    padding: 32px 16px; text-align: center; color: var(--text-soft);
+    background: var(--bg-elev); border: 1px dashed var(--border);
+    border-radius: 10px;
+  }
+
   /* ---------- Bulk-rescue confirmation modal ---------- */
   .bulk-rescue-overlay {
     position: fixed; inset: 0; z-index: 9000;
@@ -3040,6 +3156,10 @@
     <button type="button" class="page-nav-btn" data-page="bons" title="Generate Bons de Chargement & Bons de Livraison from daily delivery files">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
       <span>Bons</span>
+    </button>
+    <button type="button" class="page-nav-btn" data-page="history" title="KPIs of past delivery plannings — filter by day, week, month, year">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>History</span>
     </button>
   </nav>
 
@@ -3463,6 +3583,43 @@
     </div>
   </section>
   </div> <!-- /#page-review -->
+
+  <div class="page hidden" id="page-history">
+    <section class="card" id="card-history">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </div>
+          <div>
+            <div class="card-title">Planning history &amp; KPIs</div>
+            <div class="card-subtitle">Past delivery plannings, with filters by period and a chart of confirmed GMV over time</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="hist-toolbar">
+          <div class="hist-period" role="tablist" aria-label="Period filter">
+            <button type="button" class="hist-period-btn active" data-period="day">Day</button>
+            <button type="button" class="hist-period-btn" data-period="week">Week</button>
+            <button type="button" class="hist-period-btn" data-period="month">Month</button>
+            <button type="button" class="hist-period-btn" data-period="year">Year</button>
+            <button type="button" class="hist-period-btn" data-period="all">All</button>
+          </div>
+          <div class="hist-actions">
+            <button type="button" class="btn" id="histExportBtn" title="Download a snapshot of the visible runs as Excel">⬇ Export</button>
+            <button type="button" class="btn btn-danger" id="histClearBtn" title="Permanently delete every saved planning snapshot">Clear history</button>
+          </div>
+        </div>
+        <div id="histTotals" class="hist-totals"></div>
+        <div class="hist-chart-wrap">
+          <div class="hist-chart-title">Confirmed GMV over time</div>
+          <div id="histChart" class="hist-chart"></div>
+        </div>
+        <div id="histList" class="hist-list"></div>
+      </div>
+    </section>
+  </div>
 
 </div>
 
@@ -10324,6 +10481,10 @@ function renderReviewDone(allocs, stats) {
   if (!done) return;
   done.classList.remove('hidden');
   stats = stats || computeReviewStats();
+  // Persist a KPI snapshot to the Planning history every time we land on
+  // Done. Keyed by deliveryDate so a re-finish overwrites the same day's
+  // entry instead of duplicating it.
+  try { recordPlanningSnapshot(stats, allocs); } catch (e) { console.error('history save failed:', e); }
   const confirmedAllocs = allocs.filter(a => a.decision === 'confirmed');
   const canceledAllocs  = allocs.filter(a => a.decision === 'canceled');
   const replannedAllocs = allocs.filter(a => a.decision === 'replanned');
@@ -11305,12 +11466,363 @@ function exportDeliveryReport(allocs) {
 // initial export) and the Review page (review stage + done screen + exports).
 // A single source of truth — any code path that wants to show the review
 // UI just calls showPage('review') instead of manipulating visibility.
+// ---------- Supabase auth + cross-device sync ----------
+// The app auto-detects whether supabase-config.js has been filled in.
+// Until it's configured, every storage call falls back to localStorage
+// (single device). Once configured AND the user is signed in, planning
+// history reads/writes go to a per-user row in the user_data table so
+// the same login on another laptop sees the same history.
+const SB_CONFIGURED = (() => {
+  const url = window.SUPABASE_URL || '';
+  const key = window.SUPABASE_ANON_KEY || '';
+  return url && key
+    && !/YOUR-PROJECT/i.test(url)
+    && !/YOUR-ANON-KEY/i.test(key)
+    && /^https?:\/\//i.test(url);
+})();
+const sb = SB_CONFIGURED && window.supabase
+  ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
+  : null;
+let sbUser = null; // populated after sign-in
+
+async function sbInitSession() {
+  if (!sb) return null;
+  try {
+    const { data } = await sb.auth.getSession();
+    sbUser = data && data.session ? data.session.user : null;
+    return sbUser;
+  } catch (e) { console.error(e); return null; }
+}
+async function sbSignIn(email, password) {
+  if (!sb) throw new Error('Supabase not configured');
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  sbUser = data.user;
+  return sbUser;
+}
+async function sbSignUp(email, password) {
+  if (!sb) throw new Error('Supabase not configured');
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if (error) throw error;
+  sbUser = data.user;
+  return sbUser;
+}
+async function sbSignOut() {
+  if (!sb) return;
+  try { await sb.auth.signOut(); } catch (_) {}
+  sbUser = null;
+}
+async function sbReadKey(key) {
+  if (!sb || !sbUser) return null;
+  const { data, error } = await sb.from('user_data')
+    .select('value').eq('user_id', sbUser.id).eq('key', key).maybeSingle();
+  if (error) { console.error('sbReadKey', error); return null; }
+  return data ? data.value : null;
+}
+async function sbWriteKey(key, value) {
+  if (!sb || !sbUser) return false;
+  const row = { user_id: sbUser.id, key, value };
+  const { error } = await sb.from('user_data').upsert(row, { onConflict: 'user_id,key' });
+  if (error) { console.error('sbWriteKey', error); return false; }
+  return true;
+}
+
+// Tiny floating sign-in button + slide-down login form. Always rendered
+// in the corner; turns into "Signed in as <email> · Sign out" once auth
+// is established. Hidden entirely when Supabase isn't configured.
+function renderAuthChip() {
+  if (!sb) return;
+  let chip = document.getElementById('sbAuthChip');
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.id = 'sbAuthChip';
+    chip.className = 'sb-auth-chip';
+    document.body.appendChild(chip);
+  }
+  if (sbUser) {
+    chip.innerHTML = `
+      <span class="sb-auth-email" title="${escapeHtml(sbUser.email || '')}">☁ ${escapeHtml(sbUser.email || 'signed in')}</span>
+      <button type="button" class="sb-auth-out">Sign out</button>`;
+    chip.querySelector('.sb-auth-out').onclick = async () => {
+      await sbSignOut();
+      renderAuthChip();
+      try { renderHistoryPage(); } catch (_) {}
+    };
+  } else {
+    chip.innerHTML = `
+      <button type="button" class="sb-auth-in">☁ Sign in to sync</button>
+      <div class="sb-auth-form hidden">
+        <input type="email" placeholder="Email" class="sb-auth-email-in" autocomplete="email">
+        <input type="password" placeholder="Password (≥6 chars)" class="sb-auth-pw" autocomplete="current-password">
+        <button type="button" class="sb-auth-go btn btn-primary">Sign in</button>
+        <button type="button" class="sb-auth-signup">Create account</button>
+        <button type="button" class="sb-auth-cancel">×</button>
+        <div class="sb-auth-msg"></div>
+      </div>`;
+    const form = chip.querySelector('.sb-auth-form');
+    chip.querySelector('.sb-auth-in').onclick = () => form.classList.remove('hidden');
+    chip.querySelector('.sb-auth-cancel').onclick = () => form.classList.add('hidden');
+    const msg = chip.querySelector('.sb-auth-msg');
+    const submit = async (mode) => {
+      msg.textContent = '';
+      const email = chip.querySelector('.sb-auth-email-in').value.trim();
+      const pw    = chip.querySelector('.sb-auth-pw').value;
+      if (!email || !pw) { msg.textContent = 'Email + password required.'; return; }
+      try {
+        if (mode === 'signup') await sbSignUp(email, pw);
+        else                   await sbSignIn(email, pw);
+        renderAuthChip();
+        // Pull cloud history into local immediately so the History page is current.
+        try {
+          const cloud = await sbReadKey('planning_history');
+          if (Array.isArray(cloud)) { planningHistory = cloud; savePlanningHistory(); }
+          renderHistoryPage();
+        } catch (_) {}
+      } catch (e) {
+        msg.textContent = e.message || 'Sign-in failed.';
+      }
+    };
+    chip.querySelector('.sb-auth-go').onclick     = () => submit('signin');
+    chip.querySelector('.sb-auth-signup').onclick = () => submit('signup');
+  }
+}
+
+// ---------- Planning history (KPI snapshots) ----------
+// Auto-saves a snapshot of the current planning's KPIs every time the
+// user reaches the Done screen (userFinished). Stored in localStorage as
+// an array, keyed by the target delivery date so a re-finish overwrites
+// the same day's entry instead of duplicating it.
+const HISTORY_KEY = 'rihab_planning_history_v1';
+let planningHistory = (() => {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') || []; }
+  catch (_) { return []; }
+})();
+let historyPeriod = 'day'; // day | week | month | year | all
+
+function targetDayISO() {
+  try { return toLocalISODate(tomorrow); } catch (_) {}
+  const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(0,0,0,0);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+// Build a flat KPI snapshot from the current stats / allocs. Same metrics
+// the Stats Bar and Done screen show today, just persisted as numbers.
+function buildPlanningSnapshot(stats, allocs) {
+  const a = allocs || (stats && stats.allocs) || [];
+  const confirmed = a.filter(x => x.decision === 'confirmed');
+  const canceled  = a.filter(x => x.decision === 'canceled');
+  const replanned = a.filter(x => x.decision === 'replanned');
+  const pending   = a.filter(x => !x.decision);
+  const sum = (arr, fn) => arr.reduce((n, x) => n + (Number(fn(x)) || 0), 0);
+  return {
+    id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    savedAt: Date.now(),
+    deliveryDate: targetDayISO(),
+    targetLabel: (() => {
+      try {
+        const d = new Date(targetDayISO() + 'T00:00:00');
+        return isNaN(d) ? '' : d.toLocaleDateString();
+      } catch (_) { return ''; }
+    })(),
+    kpis: {
+      clientsInScope:       (stats && stats.totalClients) || 0,
+      clientsDeliverable:   (stats && stats.totalDeliverableClients) || 0,
+      clientsOos:           (stats && stats.totalOosClients) || 0,
+      clientsAllDeclined:   (stats && stats.totalAllDeclinedClients) || 0,
+      ordersConfirmed:      confirmed.length,
+      ordersCanceled:       canceled.length,
+      ordersReplanned:      replanned.length,
+      ordersPending:        pending.length,
+      ordersOutOfStock:     a.filter(x => x.autoReplanned).length,
+      unitsOrdered:         sum(a, x => x.totalOrdered || 0),
+      unitsConfirmed:       sum(confirmed, x => x.totalDeliverable || 0),
+      unitsOutOfStock:      sum(a, x => (x.totalOrdered || 0) - (x.totalDeliverable || 0)),
+      priceTotal:           sum(a, x => x.totalPrice || 0),
+      priceConfirmedShip:   sum(confirmed, x => x.effPriceDeliverable || 0),
+      priceBlockedByStock:  sum(confirmed, x => x.effPriceOutOfStock  || 0),
+      priceCanceled:        sum(canceled,  x => x.totalPrice || 0),
+      priceReplanned:       sum(replanned, x => x.totalPrice || 0)
+    }
+  };
+}
+
+function savePlanningHistory() {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(planningHistory)); }
+  catch (_) { /* quota — ignore */ }
+  // If signed in to Supabase, mirror to the cloud so the same login on
+  // another laptop sees the same history. Failures are silent — local
+  // copy is the source of truth offline.
+  if (sb && sbUser) {
+    sbWriteKey('planning_history', planningHistory).catch(e => console.error('cloud sync failed:', e));
+  }
+}
+
+// Save (upsert) a snapshot keyed by deliveryDate so re-finishing the same
+// planning replaces, doesn't duplicate.
+function recordPlanningSnapshot(stats, allocs) {
+  if (!stats) return;
+  const snap = buildPlanningSnapshot(stats, allocs);
+  const i = planningHistory.findIndex(h => h.deliveryDate === snap.deliveryDate);
+  if (i >= 0) planningHistory[i] = snap;
+  else planningHistory.push(snap);
+  savePlanningHistory();
+}
+
+function deletePlanningSnapshot(id) {
+  planningHistory = planningHistory.filter(h => h.id !== id);
+  savePlanningHistory();
+  try { renderHistoryPage(); } catch (_) {}
+}
+
+// Filter snapshots to the active period (day / week / month / year / all).
+// The boundary is computed from "now"; e.g. day = saved within last 24h,
+// week = last 7d, month = last 31d, year = last 366d.
+function filterHistoryByPeriod(period) {
+  const now = Date.now();
+  const winMs = {
+    day:   24 * 3600 * 1000,
+    week:  7 * 24 * 3600 * 1000,
+    month: 31 * 24 * 3600 * 1000,
+    year:  366 * 24 * 3600 * 1000,
+    all:   Infinity
+  }[period] || Infinity;
+  return planningHistory.filter(h => (now - (h.savedAt || 0)) <= winMs)
+    .sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+}
+
+function renderHistoryPage() {
+  const list = document.getElementById('histList');
+  const totals = document.getElementById('histTotals');
+  const chart = document.getElementById('histChart');
+  if (!list || !totals || !chart) return;
+  const items = filterHistoryByPeriod(historyPeriod);
+
+  // Active button styling
+  document.querySelectorAll('.hist-period-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.period === historyPeriod);
+  });
+
+  if (!items.length) {
+    totals.innerHTML = '';
+    chart.innerHTML = '<div class="hist-empty">No saved plannings in this period yet. Finish a review to record one.</div>';
+    list.innerHTML = '<div class="hist-empty-state">Once you click <b>Finish review</b> and reach the Done screen, the planning is saved here automatically.</div>';
+    return;
+  }
+
+  // ---- Aggregated totals across the visible items ----
+  const sum = (fn) => items.reduce((n, h) => n + (Number(fn(h)) || 0), 0);
+  const cell = (label, value, sub) => `
+    <div class="hist-tot">
+      <div class="hist-tot-label">${escapeHtml(label)}</div>
+      <div class="hist-tot-value">${escapeHtml(value)}</div>
+      ${sub ? `<div class="hist-tot-sub">${escapeHtml(sub)}</div>` : ''}
+    </div>`;
+  const totalShip = sum(h => h.kpis.priceConfirmedShip);
+  const totalOrd  = sum(h => h.kpis.priceTotal);
+  const totalUnitsShip = sum(h => h.kpis.unitsConfirmed);
+  const totalUnitsOrd  = sum(h => h.kpis.unitsOrdered);
+  const ordersConf = sum(h => h.kpis.ordersConfirmed);
+  const ordersCanc = sum(h => h.kpis.ordersCanceled);
+  const ordersRepl = sum(h => h.kpis.ordersReplanned);
+  totals.innerHTML = [
+    cell('Plannings', items.length.toLocaleString()),
+    cell('Confirmed GMV', formatMoney(totalShip), `${totalOrd > 0 ? Math.round(100*totalShip/totalOrd) + '% of total ordered' : ''}`),
+    cell('Total ordered',  formatMoney(totalOrd)),
+    cell('Units shipped', totalUnitsShip.toLocaleString(), `${totalUnitsOrd ? Math.round(100*totalUnitsShip/totalUnitsOrd) + '% of ordered' : ''}`),
+    cell('Confirmed orders', ordersConf.toLocaleString()),
+    cell('Canceled / Replanned', `${ordersCanc.toLocaleString()} / ${ordersRepl.toLocaleString()}`)
+  ].join('');
+
+  // ---- Chart: confirmed GMV per snapshot (oldest first) ----
+  const chartData = [...items].sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0));
+  const w = 720, h = 200, pad = 30;
+  const xs = chartData.map((_, i) => pad + i * (w - 2 * pad) / Math.max(1, chartData.length - 1));
+  const ys = (() => {
+    const vals = chartData.map(h => h.kpis.priceConfirmedShip || 0);
+    const maxV = Math.max(1, ...vals);
+    return vals.map(v => h - pad - (v / maxV) * (h - 2 * pad));
+  })();
+  const points = xs.map((x, i) => `${x},${ys[i]}`).join(' ');
+  const labels = chartData.map((s, i) => `<text x="${xs[i]}" y="${h - 8}" text-anchor="middle" font-size="10" fill="#64748b">${escapeHtml(s.targetLabel || '')}</text>`).join('');
+  const dots = xs.map((x, i) => `<circle cx="${x}" cy="${ys[i]}" r="3" fill="var(--primary)" />`).join('');
+  chart.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${points}" fill="none" stroke="var(--primary)" stroke-width="2" />
+    ${dots}${labels}
+  </svg>`;
+
+  // ---- Per-run cards ----
+  list.innerHTML = items.map(h => {
+    const k = h.kpis;
+    const rate = k.unitsOrdered > 0 ? Math.round(100 * k.unitsConfirmed / k.unitsOrdered) : 0;
+    return `<div class="hist-card">
+      <div class="hist-card-head">
+        <div>
+          <div class="hist-card-date">📅 ${escapeHtml(h.targetLabel || h.deliveryDate)} <span class="hist-card-meta">· saved ${escapeHtml(new Date(h.savedAt).toLocaleString())}</span></div>
+        </div>
+        <button type="button" class="hist-card-delete" data-hist-delete="${escapeHtml(h.id)}">Delete</button>
+      </div>
+      <div class="hist-grid">
+        <div class="hist-kpi"><div class="hist-kpi-label">Clients in scope</div><div class="hist-kpi-value">${k.clientsInScope.toLocaleString()}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">Deliverable clients</div><div class="hist-kpi-value">${k.clientsDeliverable.toLocaleString()}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">All-declined</div><div class="hist-kpi-value">${k.clientsAllDeclined.toLocaleString()}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">Confirmed orders</div><div class="hist-kpi-value">${k.ordersConfirmed.toLocaleString()}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">Canceled / Replanned</div><div class="hist-kpi-value">${k.ordersCanceled} / ${k.ordersReplanned}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">Pending</div><div class="hist-kpi-value">${k.ordersPending.toLocaleString()}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">Confirmed GMV</div><div class="hist-kpi-value">${escapeHtml(formatMoney(k.priceConfirmedShip))}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">Total price</div><div class="hist-kpi-value">${escapeHtml(formatMoney(k.priceTotal))}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">Price blocked</div><div class="hist-kpi-value">${escapeHtml(formatMoney(k.priceBlockedByStock))}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">Price canceled</div><div class="hist-kpi-value">${escapeHtml(formatMoney(k.priceCanceled))}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">Units ordered</div><div class="hist-kpi-value">${k.unitsOrdered.toLocaleString()}</div></div>
+        <div class="hist-kpi"><div class="hist-kpi-label">Units shipped</div><div class="hist-kpi-value">${k.unitsConfirmed.toLocaleString()} <span class="hist-card-meta">${rate}%</span></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Period filter wiring (delegated).
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.hist-period-btn');
+  if (btn) { historyPeriod = btn.dataset.period || 'day'; renderHistoryPage(); return; }
+  const del = e.target.closest('[data-hist-delete]');
+  if (del) {
+    const id = del.dataset.histDelete;
+    if (confirm('Delete this saved planning snapshot?')) deletePlanningSnapshot(id);
+    return;
+  }
+});
+document.getElementById('histClearBtn')?.addEventListener('click', () => {
+  if (!planningHistory.length) return;
+  if (!confirm('Permanently delete EVERY saved planning snapshot? This cannot be undone.')) return;
+  planningHistory = [];
+  savePlanningHistory();
+  renderHistoryPage();
+});
+document.getElementById('histExportBtn')?.addEventListener('click', () => {
+  const items = filterHistoryByPeriod(historyPeriod);
+  if (!items.length) { alert('Nothing to export in this period.'); return; }
+  const headers = ['Delivery date','Saved at','Clients in scope','Deliverable clients','All-declined','Confirmed orders','Canceled','Replanned','Pending','Confirmed GMV','Total price','Price blocked','Price canceled','Price replanned','Units ordered','Units shipped','Units OOS'];
+  const rows = items.map(h => {
+    const k = h.kpis;
+    return [h.targetLabel || h.deliveryDate, new Date(h.savedAt).toLocaleString(),
+      k.clientsInScope, k.clientsDeliverable, k.clientsAllDeclined,
+      k.ordersConfirmed, k.ordersCanceled, k.ordersReplanned, k.ordersPending,
+      k.priceConfirmedShip, k.priceTotal, k.priceBlockedByStock, k.priceCanceled, k.priceReplanned,
+      k.unitsOrdered, k.unitsConfirmed, k.unitsOutOfStock];
+  });
+  const ws = XLSX_WRITE.utils.aoa_to_sheet([headers].concat(rows));
+  const wb = XLSX_WRITE.utils.book_new();
+  XLSX_WRITE.utils.book_append_sheet(wb, ws, 'Planning history');
+  XLSX_WRITE.writeFile(wb, `Planning_history_${historyPeriod}.xlsx`);
+});
+
 function showPage(name) {
   const nav = document.getElementById('pageNav');
   const pages = {
-    setup:  document.getElementById('page-setup'),
-    review: document.getElementById('page-review'),
-    bons:   document.getElementById('page-bons')
+    setup:   document.getElementById('page-setup'),
+    review:  document.getElementById('page-review'),
+    bons:    document.getElementById('page-bons'),
+    history: document.getElementById('page-history')
   };
   if (!nav) return;
   // Default to setup if an unknown name is passed in.
@@ -11323,6 +11835,9 @@ function showPage(name) {
   nav.querySelectorAll('.page-nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.page === target);
   });
+  if (target === 'history' && typeof renderHistoryPage === 'function') {
+    try { renderHistoryPage(); } catch (e) { console.error(e); }
+  }
   // Scroll to top so the target page opens from its start every time.
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -12832,6 +13347,24 @@ document.getElementById('awalGenerateBtn').addEventListener('click', awalGenerat
 renderDbStatus();
 buildScheduleUI();
 updateState();
+
+// Supabase auth bootstrap — restore any saved session, render the auth
+// chip, and pull cloud-stored planning history into local state if the
+// user is already signed in. Falls through silently when Supabase isn't
+// configured (the helper functions all no-op).
+(async () => {
+  try {
+    await sbInitSession();
+    renderAuthChip();
+    if (sb && sbUser) {
+      const cloud = await sbReadKey('planning_history');
+      if (Array.isArray(cloud)) {
+        planningHistory = cloud;
+        savePlanningHistory();
+      }
+    }
+  } catch (e) { console.error('Supabase init failed:', e); }
+})();
 
 // Debug-only block reveal. The "Import decisions (testing)" card is
 // hidden in production for normal users; QA / dev flips it on by
