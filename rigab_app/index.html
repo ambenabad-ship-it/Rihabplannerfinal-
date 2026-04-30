@@ -2627,6 +2627,76 @@
   .btn                             { padding: 6px 10px; font-size: 12px; }
   .btn-lg                          { padding: 9px 14px; font-size: 13px; }
 
+  /* ---------- Accessibility: visible focus rings everywhere ---------- */
+  *:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  .btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+  textarea:focus-visible, .file-drop:focus-within {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* ---------- 3-button page nav: keep readable on narrow viewports ---------- */
+  @media (max-width: 640px) {
+    .page-nav { flex-wrap: wrap; }
+    .page-nav-btn { flex: 1 0 calc(33% - 8px); justify-content: center; }
+  }
+
+  /* ---------- Smooth card transitions when collapsing/locking ---------- */
+  .card {
+    transition: opacity 180ms ease, padding 180ms ease;
+  }
+
+  /* ---------- Setup wizard: collapsed / locked card states ----------
+     Past steps collapse to a single-line summary with an Edit button.
+     Future steps lock with a reason. The active step shows expanded
+     normally. Visual cues use icon + label, never color alone. */
+  .card.collapsed { padding: 0; }
+  .card.collapsed .card-header {
+    border-bottom: none;
+    padding: 14px 18px;
+  }
+  .card.collapsed .card-title { font-size: 14px; }
+  .card.collapsed .card-body { display: none; }
+  .card.collapsed .card-summary { display: flex; }
+  .card .card-summary {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 18px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    border-top: 1px dashed var(--border-soft);
+    padding-top: 12px;
+  }
+  .card .card-summary .summary-text { display: inline-flex; align-items: center; gap: 6px; }
+  .card .card-summary .check-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--success-50); color: var(--success);
+    border: 1px solid var(--success); font-size: 11px; font-weight: 600;
+  }
+  .card .card-summary .edit-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text); padding: 4px 10px; border-radius: 6px;
+    font-size: 12px; cursor: pointer; font-weight: 500;
+  }
+  .card .card-summary .edit-btn:hover { background: var(--bg-muted); }
+
+  .card.locked { opacity: 0.55; pointer-events: none; }
+  .card.locked .card-body { position: relative; }
+  .card.locked .lock-overlay {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; margin: 8px 0;
+    background: var(--bg-muted); border: 1px dashed var(--border);
+    border-radius: 8px; color: var(--text-muted); font-size: 12px;
+  }
+  .card:not(.locked) .lock-overlay { display: none; }
+
   /* ---------- Region confirmation panel (Done screen) ---------- */
   .region-confirm-panel {
     background: var(--bg-elev); border: 1px solid var(--border);
@@ -2926,19 +2996,23 @@
   <!-- Top-level page nav: Setup vs Review live on separate pages so the
        review screen isn't competing for scroll with the upload steps. -->
   <nav class="page-nav" id="pageNav">
-    <button type="button" class="page-nav-btn active" data-page="setup">
+    <button type="button" class="page-nav-btn active" data-page="setup" title="Daily allocation pipeline: clients, schedule, orders, stock, process, export">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       <span data-i18n="page.setup">Data &amp; setup</span>
     </button>
-    <button type="button" class="page-nav-btn" data-page="review">
+    <button type="button" class="page-nav-btn" data-page="review" title="Review & confirm rep-by-rep, with the live region GMV gate">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       <span data-i18n="page.review">Review &amp; confirm</span>
+    </button>
+    <button type="button" class="page-nav-btn" data-page="bons" title="Generate Bons de Chargement & Bons de Livraison from daily delivery files">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <span>Bons</span>
     </button>
   </nav>
 
   <div class="page" id="page-setup">
   <!-- 1. Clients DB -->
-  <section class="card" id="card-clients">
+  <section class="card" id="card-clients" data-wizard-step="1">
     <div class="card-header">
       <div class="card-header-left">
         <div class="card-icon">
@@ -2973,7 +3047,7 @@
   </section>
 
   <!-- 2. Schedule -->
-  <section class="card hidden" id="card-schedule">
+  <section class="card hidden" id="card-schedule" data-wizard-step="2">
     <div class="card-header">
       <div class="card-header-left">
         <div class="card-icon">
@@ -2991,7 +3065,7 @@
   </section>
 
   <!-- 3. Orders -->
-  <section class="card" id="card-orders">
+  <section class="card" id="card-orders" data-wizard-step="3">
     <div class="card-header">
       <div class="card-header-left">
         <div class="card-icon">
@@ -3020,7 +3094,7 @@
   </section>
 
   <!-- 4. Stock -->
-  <section class="card" id="card-stock">
+  <section class="card" id="card-stock" data-wizard-step="4">
     <div class="card-header">
       <div class="card-header-left">
         <div class="card-icon">
@@ -3076,7 +3150,7 @@
   </section>
 
   <!-- 5. Process -->
-  <section class="card" id="card-process">
+  <section class="card" id="card-process" data-wizard-step="5">
     <div class="card-header">
       <div class="card-header-left">
         <div class="card-icon">
@@ -3099,7 +3173,7 @@
   </section>
 
   <!-- 6. Export -->
-  <section class="card hidden" id="card-export">
+  <section class="card hidden" id="card-export" data-wizard-step="6">
     <div class="card-header">
       <div class="card-header-left">
         <div class="card-icon">
@@ -3168,8 +3242,9 @@
     </div>
   </section>
 
-  <!-- Import decisions (testing) -->
-  <section class="card" id="card-import-decisions">
+  <!-- Import decisions (testing) — hidden by default; appears only with
+       ?debug=1 in the URL or localStorage flag rihab_debug=1. -->
+  <section class="card hidden" id="card-import-decisions">
     <div class="card-header">
       <div class="card-header-left">
         <div class="card-icon">
@@ -3228,7 +3303,10 @@
     </div>
   </section>
 
-  <!-- 7. Awal Delivery Documents -->
+  </div> <!-- /#page-setup -->
+
+  <div class="page hidden" id="page-bons">
+  <!-- Awal Delivery Documents — own page, accessible via the Bons nav button. -->
   <section class="card" id="card-awal">
     <div class="card-header">
       <div class="card-header-left">
@@ -3315,7 +3393,7 @@
 
   <div id="awalRenderHost"></div>
 
-  </div> <!-- /#page-setup -->
+  </div> <!-- /#page-bons -->
 
   <div class="page hidden" id="page-review">
   <!-- 7. Review & confirm deliveries -->
@@ -4192,7 +4270,98 @@ function updateStepper() {
       break;
     }
   }
+  updateWizard(stepsDone);
 }
+
+// Wizard collapse / lock logic for the Setup page cards. Past complete
+// steps fold into a single-line summary with Edit; future steps that
+// need a prior step done are locked with a clear reason; the active
+// step is the only one expanded. The user can still click Edit on any
+// completed step to revisit it (which un-collapses just that one).
+const wizardManualEdit = new Set(); // step numbers the user explicitly chose to edit
+function updateWizard(stepsDone) {
+  if (!stepsDone) {
+    const hasClients = Object.keys(clientsDB).length > 0;
+    const hasAnyScheduled = Object.values(schedule).some(days => days.some(Boolean));
+    stepsDone = {
+      1: hasClients,
+      2: hasClients && hasAnyScheduled,
+      3: orders.length > 0,
+      4: stock.length > 0,
+      5: processed !== null,
+      6: processed !== null
+    };
+  }
+  // Pick the active step = first not-done step.
+  let active = 6;
+  for (let s = 1; s <= 6; s++) { if (!stepsDone[s]) { active = s; break; } }
+
+  const reasons = {
+    2: 'Upload your clients database first.',
+    3: 'Tick at least one delivery day for one region first.',
+    4: 'Upload today\'s orders first.',
+    5: 'Upload today\'s stock first.',
+    6: 'Run processing first.'
+  };
+  const summaries = {
+    1: () => `<span class="check-pill">✓ Done</span><span class="summary-text">${Object.keys(clientsDB).length.toLocaleString()} client(s) saved.</span>`,
+    2: () => {
+      const n = Object.values(schedule).reduce((a, days) => a + days.filter(Boolean).length, 0);
+      return `<span class="check-pill">✓ Done</span><span class="summary-text">${n} region·day slot(s) scheduled.</span>`;
+    },
+    3: () => `<span class="check-pill">✓ Done</span><span class="summary-text">${orders.length.toLocaleString()} order row(s) loaded.</span>`,
+    4: () => `<span class="check-pill">✓ Done</span><span class="summary-text">${stock.length.toLocaleString()} stock row(s) loaded.</span>`,
+    5: () => `<span class="check-pill">✓ Done</span><span class="summary-text">Allocation ready.</span>`,
+    6: () => `<span class="check-pill">✓ Done</span><span class="summary-text">Exports available.</span>`
+  };
+
+  for (let s = 1; s <= 6; s++) {
+    const card = document.querySelector(`[data-wizard-step="${s}"]`);
+    if (!card) continue;
+    // Ensure summary slot exists.
+    let summary = card.querySelector('.card-summary');
+    if (!summary) {
+      summary = document.createElement('div');
+      summary.className = 'card-summary';
+      card.appendChild(summary);
+    }
+    // Ensure lock-overlay exists in the body.
+    const body = card.querySelector('.card-body');
+    let lock = card.querySelector('.lock-overlay');
+    if (!lock && body) {
+      lock = document.createElement('div');
+      lock.className = 'lock-overlay';
+      lock.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span class="lock-reason"></span>';
+      body.insertBefore(lock, body.firstChild);
+    }
+
+    // Clear all transient classes — start fresh each tick.
+    card.classList.remove('collapsed', 'locked');
+
+    if (stepsDone[s] && s !== active && !wizardManualEdit.has(s)) {
+      // Past step → collapsed summary.
+      card.classList.add('collapsed');
+      summary.innerHTML = `${summaries[s] ? summaries[s]() : '<span class="check-pill">✓ Done</span>'}<button class="edit-btn" type="button" data-edit-step="${s}">Edit</button>`;
+    } else if (s > active) {
+      // Future step that needs a prior step → locked with reason.
+      card.classList.add('locked');
+      const reason = card.querySelector('.lock-overlay .lock-reason');
+      if (reason) reason.textContent = reasons[s] || 'Complete the previous step first.';
+    }
+  }
+}
+
+// One-time delegate for the Edit buttons on collapsed cards.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-edit-step]');
+  if (!btn) return;
+  const step = parseInt(btn.dataset.editStep, 10);
+  if (!step) return;
+  wizardManualEdit.add(step);
+  updateWizard();
+  const card = document.querySelector(`[data-wizard-step="${step}"]`);
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 // ---------- Clients DB ----------
 function renderDbStatus() {
@@ -9403,6 +9572,10 @@ function renderReviewStage(scroll) {
           reviewState.reasons[o.key] = reason || '';
           delete reviewState.replanDates[o.key];
           delete reviewState.replanOpen[o.key];
+          // CRITICAL: clear the auto-replan flag so applyAutoReplan
+          // doesn't treat the bulk-canceled order as still-auto and
+          // wipe the user's decision back to Pending on the next render.
+          delete reviewState.autoReplanned[o.key];
         });
         delete reviewState.bulkReplanOpen[ck];
         renderReviewStage();
@@ -9486,6 +9659,11 @@ function renderReviewStage(scroll) {
           reviewState.replanDates[o.key] = val;
           reviewState.reasons[o.key] = reason || '';
           delete reviewState.replanOpen[o.key];
+          // CRITICAL: clear the auto-replan flag so applyAutoReplan
+          // doesn't keep the order tagged as still-auto. Without this,
+          // it shows the "Out of stock" pill (looks like pending) even
+          // though the user explicitly replanned it.
+          delete reviewState.autoReplanned[o.key];
         });
         delete reviewState.bulkReplanOpen[ck];
         renderReviewStage();
@@ -9920,6 +10098,10 @@ function renderReviewDone(allocs, stats) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         Download remaining stock (.xlsx)
       </button>
+      <button class="btn btn-lg" id="exportSubOrdersBtn" title="Sub-Orders file — 3 columns: partnerReference (order Code) · partnerCode (product code) · quantity (ordered − delivered, leftover per confirmed line). Sorted by order Code. Excludes fully-delivered lines.">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Download Sub-Orders file (.xlsx)
+      </button>
       <button class="btn" id="editDecisionsBtn" title="Go back to the review to change decisions you already made. Nothing is wiped.">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Edit decisions
@@ -9973,6 +10155,9 @@ function renderReviewDone(allocs, stats) {
   });
   document.getElementById('exportRemainingStockBtn')?.addEventListener('click', () => {
     exportRemainingStock(allocs);
+  });
+  document.getElementById('exportSubOrdersBtn')?.addEventListener('click', () => {
+    exportSubOrders(allocs);
   });
   // Region confirm / unconfirm — toggles reviewState.regionConfirmed and
   // re-renders the Done screen so the panel + warning + export filtering
@@ -10172,6 +10357,68 @@ function exportConfirmedDeliveries(allocs) {
   const wb = XLSX_WRITE.utils.book_new();
   XLSX_WRITE.utils.book_append_sheet(wb, ws, 'Confirmed deliveries');
   XLSX_WRITE.writeFile(wb, `Confirmed_deliveries_${tomorrowLabel()}.xlsx`);
+}
+
+// Export a "Sub-Orders" file — three columns:
+//   partnerReference (order Code) · partnerCode (product code) · quantity
+// Quantity is the LEFTOVER per line after the confirmed deliverable
+// portion ships, i.e. ordered − allocated. Lines with no leftover (fully
+// delivered) are skipped. Confirmed orders only, region-finalized only,
+// matching the gate used by the Confirmed Deliveries / Dispatch exports.
+// Rows are sorted by partnerReference (order Code) ascending. Used by a
+// downstream system that re-orders the missing portion as separate
+// sub-orders against the partner.
+function exportSubOrders(allocs) {
+  const finalizedRegions = getFinalizedRegions(allocs);
+  const confirmed = allocs.filter(a => a.decision === 'confirmed' && isAllocRegionFinalized(a, finalizedRegions));
+  if (!confirmed.length) {
+    const decisionConfirmed = allocs.filter(a => a.decision === 'confirmed').length;
+    alert(decisionConfirmed
+      ? `${decisionConfirmed} order(s) are confirmed but their region(s) haven't been region-confirmed yet.`
+      : 'No confirmed orders yet.');
+    return;
+  }
+
+  const rows = [];
+  confirmed.forEach(a => {
+    const code = a.order.orderCode || '';
+    a.lines.forEach(l => {
+      const ordered    = (typeof l.ordered === 'number' && isFinite(l.ordered)) ? l.ordered : 0;
+      const allocated  = (typeof l.allocated === 'number' && isFinite(l.allocated)) ? l.allocated : 0;
+      const remaining  = Math.max(0, ordered - allocated);
+      if (remaining <= 0) return; // fully delivered → skip
+      rows.push({
+        partnerReference: code,
+        partnerCode: l.prodCode || '',
+        quantity: remaining
+      });
+    });
+  });
+
+  if (!rows.length) {
+    alert('No remaining quantities to export — every confirmed order is fully deliverable.');
+    return;
+  }
+
+  rows.sort((a, b) => String(a.partnerReference).localeCompare(String(b.partnerReference)));
+
+  const headers = ['partnerReference', 'partnerCode', 'quantity'];
+  const aoa = [headers].concat(rows.map(r => headers.map(h => r[h])));
+  const ws = XLSX_WRITE.utils.aoa_to_sheet(aoa);
+  const headerStyle = {
+    font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+    fill: { patternType: 'solid', fgColor: { rgb: '0F172A' } },
+    alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+  };
+  headers.forEach((h, c) => {
+    const ref = XLSX_WRITE.utils.encode_cell({ r: 0, c });
+    if (ws[ref]) ws[ref].s = headerStyle;
+  });
+  ws['!cols'] = [{ wch: 18 }, { wch: 14 }, { wch: 12 }];
+  ws['!rows'] = [{ hpt: 26 }];
+  const wb = XLSX_WRITE.utils.book_new();
+  XLSX_WRITE.utils.book_append_sheet(wb, ws, 'Sub-Orders');
+  XLSX_WRITE.writeFile(wb, `Sub_Orders_${tomorrowLabel()}.xlsx`);
 }
 
 // Export a "Remaining Stock" file — same column layout as the user's
@@ -10751,18 +10998,21 @@ function exportDeliveryReport(allocs) {
 // UI just calls showPage('review') instead of manipulating visibility.
 function showPage(name) {
   const nav = document.getElementById('pageNav');
-  const pSetup = document.getElementById('page-setup');
-  const pReview = document.getElementById('page-review');
-  if (!nav || !pSetup || !pReview) return;
-  if (name === 'review') {
-    pSetup.classList.add('hidden');
-    pReview.classList.remove('hidden');
-  } else {
-    pReview.classList.add('hidden');
-    pSetup.classList.remove('hidden');
-  }
+  const pages = {
+    setup:  document.getElementById('page-setup'),
+    review: document.getElementById('page-review'),
+    bons:   document.getElementById('page-bons')
+  };
+  if (!nav) return;
+  // Default to setup if an unknown name is passed in.
+  const target = pages[name] ? name : 'setup';
+  Object.entries(pages).forEach(([key, el]) => {
+    if (!el) return;
+    if (key === target) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+  });
   nav.querySelectorAll('.page-nav-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.page === name);
+    btn.classList.toggle('active', btn.dataset.page === target);
   });
   // Scroll to top so the target page opens from its start every time.
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -12273,6 +12523,21 @@ document.getElementById('awalGenerateBtn').addEventListener('click', awalGenerat
 renderDbStatus();
 buildScheduleUI();
 updateState();
+
+// Debug-only block reveal. The "Import decisions (testing)" card is
+// hidden in production for normal users; QA / dev flips it on by
+// appending ?debug=1 to the URL or by setting localStorage.rihab_debug=1.
+(() => {
+  let debug = false;
+  try {
+    if (/[?&]debug=1\b/.test(location.search || '')) debug = true;
+    if (localStorage.getItem('rihab_debug') === '1') debug = true;
+  } catch (_) {}
+  if (debug) {
+    const card = document.getElementById('card-import-decisions');
+    if (card) card.classList.remove('hidden');
+  }
+})();
 
 // Full-state restore: pull saved orders + stock back from localStorage,
 // then re-run doProcess so the Review pipeline (allocations, decisions,
