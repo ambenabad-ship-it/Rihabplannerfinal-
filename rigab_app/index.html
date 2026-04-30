@@ -12324,7 +12324,32 @@ updateState();
       setSummary('awalCatalogSummary', `Restored <b>${awalArticlesLookup.size}</b> product(s) from your previous session.`, 'info');
     }
     const savedLogo = await awalGetMeta('logo_data_url');
-    if (savedLogo) awalLogoDataUrl = savedLogo;
+    if (savedLogo) {
+      awalLogoDataUrl = savedLogo;
+    } else {
+      // No user-uploaded logo yet → try to auto-load a logo image from
+      // the app folder. We try a few common filenames so the user can
+      // drop in whichever they have. First hit wins. If every fetch
+      // fails (file:// CORS, file missing, …) we silently fall back to
+      // the inline SVG default.
+      const candidates = ['./Logo.jpeg', './Logo.jpg', './logo.jpeg', './logo.jpg', './zlogo.jpg', './zlogo.jpeg', './Logo.png', './logo.png'];
+      for (const url of candidates) {
+        try {
+          const r = await fetch(url, { cache: 'force-cache' });
+          if (!r.ok) continue;
+          const blob = await r.blob();
+          const dataUrl = await new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload  = () => resolve(fr.result);
+            fr.onerror = reject;
+            fr.readAsDataURL(blob);
+          });
+          awalLogoDataUrl = dataUrl;
+          try { await awalSaveMeta('logo_data_url', dataUrl); } catch (e) { /* skip */ }
+          break;
+        } catch (e) { /* try next candidate */ }
+      }
+    }
     // Restore the day-specific files too. Catalog is the heavyweight one
     // and lives in its own IndexedDB store; dispatchers/confirmed/delivery
     // date are small enough to ride along in the meta store.
