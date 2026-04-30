@@ -597,6 +597,7 @@
     letter-spacing: 0.04em;
   }
   .schedule th.day, .schedule td.day { text-align: center; min-width: 36px; }
+  .schedule th.min-gmv, .schedule td.min-gmv { text-align: right; min-width: 110px; padding-right: 12px; }
   .schedule th:first-child { border-top-left-radius: var(--radius-sm); }
   .schedule th:last-child { border-top-right-radius: var(--radius-sm); }
   .schedule tbody tr:hover td { background: var(--bg-muted); }
@@ -1628,6 +1629,7 @@
     border: 1px solid #d97706;
   }
   .rvt-vip-pill.order { background: #fde68a; }
+  .rvt-vip-pill.rep   { background: #fef3c7; border-color: #b45309; color: #78350f; }
   .rvt-vip-remove {
     border: none; background: transparent;
     color: #7c2d12; font-weight: 700; font-size: 13px;
@@ -1636,6 +1638,21 @@
     line-height: 1;
   }
   .rvt-vip-remove:hover { color: #450a0a; }
+  .rvt-vip-rank {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 16px; padding: 0 5px;
+    background: #7c2d12; color: #fff;
+    border-radius: 8px; font-size: 10px; font-weight: 700;
+    margin-right: 2px;
+  }
+  .rvt-vip-move {
+    border: none; background: transparent;
+    color: #7c2d12; font-size: 9px; font-weight: 700;
+    cursor: pointer; padding: 0 2px;
+    line-height: 1;
+  }
+  .rvt-vip-move:hover { color: #450a0a; background: rgba(124,45,18,0.08); border-radius: 3px; }
+  .rvt-vip-move:disabled { opacity: 0.3; cursor: not-allowed; }
   .rvt-vip-clear-all {
     flex: 0 0 auto;
     padding: 5px 10px;
@@ -2610,6 +2627,38 @@
   .btn                             { padding: 6px 10px; font-size: 12px; }
   .btn-lg                          { padding: 9px 14px; font-size: 13px; }
 
+  /* ---------- Region confirmation panel (Done screen) ---------- */
+  .region-confirm-panel {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 14px;
+  }
+  .rcp-header { margin-bottom: 10px; }
+  .rcp-title { font-weight: 700; font-size: 14px; color: var(--text); }
+  .rcp-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
+  .rcp-table-wrap { overflow-x: auto; }
+  .rcp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rcp-table th {
+    text-align: left; padding: 8px 10px; font-weight: 600;
+    color: var(--text-muted); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .04em; background: var(--bg-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .rcp-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+  .rcp-table tr:last-child td { border-bottom: 0; }
+  .rcp-table .rcp-num { text-align: right; font-variant-numeric: tabular-nums; }
+  .rcp-row.confirmed { background: var(--success-50); }
+  .rcp-row.below:not(.confirmed) { background: #fffbeb; }
+  .rcp-region { font-weight: 600; }
+  .rcp-actions { text-align: right; }
+  .rcp-pill {
+    display: inline-flex; align-items: center;
+    padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .rcp-pill.confirmed { background: var(--success-50); color: var(--success); border-color: var(--success); }
+  .rcp-pill.below     { background: #fef3c7; color: #b45309; border-color: #f59e0b; }
+  .rcp-pill.pending   { background: var(--bg-muted); color: var(--text-soft); border-color: var(--border); }
+
   /* ---------- Awal Delivery Documents card ---------- */
   .awal-cat-banner {
     display: flex; align-items: center; gap: 10px; padding: 12px 14px;
@@ -2995,6 +3044,34 @@
         <input type="file" id="stockFile" accept=".xlsx,.xls">
       </label>
       <div id="stockSummary"></div>
+
+      <!-- In-flight chargement files. These represent stock that has
+           already been loaded onto outgoing trucks but isn't yet reflected
+           in the stock file. The app sums quantities per product code
+           across every uploaded file and subtracts them from the stock
+           before allocation, so we never double-allocate physically gone
+           inventory. Multiple files supported; drop them all in. -->
+      <label class="file-drop" id="chargementInflightDrop" style="margin-top:8px;">
+        <div class="file-drop-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </div>
+        <div class="file-drop-text">
+          <div class="file-drop-title">Upload in-flight chargement files (optional)</div>
+          <div class="file-drop-hint">Excel/CSV with at least Product code and Quantity columns. Quantities are subtracted from stock before allocation. Drop multiple files — they accumulate.</div>
+        </div>
+        <input type="file" id="chargementInflightFile" accept=".xlsx,.xls,.csv" multiple>
+      </label>
+      <div id="chargementInflightSummary"></div>
+      <div class="toolbar" style="margin-top:6px; gap:8px;">
+        <button id="chargementInflightTemplateBtn" class="btn" type="button" title="Download a blank Excel template with the right columns. Fill it in, save, then drop it back into the upload area above.">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download template
+        </button>
+        <button id="chargementInflightClearBtn" class="btn btn-danger" type="button" style="display:none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          Clear in-flight chargements
+        </button>
+      </div>
     </div>
   </section>
 
@@ -3088,6 +3165,66 @@
         <span style="display:inline-block;width:10px;height:10px;background:#FDE2E2;border:1px solid #991B1B;vertical-align:middle;border-radius:2px;"></span>
         &nbsp;Rows in red = product(s) that cannot be fully delivered due to insufficient stock.
       </div>
+    </div>
+  </section>
+
+  <!-- Import decisions (testing) -->
+  <section class="card" id="card-import-decisions">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div>
+          <div class="card-title">Import decisions (testing)</div>
+          <div class="card-subtitle">Upload Confirmed / Canceled / Replanned exports → jump to Review with decisions pre-applied</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p class="muted" style="margin:0 0 12px;font-size:12px;line-height:1.6;">
+        Use this to test the Done screen with a known set of decisions. Run cards 1–5 first (clients + orders + stock + Process), then drop any combination of these export files. Order Codes must match the orders you just processed.
+      </p>
+      <label class="file-drop" id="importConfirmedDrop">
+        <div class="file-drop-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <div class="file-drop-text">
+          <div class="file-drop-title">Confirmed deliveries (.xlsx)</div>
+          <div class="file-drop-hint">From "Download confirmed deliveries"</div>
+        </div>
+        <input type="file" id="importConfirmedFile" accept=".xlsx,.xls">
+      </label>
+      <div id="importConfirmedSummary"></div>
+
+      <label class="file-drop" id="importCanceledDrop" style="margin-top:8px;">
+        <div class="file-drop-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+        <div class="file-drop-text">
+          <div class="file-drop-title">Canceled orders (.xlsx)</div>
+          <div class="file-drop-hint">From "Download canceled orders"</div>
+        </div>
+        <input type="file" id="importCanceledFile" accept=".xlsx,.xls">
+      </label>
+      <div id="importCanceledSummary"></div>
+
+      <label class="file-drop" id="importReplannedDrop" style="margin-top:8px;">
+        <div class="file-drop-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div class="file-drop-text">
+          <div class="file-drop-title">Replanned orders (.xlsx)</div>
+          <div class="file-drop-hint">From "Download replanned orders" — "New Delivery Date" column will be applied</div>
+        </div>
+        <input type="file" id="importReplannedFile" accept=".xlsx,.xls">
+      </label>
+      <div id="importReplannedSummary"></div>
+
+      <div class="toolbar" style="margin-top:14px;">
+        <button id="importApplyBtn" class="btn btn-primary btn-lg">Apply decisions &amp; open Review</button>
+      </div>
+      <div id="importApplyResult"></div>
     </div>
   </section>
 
@@ -3239,6 +3376,9 @@ const WHOLESALER_CHANNEL = 'Z_WHOLESALER';
 const SCHEDULE_KEY = 'rihab_delivery_schedule_v1';
 const CLIENTS_KEY = 'rihab_clients_db_v1';
 const REVIEW_STATE_KEY = 'rihab_review_state_v1';
+// Per-region minimum van GMV target — number, defaults to 0 (no target).
+// Stored separately from schedule so we don't reshape the schedule object.
+const REGION_MIN_GMV_KEY = 'rihab_region_min_gmv_v1';
 const CURRENCY_KEY = 'rihab_currency_v1';
 const TARGET_DAY_KEY = 'rihab_target_day_v1';
 const ALL_DAYS_KEY   = 'rihab_all_days_v1';
@@ -3678,6 +3818,8 @@ function saveJSON(k, v) {
 }
 schedule = loadJSON(SCHEDULE_KEY) || {};
 clientsDB = loadJSON(CLIENTS_KEY) || {};
+// Per-region minimum van GMV map — { regionName: number }. 0 / missing = no target.
+let regionMinGmv = loadJSON(REGION_MIN_GMV_KEY) || {};
 
 // ---------- Helpers ----------
 // Format a Date as YYYY-MM-DD in LOCAL time. Don't use toISOString() — it
@@ -4234,6 +4376,10 @@ function buildScheduleUI() {
   for (let i = 0; i < 7; i++) {
     html += `<th class="day">${t('day.short.' + i)}</th>`;
   }
+  // New column: minimum van GMV target per region. Used by the review's
+  // region-confirmation panel to flag regions whose confirmed deliverable
+  // GMV hasn't reached the target.
+  html += `<th class="min-gmv" title="Minimum van GMV target for a delivery to this region. Used by the Region confirmation panel during review.">Min van GMV</th>`;
   html += '</tr></thead><tbody>';
   regions.forEach(r => {
     html += `<tr><td>${escapeHtml(r)}</td>`;
@@ -4241,6 +4387,8 @@ function buildScheduleUI() {
       const checked = schedule[r][i] ? 'checked' : '';
       html += `<td class="day"><input type="checkbox" data-region="${encodeURIComponent(r)}" data-day="${i}" ${checked}></td>`;
     }
+    const gmv = (typeof regionMinGmv[r] === 'number' && isFinite(regionMinGmv[r])) ? regionMinGmv[r] : 0;
+    html += `<td class="min-gmv"><input type="number" min="0" step="any" class="schedule-min-gmv" data-region="${encodeURIComponent(r)}" value="${gmv}" placeholder="0" style="width:100px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font:inherit;text-align:right;"></td>`;
     html += '</tr>';
   });
   html += '</tbody></table>';
@@ -4253,6 +4401,14 @@ function buildScheduleUI() {
       schedule[r][d] = e.target.checked;
       saveJSON(SCHEDULE_KEY, schedule);
       updateStepper();
+    });
+  });
+  document.querySelectorAll('#scheduleContainer input.schedule-min-gmv').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const r = decodeURIComponent(e.target.dataset.region);
+      const v = parseFloat(e.target.value);
+      regionMinGmv[r] = isFinite(v) && v > 0 ? v : 0;
+      saveJSON(REGION_MIN_GMV_KEY, regionMinGmv);
     });
   });
 }
@@ -4451,6 +4607,155 @@ document.getElementById('stockFile').addEventListener('change', async e => {
   } catch (err) { setSummary('stockSummary', 'Error: ' + escapeHtml(err.message), 'danger'); }
 });
 
+// ---------- In-flight chargement (subtract from stock) ----------
+// Persisted across reloads so the user doesn't have to re-upload every
+// time. Stored as a plain object: { code: totalQty }. Files don't need
+// to be retained — only the aggregated map.
+const INFLIGHT_KEY = 'rihab_inflight_chargement_v1';
+let inflightChargement = loadJSON(INFLIGHT_KEY) || {};
+
+function inflightSummary() {
+  const codes = Object.keys(inflightChargement).filter(c => (inflightChargement[c] || 0) > 0);
+  const totalQty = codes.reduce((n, c) => n + (inflightChargement[c] || 0), 0);
+  const clearBtn = document.getElementById('chargementInflightClearBtn');
+  if (!codes.length) {
+    setSummary('chargementInflightSummary', '', null);
+    if (clearBtn) clearBtn.style.display = 'none';
+    return;
+  }
+  setSummary('chargementInflightSummary',
+    `Subtracting <b>${totalQty.toLocaleString()}</b> unit(s) across <b>${codes.length}</b> product(s) from stock before allocation.`,
+    'info');
+  if (clearBtn) clearBtn.style.display = '';
+}
+
+async function readInflightFile(file) {
+  let rows;
+  if (/\.csv$/i.test(file.name)) {
+    // Tiny CSV parser — handles quoted fields with commas.
+    const text = await file.text();
+    const lines = String(text).split(/\r?\n/).filter(l => l.length > 0);
+    if (!lines.length) return [];
+    const split = (line) => {
+      const out = []; let cur = '', inq = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (inq) {
+          if (c === '"' && line[i+1] === '"') { cur += '"'; i++; }
+          else if (c === '"') inq = false;
+          else cur += c;
+        } else {
+          if (c === ',') { out.push(cur); cur = ''; }
+          else if (c === '"') inq = true;
+          else cur += c;
+        }
+      }
+      out.push(cur);
+      return out;
+    };
+    const headers = split(lines[0]).map(h => h.trim());
+    rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cells = split(lines[i]);
+      if (cells.every(c => !String(c).trim())) continue;
+      const obj = {};
+      headers.forEach((h, j) => { obj[h] = cells[j] != null ? String(cells[j]).trim() : ''; });
+      rows.push(obj);
+    }
+  } else {
+    rows = await readXlsx(file);
+  }
+  return rows;
+}
+
+document.getElementById('chargementInflightFile').addEventListener('change', async e => {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  const perFile = [];
+  let added = 0, fileSkipped = 0;
+  for (const f of files) {
+    try {
+      const rows = await readInflightFile(f);
+      if (!rows.length) { perFile.push(`<b>${escapeHtml(f.name)}</b>: empty`); fileSkipped++; continue; }
+      // Tolerant column detection. Accept whatever the user happened to
+      // export — Confirmed Deliveries has "Deliverable Qty", a chargement
+      // pull-list might have "Quantity" or "Qty".
+      const cCode = findCol(rows[0], ['Product code','ProductCode','Code','المرجع','Reference']);
+      const cQty  = findCol(rows[0], ['Deliverable Qty','Allocated','Quantity','Qty','Ordered Qty','الكمية']);
+      if (!cCode || !cQty) {
+        perFile.push(`<b>${escapeHtml(f.name)}</b>: skipped (no Product code or Quantity column)`);
+        fileSkipped++; continue;
+      }
+      let n = 0;
+      rows.forEach(r => {
+        const code = String(r[cCode] || '').trim();
+        const qty = parseFloat(r[cQty]);
+        if (!code || !isFinite(qty) || qty <= 0) return;
+        inflightChargement[code] = (inflightChargement[code] || 0) + qty;
+        n++;
+      });
+      added += n;
+      perFile.push(`<b>${escapeHtml(f.name)}</b>: ${n} line(s) added`);
+    } catch (err) {
+      perFile.push(`<b>${escapeHtml(f.name)}</b>: ${escapeHtml(err.message)}`);
+      fileSkipped++;
+    }
+  }
+  saveJSON(INFLIGHT_KEY, inflightChargement);
+  inflightSummary();
+  setFileDropState('chargementInflightDrop', Object.keys(inflightChargement).length > 0);
+  e.target.value = '';
+  if (perFile.length) {
+    const cur = document.getElementById('chargementInflightSummary');
+    if (cur) cur.innerHTML += `<div style="margin-top:6px;font-size:11px;line-height:1.7;">${perFile.join('<br>')}</div>`;
+  }
+});
+
+document.getElementById('chargementInflightClearBtn').addEventListener('click', () => {
+  if (!Object.keys(inflightChargement).length) return;
+  if (!confirm('Clear all in-flight chargement data?')) return;
+  inflightChargement = {};
+  saveJSON(INFLIGHT_KEY, inflightChargement);
+  inflightSummary();
+  setFileDropState('chargementInflightDrop', false);
+});
+
+// Generate a blank in-flight chargement template the user can download,
+// fill in (one row per product code + quantity that's already on a truck),
+// and upload back. Two example rows are placeholders; the upload parser
+// ignores lines whose Product code or Quantity is missing/zero, so they
+// won't interfere if the user leaves them in.
+document.getElementById('chargementInflightTemplateBtn').addEventListener('click', () => {
+  const headers = ['Product code', 'Quantity', 'Notes (optional)'];
+  const aoa = [
+    headers,
+    ['ART01975', 12, 'example — overwrite me'],
+    ['ART03330', 6, ''],
+    ['', '', ''],
+    ['', '', ''],
+    ['', '', '']
+  ];
+  const ws = XLSX_WRITE.utils.aoa_to_sheet(aoa);
+  const headerStyle = {
+    font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+    fill: { patternType: 'solid', fgColor: { rgb: '0284C7' } },
+    alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+  };
+  headers.forEach((h, c) => {
+    const ref = XLSX_WRITE.utils.encode_cell({ r: 0, c });
+    if (ws[ref]) ws[ref].s = headerStyle;
+  });
+  ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 36 }];
+  ws['!rows'] = [{ hpt: 26 }];
+  const wb = XLSX_WRITE.utils.book_new();
+  XLSX_WRITE.utils.book_append_sheet(wb, ws, 'In-flight chargement');
+  XLSX_WRITE.writeFile(wb, 'In_flight_chargement_template.xlsx');
+});
+
+// Restore on init.
+inflightSummary();
+if (Object.keys(inflightChargement).length) setFileDropState('chargementInflightDrop', true);
+
 // ---------- Process ----------
 document.getElementById('processBtn').addEventListener('click', () => {
   try {
@@ -4523,6 +4828,20 @@ function doProcess() {
       initialStock.set(code, (initialStock.get(code) || 0) + q);
     }
   });
+  // Subtract in-flight chargements: stock that's already loaded onto
+  // outgoing trucks but not yet reflected in the uploaded stock file.
+  // Without this deduction, allocation would commit physically-gone units
+  // a second time. Clamp to 0 so a chargement bigger than the on-hand
+  // figure (data-quality issue, but possible) doesn't go negative and
+  // disrupt the allocation pipeline.
+  if (inflightChargement && typeof inflightChargement === 'object') {
+    Object.keys(inflightChargement).forEach(code => {
+      const subtract = parseFloat(inflightChargement[code]);
+      if (!code || !isFinite(subtract) || subtract <= 0) return;
+      const cur = initialStock.get(code) || 0;
+      initialStock.set(code, Math.max(0, cur - subtract));
+    });
+  }
   const stockMap = new Map(initialStock);
 
   // Filter + build per-order diagnostics
@@ -5189,8 +5508,16 @@ const reviewState = {
   // claim stock BEFORE the normal FIFO pass runs. A VIP client's phone
   // implies all of that client's orders are VIP; a VIP order key covers
   // just that single order.
-  vipClientPhones: {},       // normalizedPhone -> true
-  vipOrderKeys: {},          // orderKey -> true
+  vipClientPhones: {},       // normalizedPhone -> true (fast lookup)
+  vipOrderKeys: {},          // orderKey -> true (fast lookup)
+  // Sales reps marked as VIP — every order whose salesRep matches gets
+  // VIP priority. Map keyed by rep name. Tag a rep when you want their
+  // whole route to clear stock first.
+  vipReps: {},               // repName -> true (fast lookup)
+  // Ordered priority list of VIP entries: [{ type:'client'|'order'|'rep', key }].
+  // Allocation walks this list in order — first VIP first served. Reorder
+  // via the ↑↓ buttons on each pill. Kept in sync with the maps above.
+  vipOrder: [],
   vipSearchQuery: '',        // current text typed into the VIP search input
   vipSearchOpen: false,      // dropdown visibility
   // HC (Higher Confirmation) selection — session-only. HC orders/clients
@@ -5206,7 +5533,13 @@ const reviewState = {
   selectedOrderKeys: {},
   bulkReplanDateOpen: false,  // true when the bulk-bar replan date input is visible
   currentIndex: 0,
-  started: false
+  started: false,
+  // Per-region final confirmation. A region must be region-confirmed before
+  // its order-level "confirmed" decisions are treated as final. Without
+  // region confirmation, the Done screen highlights those orders and asks
+  // the user to either confirm the region or change the orders' decisions.
+  // Map: { regionName: true }.
+  regionConfirmed: {}
 };
 
 function resetReviewUI() {
@@ -5223,6 +5556,8 @@ function resetReviewUI() {
   reviewState.autoReplanned = {};
   reviewState.vipClientPhones = {};
   reviewState.vipOrderKeys = {};
+  reviewState.vipReps = {};
+  reviewState.vipOrder = [];
   reviewState.vipSearchQuery = '';
   reviewState.vipSearchOpen = false;
   reviewState.hcClientPhones = {};
@@ -5234,6 +5569,7 @@ function resetReviewUI() {
   reviewState.currentIndex = 0;
   reviewState.started = false;
   reviewState.userFinished = false;
+  reviewState.regionConfirmed = {};
   try { localStorage.removeItem(REVIEW_STATE_KEY); } catch (e) {}
   const startEl = document.getElementById('reviewStart');
   const stageEl = document.getElementById('reviewStage');
@@ -5263,7 +5599,8 @@ function saveReviewState() {
       autoReplanned:  reviewState.autoReplanned,
       currentIndex:   reviewState.currentIndex,
       started:        reviewState.started,
-      userFinished:   reviewState.userFinished
+      userFinished:   reviewState.userFinished,
+      regionConfirmed: reviewState.regionConfirmed
     };
     localStorage.setItem(REVIEW_STATE_KEY, JSON.stringify(payload));
   } catch (e) { /* quota exceeded etc — silently ignore */ }
@@ -5299,6 +5636,7 @@ function maybeOfferRestore() {
     reviewState.currentIndex   = saved.currentIndex || 0;
     reviewState.started        = !!saved.started;
     reviewState.userFinished   = !!saved.userFinished;
+    reviewState.regionConfirmed = saved.regionConfirmed || {};
     if (reviewState.started) {
       document.getElementById('reviewStart').classList.add('hidden');
       document.getElementById('reviewStage').classList.remove('hidden');
@@ -5417,6 +5755,8 @@ function computeReviewAllocations() {
     if (reviewState.vipOrderKeys[a.order.key]) return true;
     const ph = a.order.clientPhone;
     if (ph && reviewState.vipClientPhones[ph]) return true;
+    const rep = a.order.salesRep;
+    if (rep && reviewState.vipReps && reviewState.vipReps[rep]) return true;
     return false;
   };
 
@@ -5445,7 +5785,40 @@ function computeReviewAllocations() {
     //   Phase 2: Whatever stock is left goes FIFO (oldest order date
     //            across the remaining non-satisfied non-VIP clients) so
     //            stock isn't wasted. Those clients show up below 80%.
-    allocs.forEach(a => { if (!isExcluded(a) && isVip(a)) doAllocate(a); });
+    // VIPs first, walked in user-defined priority order (vipOrder).
+    {
+      const allocatedV = new Set();
+      const allocOnce = (a) => {
+        if (!a || allocatedV.has(a) || isExcluded(a)) return;
+        allocatedV.add(a);
+        doAllocate(a);
+      };
+      (reviewState.vipOrder || []).forEach(entry => {
+        if (entry.type === 'client') {
+          allocs
+            .filter(a => a.order.clientPhone === entry.key)
+            .sort((x, y) => {
+              const tx = x.order.orderDateObj ? x.order.orderDateObj.getTime() : Infinity;
+              const ty = y.order.orderDateObj ? y.order.orderDateObj.getTime() : Infinity;
+              return tx - ty;
+            })
+            .forEach(allocOnce);
+        } else if (entry.type === 'rep') {
+          allocs
+            .filter(a => a.order.salesRep === entry.key)
+            .sort((x, y) => {
+              const tx = x.order.orderDateObj ? x.order.orderDateObj.getTime() : Infinity;
+              const ty = y.order.orderDateObj ? y.order.orderDateObj.getTime() : Infinity;
+              return tx - ty;
+            })
+            .forEach(allocOnce);
+        } else if (entry.type === 'order') {
+          allocOnce(allocs.find(a => a.order.key === entry.key));
+        }
+      });
+      // Defensive — any VIP not in vipOrder gets served next, in array order.
+      allocs.forEach(a => { if (!allocatedV.has(a) && !isExcluded(a) && isVip(a)) allocOnce(a); });
+    }
 
     const byClient = new Map();
     allocs.forEach(a => {
@@ -5454,12 +5827,16 @@ function computeReviewAllocations() {
       if (!byClient.has(ph)) {
         byClient.set(ph, {
           allocs: [], totalOrdered: 0, minDate: Infinity,
-          demand: new Map()
+          gmv: 0, demand: new Map()
         });
       }
       const e = byClient.get(ph);
       e.allocs.push(a);
       e.totalOrdered += a.totalOrdered;
+      // GMV = sum of ordered-line prices for this client. Used as the
+      // greedy tie-key (highest GMV first) so we maximize total revenue
+      // while only picking clients we can serve in full.
+      a.lines.forEach(l => { e.gmv += parsePrice(l.priceTotal); });
       const t = a.order.orderDateObj ? a.order.orderDateObj.getTime() : Infinity;
       if (t < e.minDate) e.minDate = t;
       a.lines.forEach(l => {
@@ -5486,17 +5863,22 @@ function computeReviewAllocations() {
       c.allocs.forEach(doAllocate);
     };
 
+    // Greedy max-GMV-first 100% rule: each round, pick the highest-GMV
+    // client whose ENTIRE demand still fits in the current stock pool
+    // (i.e. achievableMax(c) === c.totalOrdered). Allocate them fully,
+    // deduct, repeat. Tie-break by oldest order date.
     const satisfied = new Set();
     while (true) {
-      let bestKey = null, bestSize = Infinity, bestDate = Infinity;
+      let bestKey = null, bestGmv = -1, bestDate = Infinity;
       for (const [key, c] of byClient) {
         if (satisfied.has(key)) continue;
         if (c.totalOrdered <= 0) continue;
-        if (achievableMax(c) < 0.80 * c.totalOrdered) continue;
-        if (c.totalOrdered < bestSize ||
-            (c.totalOrdered === bestSize && c.minDate < bestDate)) {
+        // 100% feasibility check — every product must be fully covered.
+        if (achievableMax(c) < c.totalOrdered) continue;
+        if (c.gmv > bestGmv ||
+            (c.gmv === bestGmv && c.minDate < bestDate)) {
           bestKey = key;
-          bestSize = c.totalOrdered;
+          bestGmv = c.gmv;
           bestDate = c.minDate;
         }
       }
@@ -5516,17 +5898,147 @@ function computeReviewAllocations() {
       return tx - ty;
     });
     leftoverAllocs.forEach(doAllocate);
+  } else if (reviewState.distributeMode === 'order' && reviewState.maxDispatchEnabled) {
+    // ----- MAX DISPATCH (per-order optimization) -----
+    // Goal: maximize total deliverable GMV by serving orders 100% in
+    // descending GMV order. Greedy: each round we pick the highest-GMV
+    // remaining order whose ENTIRE demand fits in current stock; allocate
+    // it fully; deduct; repeat. Orders we can't fully serve get whatever
+    // FIFO leftover is left (Phase 2) — no partial picks during Phase 1.
+    //
+    //   Phase 0 — VIPs allocated first, in user-defined vipOrder priority
+    //             (matches the default-mode VIP semantics).
+    //   Phase 1 — Greedy max-GMV-first 100% loop over remaining non-VIPs.
+    //   Phase 2 — Leftover stock to still-pending orders, FIFO by date.
+    {
+      const allocatedV = new Set();
+      const allocOnce = (a) => {
+        if (!a || allocatedV.has(a) || isExcluded(a)) return;
+        allocatedV.add(a);
+        doAllocate(a);
+      };
+      (reviewState.vipOrder || []).forEach(entry => {
+        if (entry.type === 'client') {
+          allocs
+            .filter(a => a.order.clientPhone === entry.key)
+            .sort((x, y) => {
+              const tx = x.order.orderDateObj ? x.order.orderDateObj.getTime() : Infinity;
+              const ty = y.order.orderDateObj ? y.order.orderDateObj.getTime() : Infinity;
+              return tx - ty;
+            })
+            .forEach(allocOnce);
+        } else if (entry.type === 'rep') {
+          allocs
+            .filter(a => a.order.salesRep === entry.key)
+            .sort((x, y) => {
+              const tx = x.order.orderDateObj ? x.order.orderDateObj.getTime() : Infinity;
+              const ty = y.order.orderDateObj ? y.order.orderDateObj.getTime() : Infinity;
+              return tx - ty;
+            })
+            .forEach(allocOnce);
+        } else if (entry.type === 'order') {
+          allocOnce(allocs.find(a => a.order.key === entry.key));
+        }
+      });
+      allocs.forEach(a => { if (!allocatedV.has(a) && !isExcluded(a) && isVip(a)) allocOnce(a); });
+    }
+
+    // Pool of orders we'll greedily pick from. Precompute each order's GMV
+    // (sum of line priceTotals) once so the inner loop is O(N) per round.
+    const pool = allocs.filter(a => !isExcluded(a) && !isVip(a) && a.totalOrdered > 0);
+    const gmvOf = new Map();
+    pool.forEach(a => {
+      let g = 0;
+      a.lines.forEach(l => { g += parsePrice(l.priceTotal); });
+      gmvOf.set(a, g);
+    });
+
+    // Per-order achievable max with current stock map.
+    const achievable = (a) => {
+      let max = 0;
+      a.lines.forEach(l => {
+        if (!l.prodCode || !(l.ordered > 0)) return;
+        const avail = stock.get(l.prodCode) || 0;
+        max += Math.min(l.ordered, avail);
+      });
+      return max;
+    };
+
+    const satisfied = new Set();
+    while (true) {
+      let best = null, bestGmv = -1, bestDate = Infinity;
+      for (const a of pool) {
+        if (satisfied.has(a)) continue;
+        // 100% feasibility — every product must be fully available.
+        if (achievable(a) < a.totalOrdered) continue;
+        const g = gmvOf.get(a) || 0;
+        const t = a.order.orderDateObj ? a.order.orderDateObj.getTime() : Infinity;
+        if (g > bestGmv || (g === bestGmv && t < bestDate)) {
+          best = a; bestGmv = g; bestDate = t;
+        }
+      }
+      if (!best) break;
+      doAllocate(best);
+      satisfied.add(best);
+    }
+
+    // Phase 2 — FIFO leftover so unfeasible orders still get partial fills.
+    const leftover = pool.filter(a => !satisfied.has(a));
+    leftover.sort((x, y) => {
+      const tx = x.order.orderDateObj ? x.order.orderDateObj.getTime() : Infinity;
+      const ty = y.order.orderDateObj ? y.order.orderDateObj.getTime() : Infinity;
+      return tx - ty;
+    });
+    leftover.forEach(doAllocate);
   } else {
-    // ----- Default: per-order FIFO (VIP first, then by order date) -----
+    // ----- Default: per-order FIFO (VIP first by user-defined priority, then by date) -----
     // The "By client" display toggle alone does NOT change allocation —
     // it only regroups the existing per-order distribution visually.
     //
-    // Pass V — VIPs first (FIFO within VIPs by order date). HC-pending
-    // orders are excluded even if tagged VIP — they'll inherit VIP priority
-    // on the NEXT render, after approval removes them from the HC set.
-    allocs.forEach(a => { if (!isExcluded(a) && isVip(a)) doAllocate(a); });
-    // Pass F — everyone else (pure FIFO by order date).
-    allocs.forEach(a => { if (!isExcluded(a) && !isVip(a)) doAllocate(a); });
+    // Pass V — VIPs first, walked in reviewState.vipOrder priority order
+    // ("first VIP first served"). Each VIP entry resolves to one or more
+    // allocs: a 'client' entry covers every order of that client, FIFO
+    // within the client; an 'order' entry covers just that single order.
+    // An alloc is allocated at most once even if matched by multiple
+    // entries (e.g. VIP client + VIP order pointing to the same row).
+    const allocatedSet = new Set();
+    const allocateOnce = (a) => {
+      if (!a || allocatedSet.has(a)) return;
+      if (isExcluded(a)) return;
+      allocatedSet.add(a);
+      doAllocate(a);
+    };
+    (reviewState.vipOrder || []).forEach(entry => {
+      if (entry.type === 'client') {
+        // All of this client's orders, in date-asc within the client.
+        const clientAllocs = allocs
+          .filter(a => a.order.clientPhone === entry.key)
+          .sort((x, y) => {
+            const tx = x.order.orderDateObj ? x.order.orderDateObj.getTime() : Infinity;
+            const ty = y.order.orderDateObj ? y.order.orderDateObj.getTime() : Infinity;
+            return tx - ty;
+          });
+        clientAllocs.forEach(allocateOnce);
+      } else if (entry.type === 'rep') {
+        // All orders whose salesRep matches, FIFO by date within the rep.
+        const repAllocs = allocs
+          .filter(a => a.order.salesRep === entry.key)
+          .sort((x, y) => {
+            const tx = x.order.orderDateObj ? x.order.orderDateObj.getTime() : Infinity;
+            const ty = y.order.orderDateObj ? y.order.orderDateObj.getTime() : Infinity;
+            return tx - ty;
+          });
+        repAllocs.forEach(allocateOnce);
+      } else if (entry.type === 'order') {
+        const a = allocs.find(a => a.order.key === entry.key);
+        allocateOnce(a);
+      }
+    });
+    // Defensive — any VIP flagged on the maps but missing from vipOrder
+    // (shouldn't happen after the pill-render migration, but safe).
+    allocs.forEach(a => { if (!allocatedSet.has(a) && !isExcluded(a) && isVip(a)) allocateOnce(a); });
+    // Pass F — everyone else (pure FIFO by order date — already pre-sorted).
+    allocs.forEach(a => { if (!allocatedSet.has(a) && !isExcluded(a) && !isVip(a)) allocateOnce(a); });
   }
   // Excluded orders (HC-pending / canceled / manually-replanned): no
   // allocation. Route their lines to outOfStock for consistent downstream
@@ -7429,32 +7941,66 @@ function renderReviewTable(stats) {
   }
 
   // ---------- VIP strip ----------
-  // Pills for every currently-selected VIP (clients first, then individual
-  // orders). The search input offers add suggestions from the current scope.
-  const vipClientPills = Object.keys(reviewState.vipClientPhones || {}).map(phone => {
-    // Find a display name for the pill. Walk all allocs and pick the first
-    // matching client name.
-    const sample = all.find(a => a.order.clientPhone === phone);
-    const label = sample ? (sample.order.clientName || phone) : phone;
-    return `<span class="rvt-vip-pill client" data-vip-type="client" data-vip-key="${escapeHtml(phone)}" title="VIP client — all of their orders take stock first">⭐ ${escapeHtml(label)} <button class="rvt-vip-remove" data-vip-type="client" data-vip-key="${escapeHtml(phone)}" title="Remove VIP">×</button></span>`;
+  // Pills are rendered in the order they appear in vipOrder (priority
+  // order, "first VIP first served"). Each pill shows ↑/↓ to reorder.
+  // We migrate the maps into vipOrder lazily — any VIP entry present in
+  // the maps but missing from vipOrder gets appended (preserves backward
+  // compatibility with previously-saved state and any code that wrote to
+  // the maps without touching vipOrder).
+  if (!Array.isArray(reviewState.vipOrder)) reviewState.vipOrder = [];
+  if (!reviewState.vipReps) reviewState.vipReps = {};
+  const inOrderSet = new Set(reviewState.vipOrder.map(e => `${e.type}|${e.key}`));
+  Object.keys(reviewState.vipClientPhones || {}).forEach(ph => {
+    const k = `client|${ph}`;
+    if (!inOrderSet.has(k)) { reviewState.vipOrder.push({ type: 'client', key: ph }); inOrderSet.add(k); }
+  });
+  Object.keys(reviewState.vipOrderKeys || {}).forEach(ok => {
+    const k = `order|${ok}`;
+    if (!inOrderSet.has(k)) { reviewState.vipOrder.push({ type: 'order', key: ok }); inOrderSet.add(k); }
+  });
+  Object.keys(reviewState.vipReps || {}).forEach(rn => {
+    const k = `rep|${rn}`;
+    if (!inOrderSet.has(k)) { reviewState.vipOrder.push({ type: 'rep', key: rn }); inOrderSet.add(k); }
+  });
+  // Drop entries whose VIP flag has been cleared on the maps.
+  reviewState.vipOrder = reviewState.vipOrder.filter(e =>
+    (e.type === 'client' && reviewState.vipClientPhones[e.key]) ||
+    (e.type === 'order'  && reviewState.vipOrderKeys[e.key]) ||
+    (e.type === 'rep'    && reviewState.vipReps[e.key])
+  );
+
+  const totalVip = reviewState.vipOrder.length;
+  const vipPillsHtml = reviewState.vipOrder.map((entry, idx) => {
+    const upDisabled = idx === 0 ? ' disabled' : '';
+    const downDisabled = idx === totalVip - 1 ? ' disabled' : '';
+    const moveBtns = `
+      <button class="rvt-vip-move" data-vip-type="${entry.type}" data-vip-key="${escapeHtml(entry.key)}" data-dir="up"${upDisabled} title="Move up — earlier priority">▲</button>
+      <button class="rvt-vip-move" data-vip-type="${entry.type}" data-vip-key="${escapeHtml(entry.key)}" data-dir="down"${downDisabled} title="Move down — later priority">▼</button>
+    `;
+    if (entry.type === 'client') {
+      const sample = all.find(a => a.order.clientPhone === entry.key);
+      const label = sample ? (sample.order.clientName || entry.key) : entry.key;
+      return `<span class="rvt-vip-pill client" data-vip-type="client" data-vip-key="${escapeHtml(entry.key)}" title="VIP client — all of their orders take stock first (priority #${idx + 1})">⭐ <span class="rvt-vip-rank">#${idx + 1}</span> ${escapeHtml(label)} ${moveBtns}<button class="rvt-vip-remove" data-vip-type="client" data-vip-key="${escapeHtml(entry.key)}" title="Remove VIP">×</button></span>`;
+    } else if (entry.type === 'rep') {
+      const orderCount = all.filter(a => a.order.salesRep === entry.key).length;
+      return `<span class="rvt-vip-pill rep" data-vip-type="rep" data-vip-key="${escapeHtml(entry.key)}" title="VIP sales rep — every order on this rep's route takes stock first (${orderCount} order(s) in scope, priority #${idx + 1})">⭐ <span class="rvt-vip-rank">#${idx + 1}</span> 👤 ${escapeHtml(entry.key)} ${moveBtns}<button class="rvt-vip-remove" data-vip-type="rep" data-vip-key="${escapeHtml(entry.key)}" title="Remove VIP">×</button></span>`;
+    } else {
+      const sample = all.find(a => a.order.key === entry.key);
+      const label = sample ? (sample.order.orderCode || entry.key) : entry.key;
+      return `<span class="rvt-vip-pill order" data-vip-type="order" data-vip-key="${escapeHtml(entry.key)}" title="VIP order — this single order takes stock first (priority #${idx + 1})">⭐ <span class="rvt-vip-rank">#${idx + 1}</span> #${escapeHtml(label)} ${moveBtns}<button class="rvt-vip-remove" data-vip-type="order" data-vip-key="${escapeHtml(entry.key)}" title="Remove VIP">×</button></span>`;
+    }
   }).join('');
-  const vipOrderPills = Object.keys(reviewState.vipOrderKeys || {}).map(okey => {
-    const sample = all.find(a => a.order.key === okey);
-    const label = sample ? (sample.order.orderCode || okey) : okey;
-    return `<span class="rvt-vip-pill order" data-vip-type="order" data-vip-key="${escapeHtml(okey)}" title="VIP order — this single order takes stock first">⭐ #${escapeHtml(label)} <button class="rvt-vip-remove" data-vip-type="order" data-vip-key="${escapeHtml(okey)}" title="Remove VIP">×</button></span>`;
-  }).join('');
-  const vipPillsHtml = vipClientPills + vipOrderPills;
-  const vipCount = Object.keys(reviewState.vipClientPhones || {}).length
-    + Object.keys(reviewState.vipOrderKeys || {}).length;
+  const vipCount = totalVip;
   // Suggestions — only compute when the user has typed something.
   const vipQ = (reviewState.vipSearchQuery || '').trim().toLowerCase();
   let vipSuggestHtml = '';
   if (vipQ && reviewState.vipSearchOpen) {
-    // Match against clients (name + phone) and orders (code). Dedupe
-    // client phones — one pill per unique client, regardless of how
-    // many orders they have in scope.
+    // Match against clients (name + phone), sales reps (name), and orders
+    // (code). Dedupe so each unique entity appears at most once.
     const seenClients = new Set();
+    const seenReps = new Set();
     const clientSuggest = [];
+    const repSuggest = [];
     const orderSuggest = [];
     all.forEach(a => {
       const ord = a.order;
@@ -7462,6 +8008,7 @@ function renderReviewTable(stats) {
       const cph = (ord.clientPhone || '').toLowerCase();
       const cphRaw = (ord.clientPhoneRaw || '').toLowerCase();
       const ocode = (ord.orderCode || '').toLowerCase();
+      const rname = (ord.salesRep || '').toLowerCase();
       // Client match.
       if (ord.clientPhone && !seenClients.has(ord.clientPhone)) {
         if ((cname && cname.includes(vipQ)) || (cph && cph.includes(vipQ)) || (cphRaw && cphRaw.includes(vipQ))) {
@@ -7470,18 +8017,29 @@ function renderReviewTable(stats) {
           clientSuggest.push({ type: 'client', key: ord.clientPhone, label: ord.clientName || ord.clientPhone, sub: ord.clientPhoneRaw || ord.clientPhone, isVip });
         }
       }
+      // Rep match.
+      if (ord.salesRep && !seenReps.has(ord.salesRep)) {
+        if (rname.includes(vipQ)) {
+          seenReps.add(ord.salesRep);
+          const isVip = !!(reviewState.vipReps && reviewState.vipReps[ord.salesRep]);
+          const repOrderCount = all.filter(x => x.order.salesRep === ord.salesRep).length;
+          repSuggest.push({ type: 'rep', key: ord.salesRep, label: '👤 ' + ord.salesRep, sub: `${repOrderCount} order(s) on this rep's route`, isVip });
+        }
+      }
       // Order match.
       if (ocode && ocode.includes(vipQ)) {
         const isVip = !!reviewState.vipOrderKeys[ord.key];
         orderSuggest.push({ type: 'order', key: ord.key, label: '#' + (ord.orderCode || ord.key), sub: ord.clientName || '', isVip });
       }
     });
-    const rowsLimit = 10;
-    const suggestRows = clientSuggest.slice(0, rowsLimit).concat(orderSuggest.slice(0, rowsLimit - clientSuggest.length));
+    const rowsLimit = 12;
+    const suggestRows = repSuggest.slice(0, 5)
+      .concat(clientSuggest.slice(0, rowsLimit - repSuggest.length))
+      .concat(orderSuggest.slice(0, Math.max(0, rowsLimit - repSuggest.length - clientSuggest.length)));
     if (suggestRows.length) {
       vipSuggestHtml = `<div class="rvt-vip-suggest">${suggestRows.map(s => `
         <button class="rvt-vip-suggest-row ${s.isVip ? 'already' : ''}" data-vip-type="${s.type}" data-vip-key="${escapeHtml(s.key)}" ${s.isVip ? 'disabled' : ''}>
-          <span class="rvt-vip-kind">${s.type === 'client' ? 'Client' : 'Order'}</span>
+          <span class="rvt-vip-kind">${s.type === 'client' ? 'Client' : (s.type === 'rep' ? 'Sales rep' : 'Order')}</span>
           <span class="rvt-vip-label">${escapeHtml(s.label)}</span>
           <span class="rvt-vip-sub">${escapeHtml(s.sub || '')}</span>
           <span class="rvt-vip-action">${s.isVip ? 'already VIP' : '+ Add'}</span>
@@ -7571,12 +8129,20 @@ function renderReviewTable(stats) {
           <button type="button" class="rvt-mode-btn${distributeMode === 'order' ? ' active' : ''}" data-mode="order" title="One row per order — stock allocated FIFO across all orders by date">By order</button>
           <button type="button" class="rvt-mode-btn${distributeMode === 'client' ? ' active' : ''}" data-mode="client" title="One row per client — orders grouped by client; default allocation is the same per-order FIFO unless MAX DISPATCH is enabled">By client</button>
         </div>
-        ${distributeMode === 'client' ? `
-        <label class="rvt-max-dispatch-toggle${maxDispatchEnabled ? ' active' : ''}" title="MAX DISPATCH — re-allocates stock to maximize the number of clients reaching ≥ 80% of their ordered units. Leftover stock goes FIFO. Replaces the underlying allocation everywhere (including export).">
+        <label class="rvt-max-dispatch-toggle${maxDispatchEnabled ? ' active' : ''}" title="MAX DISPATCH — greedy max-GMV-first 100% rule. In client mode, picks the highest-GMV client whose entire demand fits in stock and allocates them fully; repeats. In order mode, same logic per order. Leftover stock goes FIFO. Replaces the underlying allocation everywhere (including exports).">
           <input type="checkbox" class="rvt-max-dispatch-input"${maxDispatchEnabled ? ' checked' : ''}>
           <span class="rvt-max-dispatch-label">⚡ MAX DISPATCH</span>
-          ${maxDispatchEnabled ? `<span class="rvt-max-dispatch-stat" title="${qualifiedClientCount} of ${clientGroups.length} client(s) reaching ≥ 80% of ordered units">${qualifiedClientCount}/${clientGroups.length} ≥ 80%</span>` : ''}
-        </label>` : ''}
+          ${maxDispatchEnabled ? (distributeMode === 'client'
+            ? (() => {
+                const fullyServed = clientGroups.filter(g => g.ordered > 0 && g.units >= g.ordered).length;
+                return `<span class="rvt-max-dispatch-stat" title="${fullyServed} of ${clientGroups.length} client(s) served 100%">${fullyServed}/${clientGroups.length} clients 100%</span>`;
+              })()
+            : (() => {
+                const fullyServed = rows.filter(r => r.ordered > 0 && r.units >= r.ordered).length;
+                return `<span class="rvt-max-dispatch-stat" title="${fullyServed} of ${rows.length} order(s) served 100%">${fullyServed}/${rows.length} orders 100%</span>`;
+              })()
+          ) : ''}
+        </label>
         <input type="search" class="review-search-input rvt-search" placeholder="Search reps, clients, phones, order codes, products…" value="${escapeHtml(reviewState.searchQuery || '')}">
         <select class="rvt-select rvt-status-filter">
           ${Object.keys(statusLabel).map(k => `<option value="${k}"${statusFilter === k ? ' selected' : ''}>${escapeHtml(statusLabel[k])}</option>`).join('')}
@@ -7714,10 +8280,10 @@ function wireTableView(stage) {
       const m = btn.dataset.mode;
       if (!m || m === reviewState.distributeMode) return;
       reviewState.distributeMode = m;
-      // Switching to a different mode while MAX DISPATCH was on would be
-      // confusing (it implicitly changes the export numbers under the
-      // user). Force it off when leaving client mode.
-      if (m !== 'client') reviewState.maxDispatchEnabled = false;
+      // MAX DISPATCH is now mode-agnostic: in client mode it maximizes
+      // clients ≥ 80%, in order mode it maximizes orders ≥ 80%. We keep
+      // the toggle state so the user doesn't have to re-enable it after
+      // toggling between views.
       renderReviewStage(false);
     });
   });
@@ -8043,6 +8609,15 @@ function wireTableView(stage) {
       if (!key) return;
       if (type === 'client') reviewState.vipClientPhones[key] = true;
       else if (type === 'order') reviewState.vipOrderKeys[key] = true;
+      else if (type === 'rep') {
+        if (!reviewState.vipReps) reviewState.vipReps = {};
+        reviewState.vipReps[key] = true;
+      }
+      // Append to vipOrder if not already there. Insertion order = priority
+      // order — first added = first served.
+      if (!reviewState.vipOrder) reviewState.vipOrder = [];
+      const exists = reviewState.vipOrder.some(e => e.type === type && e.key === key);
+      if (!exists) reviewState.vipOrder.push({ type, key });
       // Clear search so the dropdown closes, then render. Auto-revoke
       // toast (if any) is raised from renderReviewStage via computeReviewStats.
       reviewState.vipSearchQuery = '';
@@ -8060,6 +8635,29 @@ function wireTableView(stage) {
       if (!key) return;
       if (type === 'client') delete reviewState.vipClientPhones[key];
       else if (type === 'order') delete reviewState.vipOrderKeys[key];
+      else if (type === 'rep' && reviewState.vipReps) delete reviewState.vipReps[key];
+      if (reviewState.vipOrder) {
+        reviewState.vipOrder = reviewState.vipOrder.filter(e => !(e.type === type && e.key === key));
+      }
+      renderReviewStage(false);
+    });
+  });
+  // VIP pill ↑ / ↓ — move within the priority list. Allocation iterates
+  // vipOrder in order, so the topmost pill is served first.
+  stage.querySelectorAll('.rvt-vip-move').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const type = btn.dataset.vipType;
+      const key = btn.dataset.vipKey;
+      const dir = btn.dataset.dir === 'up' ? -1 : 1;
+      if (!key || !reviewState.vipOrder) return;
+      const idx = reviewState.vipOrder.findIndex(en => en.type === type && en.key === key);
+      const newIdx = idx + dir;
+      if (idx < 0 || newIdx < 0 || newIdx >= reviewState.vipOrder.length) return;
+      const tmp = reviewState.vipOrder[idx];
+      reviewState.vipOrder[idx] = reviewState.vipOrder[newIdx];
+      reviewState.vipOrder[newIdx] = tmp;
       renderReviewStage(false);
     });
   });
@@ -8069,6 +8667,8 @@ function wireTableView(stage) {
     vipClearBtn.addEventListener('click', () => {
       reviewState.vipClientPhones = {};
       reviewState.vipOrderKeys = {};
+      reviewState.vipReps = {};
+      reviewState.vipOrder = [];
       renderReviewStage(false);
     });
   }
@@ -8364,7 +8964,12 @@ function wireTableView(stage) {
   const bulkVipBtn = stage.querySelector('.rvt-bulk-vip');
   if (bulkVipBtn) bulkVipBtn.addEventListener('click', () => {
     const keys = Object.keys(reviewState.selectedOrderKeys);
-    keys.forEach(k => { reviewState.vipOrderKeys[k] = true; });
+    if (!reviewState.vipOrder) reviewState.vipOrder = [];
+    keys.forEach(k => {
+      reviewState.vipOrderKeys[k] = true;
+      const exists = reviewState.vipOrder.some(e => e.type === 'order' && e.key === k);
+      if (!exists) reviewState.vipOrder.push({ type: 'order', key: k });
+    });
     reviewState.selectedOrderKeys = {};
     renderReviewStage();
     showUndoToast(`Marked ${keys.length} order(s) as VIP`);
@@ -9105,6 +9710,102 @@ function renderStockReconciliation(allocs) {
     </details>`;
 }
 
+// Per-region confirmation panel. Aggregates confirmed allocs by region,
+// compares deliverable GMV against the region's Min van GMV target, and
+// renders a row per region with a "Confirm region" / "Unconfirm" toggle.
+// Returns { html, hasUnconfirmed } so the caller can decide whether to
+// show a top-level warning forcing the user to act before finishing.
+function renderRegionConfirmPanel(allocs) {
+  const confirmedAllocs = allocs.filter(a => a.decision === 'confirmed');
+  if (!confirmedAllocs.length) return { html: '', hasUnconfirmed: false, regions: [] };
+
+  // Bucket by region (use '(no region)' for orders whose client has none).
+  const byRegion = new Map();
+  confirmedAllocs.forEach(a => {
+    const r = (a.order && a.order.region) ? a.order.region : '(no region)';
+    if (!byRegion.has(r)) {
+      byRegion.set(r, { region: r, gmv: 0, orderCount: 0, unitCount: 0, allocs: [] });
+    }
+    const e = byRegion.get(r);
+    e.gmv += (typeof a.effPriceDeliverable === 'number' && isFinite(a.effPriceDeliverable)) ? a.effPriceDeliverable : 0;
+    e.unitCount += (typeof a.totalDeliverable === 'number' ? a.totalDeliverable : 0);
+    e.orderCount++;
+    e.allocs.push(a);
+  });
+  const regions = [...byRegion.values()].sort((a, b) => a.region.localeCompare(b.region));
+
+  let hasUnconfirmed = false;
+  const rows = regions.map(e => {
+    const target = (typeof regionMinGmv[e.region] === 'number' && isFinite(regionMinGmv[e.region]))
+      ? regionMinGmv[e.region] : 0;
+    const userConfirmed = !!reviewState.regionConfirmed[e.region];
+    // A region needs the explicit second confirmation only when there is
+    // a target AND the GMV hasn't reached it. Targets met or absent =
+    // auto-finalized, no extra click required.
+    const meetsTarget = target > 0 ? e.gmv >= target : true;
+    const isFinalized = meetsTarget || target <= 0 || userConfirmed;
+    const needsClick = !isFinalized;
+    const pct = target > 0 ? Math.min(999, (e.gmv / target) * 100) : null;
+    if (needsClick) hasUnconfirmed = true;
+
+    const targetCell = target > 0 ? formatMoney(target) : '<span style="color:#94a3b8;">—</span>';
+    const pctCell = pct == null
+      ? '<span style="color:#94a3b8;">n/a</span>'
+      : `<span style="font-weight:600; color:${meetsTarget ? '#059669' : '#b91c1c'};">${Math.round(pct)}%</span>`;
+    let statusCell;
+    if (meetsTarget && target > 0)         statusCell = `<span class="rcp-pill confirmed">✓ Target met</span>`;
+    else if (target <= 0)                  statusCell = `<span class="rcp-pill confirmed">✓ No target</span>`;
+    else if (userConfirmed)                statusCell = `<span class="rcp-pill confirmed">✓ Confirmed below target</span>`;
+    else                                   statusCell = `<span class="rcp-pill below">Below target — needs confirmation</span>`;
+
+    let btnHtml = '';
+    if (needsClick) {
+      btnHtml = `<button class="btn btn-primary rcp-confirm-btn" data-region="${escapeHtml(encodeURIComponent(e.region))}" title="Below target — confirm anyway to ship these orders">Confirm region</button>`;
+    } else if (userConfirmed) {
+      btnHtml = `<button class="btn rcp-unconfirm-btn" data-region="${escapeHtml(encodeURIComponent(e.region))}" title="Undo the manual confirmation. Region will be flagged again as below target.">Unconfirm</button>`;
+    }
+    // Target-met / no-target rows get no button — already finalized.
+    return `
+      <tr class="rcp-row${isFinalized ? ' confirmed' : ''}${needsClick ? ' below' : ''}">
+        <td class="rcp-region">${escapeHtml(e.region)}</td>
+        <td class="rcp-num">${e.orderCount}</td>
+        <td class="rcp-num">${e.unitCount.toLocaleString()}</td>
+        <td class="rcp-num"><b>${formatMoney(e.gmv)}</b></td>
+        <td class="rcp-num">${targetCell}</td>
+        <td class="rcp-num">${pctCell}</td>
+        <td>${statusCell}</td>
+        <td class="rcp-actions">${btnHtml}</td>
+      </tr>`;
+  }).join('');
+
+  const html = `
+    <div class="region-confirm-panel">
+      <div class="rcp-header">
+        <div class="rcp-title">Region confirmation</div>
+        <div class="rcp-sub">Confirm each region's van once you're satisfied with its confirmed orders. Below-target regions can still be confirmed if you choose.</div>
+      </div>
+      <div class="rcp-table-wrap">
+        <table class="rcp-table">
+          <thead>
+            <tr>
+              <th>Region</th>
+              <th class="rcp-num">Orders</th>
+              <th class="rcp-num">Units</th>
+              <th class="rcp-num">Confirmed GMV</th>
+              <th class="rcp-num">Target</th>
+              <th class="rcp-num">% reached</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  return { html, hasUnconfirmed, regions };
+}
+
 function renderReviewDone(allocs, stats) {
   const stage = document.getElementById('reviewStage');
   const done = document.getElementById('reviewDone');
@@ -9145,6 +9846,15 @@ function renderReviewDone(allocs, stats) {
       </div>
       <div class="empty-state-hint">Click <b>Edit decisions</b> below to go back and confirm the orders you want to ship.</div>
     </div>` : '';
+  const regionPanel = renderRegionConfirmPanel(allocs);
+  // Top-level warning: confirmed orders exist in regions the user hasn't
+  // region-confirmed yet. Per the user's flow, those orders aren't truly
+  // confirmed until the region is — so we surface a clear call-to-action
+  // before the export buttons.
+  const regionUnconfirmedWarn = regionPanel.hasUnconfirmed && confirmedAllocs.length ? `
+    <div style="padding:14px 16px; background:#fef3c7; border:1px solid #f59e0b; border-radius:10px; margin-bottom:14px; color:#78350f; font-size:13px; line-height:1.6;">
+      <b>Region confirmation pending.</b> Some regions with confirmed orders haven't been region-confirmed yet. Click <b>Confirm region</b> below for each, or change those orders' status. Until you do, those orders will be excluded from the Confirmed Deliveries / Dispatch exports.
+    </div>` : '';
   done.innerHTML = `
     ${renderReviewStatsBar(stats)}
     ${renderIntegrityBanner(stats)}
@@ -9152,6 +9862,8 @@ function renderReviewDone(allocs, stats) {
     ${renderStockReconciliation(allocs)}
     ${pendingWarn}
     ${zeroConfirmedWarn}
+    ${regionUnconfirmedWarn}
+    ${regionPanel.html}
     <div class="review-done-summary">
       <div class="done-title">Review complete</div>
       <div class="done-stats">
@@ -9179,6 +9891,10 @@ function renderReviewDone(allocs, stats) {
       <button class="btn btn-primary btn-lg" id="exportDispatchBtn"${confirmedAllocs.length === 0 ? ' disabled' : ''} title="Same column layout as your uploaded orders file, restricted to confirmed orders only. Use this to feed downstream dispatch / shipping systems that expect the original file shape.">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
         Download dispatch file (.xlsx)${confirmedAllocs.length ? ` · ${confirmedAllocs.length}` : ''}
+      </button>
+      <button class="btn btn-lg" id="exportRemainingStockBtn" title="Same column layout as your uploaded stock file, with quantities replaced by initial − confirmed deliverable. Use this to refresh upstream stock systems after the run.">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        Download remaining stock (.xlsx)
       </button>
       <button class="btn" id="editDecisionsBtn" title="Go back to the review to change decisions you already made. Nothing is wiped.">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -9231,6 +9947,35 @@ function renderReviewDone(allocs, stats) {
   document.getElementById('exportDispatchBtn')?.addEventListener('click', () => {
     exportDispatchFile(allocs);
   });
+  document.getElementById('exportRemainingStockBtn')?.addEventListener('click', () => {
+    exportRemainingStock(allocs);
+  });
+  // Region confirm / unconfirm — toggles reviewState.regionConfirmed and
+  // re-renders the Done screen so the panel + warning + export filtering
+  // reflect the new state.
+  done.querySelectorAll('.rcp-confirm-btn, .rcp-unconfirm-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const region = decodeURIComponent(btn.dataset.region || '');
+      if (!region) return;
+      const isConfirming = btn.classList.contains('rcp-confirm-btn');
+      if (isConfirming) {
+        // If the region is below target, ask the user to confirm explicitly.
+        const target = (typeof regionMinGmv[region] === 'number' && isFinite(regionMinGmv[region])) ? regionMinGmv[region] : 0;
+        const confirmedAllocs = allocs.filter(a => a.decision === 'confirmed' && (a.order && a.order.region) === region);
+        const gmv = confirmedAllocs.reduce((n, a) => n + (a.effPriceDeliverable || 0), 0);
+        if (target > 0 && gmv < target) {
+          if (!confirm(`Region "${region}" is below target.\nConfirmed GMV: ${formatMoney(gmv)}\nTarget: ${formatMoney(target)}\n\nConfirm the region anyway?`)) return;
+        }
+        reviewState.regionConfirmed[region] = true;
+      } else {
+        delete reviewState.regionConfirmed[region];
+      }
+      saveReviewState();
+      // Re-render with the freshly recomputed allocs so summary / exports react.
+      const fresh = computeReviewStats();
+      renderReviewDone(fresh.allocs, fresh);
+    });
+  });
   document.getElementById('reviewRestartBtn')?.addEventListener('click', () => {
     const nDecisions = Object.keys(reviewState.decisions).length;
     const msg = nDecisions
@@ -9243,11 +9988,56 @@ function renderReviewDone(allocs, stats) {
   document.getElementById('card-review').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// Compute the set of regions whose confirmed orders are FINALIZED.
+// A region is finalized iff any of these is true:
+//   • it has no Min van GMV target set (target ≤ 0) — nothing to gate;
+//   • the sum of effective deliverable price of its confirmed orders
+//     reaches or exceeds the target — the bar's already cleared;
+//   • the user explicitly clicked "Confirm region" (regionConfirmed[r])
+//     — for regions that are below target but the user accepts anyway.
+// Orders without a region bypass the gate entirely (handled in
+// isAllocRegionFinalized below).
+function getFinalizedRegions(allocs) {
+  const byRegion = new Map();
+  allocs.forEach(a => {
+    if (a.decision !== 'confirmed') return;
+    const r = (a.order && a.order.region) ? a.order.region : '';
+    if (!r) return;
+    byRegion.set(r, (byRegion.get(r) || 0) + (a.effPriceDeliverable || 0));
+  });
+  const finalized = new Set();
+  byRegion.forEach((gmv, region) => {
+    const target = (typeof regionMinGmv[region] === 'number' && isFinite(regionMinGmv[region])) ? regionMinGmv[region] : 0;
+    if (target <= 0 || gmv >= target || reviewState.regionConfirmed[region]) {
+      finalized.add(region);
+    }
+  });
+  return finalized;
+}
+
+// Returns true if the alloc's region is finalized (target met, no target,
+// or user-confirmed below target). Pass a precomputed Set to avoid
+// recomputing per-call when filtering many allocs.
+function isAllocRegionFinalized(a, finalized) {
+  const region = (a.order && a.order.region) ? a.order.region : '';
+  if (!region) return true;
+  if (!finalized) finalized = getFinalizedRegions([a]); // defensive single-call path
+  return finalized.has(region);
+}
+
 // Export ALL lines (deliverable + out-of-stock) for confirmed ORDERS only.
+// "Confirmed" means decision === 'confirmed' AND region is region-confirmed.
 // Same column layout as the main delivery-plan export, for consistency.
 function exportConfirmedDeliveries(allocs) {
-  const confirmed = allocs.filter(a => a.decision === 'confirmed');
-  if (!confirmed.length) { alert('No confirmed orders yet.'); return; }
+  const finalizedRegions = getFinalizedRegions(allocs);
+  const confirmed = allocs.filter(a => a.decision === 'confirmed' && isAllocRegionFinalized(a, finalizedRegions));
+  if (!confirmed.length) {
+    const decisionConfirmed = allocs.filter(a => a.decision === 'confirmed').length;
+    alert(decisionConfirmed
+      ? `${decisionConfirmed} order(s) are confirmed but their region(s) are below target and haven't been region-confirmed yet. Open the Done screen and click "Confirm region" for each below-target region.`
+      : 'No confirmed orders yet.');
+    return;
+  }
   const headers = ['Code','Client name','Order date','Delivery Date','Phone number',
     'Ville','SalesRep_Name','SalesRep_PhoneNumber','Product code','Product name',
     'Ordered Qty','Deliverable Qty','Not Deliverable Qty','Stock (initial)',
@@ -9360,6 +10150,104 @@ function exportConfirmedDeliveries(allocs) {
   XLSX_WRITE.writeFile(wb, `Confirmed_deliveries_${tomorrowLabel()}.xlsx`);
 }
 
+// Export a "Remaining Stock" file — same column layout as the user's
+// original stock upload, but with the Quantity column replaced by what's
+// left after subtracting the deliverable quantities of CONFIRMED orders.
+// Multi-row-per-code stock files are handled greedily: rows are walked in
+// upload order and each one keeps as much of its original quantity as the
+// per-code remaining budget allows; later rows of the same code drain to 0
+// once the budget is exhausted. Per-code total remaining = max(0, initial
+// total − consumed by confirmed).
+function exportRemainingStock(allocs) {
+  if (!stock || !stock.length) {
+    alert('Original stock file is no longer in memory. Re-upload it in card 4, then re-run processing — your decisions are kept on disk.');
+    return;
+  }
+  const S = stock[0];
+  const sCode = findCol(S, ['Code', 'Product code']);
+  const sQty  = findCol(S, ['Quantity', 'Store Quantity']);
+  if (!sCode || !sQty) {
+    alert('Stock file is missing the Code or Quantity column — cannot build remaining stock.');
+    return;
+  }
+
+  // 1) Sum deliverable per product code from FINALIZED confirmed orders
+  //    only — i.e. orders whose decision is 'confirmed' AND whose region
+  //    is finalized (target met, no target, or user-accepted below target).
+  //    Pending-region orders are treated as not yet shipping.
+  const finalizedRegions = getFinalizedRegions(allocs);
+  const consumedByCode = new Map();
+  allocs.forEach(a => {
+    if (a.decision !== 'confirmed') return;
+    if (!isAllocRegionFinalized(a, finalizedRegions)) return;
+    a.lines.forEach(l => {
+      const code = (l.prodCode || '').toString().trim();
+      if (!code) return;
+      const got = (typeof l.allocated === 'number' && isFinite(l.allocated)) ? l.allocated : 0;
+      consumedByCode.set(code, (consumedByCode.get(code) || 0) + got);
+    });
+  });
+
+  // 2) Compute per-code initial total from the source rows (clamping
+  //    negatives to 0 to mirror what doProcess does internally).
+  const initialByCode = new Map();
+  stock.forEach(s => {
+    const code = (s[sCode] != null ? String(s[sCode]) : '').trim();
+    if (!code) return;
+    const raw = parseFloat(s[sQty]);
+    const q = isFinite(raw) ? Math.max(0, raw) : 0;
+    initialByCode.set(code, (initialByCode.get(code) || 0) + q);
+  });
+
+  // 3) Build the per-code remaining budget = initial − consumed (≥ 0).
+  const remainingBudget = new Map();
+  initialByCode.forEach((init, code) => {
+    const consumed = consumedByCode.get(code) || 0;
+    remainingBudget.set(code, Math.max(0, init - consumed));
+  });
+
+  // 4) Walk the original stock rows in order, greedily filling each row
+  //    up to its original quantity from the remaining budget. Later rows
+  //    of the same code drain to 0 once the budget runs out.
+  const exportRows = stock.map(s => {
+    const row = { ...s };
+    const code = (s[sCode] != null ? String(s[sCode]) : '').trim();
+    if (!code) return row;
+    const raw = parseFloat(s[sQty]);
+    const rowInit = isFinite(raw) ? Math.max(0, raw) : 0;
+    const budget = remainingBudget.get(code) || 0;
+    const give = Math.min(rowInit, budget);
+    row[sQty] = give;
+    remainingBudget.set(code, budget - give);
+    return row;
+  });
+
+  // 5) Preserve the source column order. Strip __-prefixed shadow fields
+  //    in case anything internal got attached (none expected on stock,
+  //    but defensive).
+  const headers = Object.keys(S).filter(k => !k.startsWith('__'));
+  const aoa = [headers].concat(exportRows.map(r => headers.map(h => {
+    const v = r[h];
+    return v == null ? '' : v;
+  })));
+
+  const ws = XLSX_WRITE.utils.aoa_to_sheet(aoa);
+  const headerStyle = {
+    font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+    fill: { patternType: 'solid', fgColor: { rgb: '0284C7' } },
+    alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+  };
+  headers.forEach((h, c) => {
+    const ref = XLSX_WRITE.utils.encode_cell({ r: 0, c });
+    if (ws[ref]) ws[ref].s = headerStyle;
+  });
+  ws['!rows'] = [{ hpt: 28 }];
+
+  const wb = XLSX_WRITE.utils.book_new();
+  XLSX_WRITE.utils.book_append_sheet(wb, ws, 'Remaining stock');
+  XLSX_WRITE.writeFile(wb, `Remaining_stock_${tomorrowLabel()}.xlsx`);
+}
+
 // Export a "Dispatch file" — the original orders file restricted to
 // confirmed orders only, preserving the source columns 1:1 so it can be
 // fed back into whatever upstream system expects that exact shape.
@@ -9367,8 +10255,15 @@ function exportConfirmedDeliveries(allocs) {
 // the user's upload) by the set of confirmed order codes, so every row
 // belonging to a confirmed order survives, with all its original columns.
 function exportDispatchFile(allocs) {
-  const confirmed = allocs.filter(a => a.decision === 'confirmed');
-  if (!confirmed.length) { alert('No confirmed orders to dispatch.'); return; }
+  const finalizedRegions = getFinalizedRegions(allocs);
+  const confirmed = allocs.filter(a => a.decision === 'confirmed' && isAllocRegionFinalized(a, finalizedRegions));
+  if (!confirmed.length) {
+    const decisionConfirmed = allocs.filter(a => a.decision === 'confirmed').length;
+    alert(decisionConfirmed
+      ? `${decisionConfirmed} order(s) are confirmed but their region(s) are below target and haven't been region-confirmed yet.`
+      : 'No confirmed orders to dispatch.');
+    return;
+  }
   if (!orders || !orders.length) {
     alert('Original orders file is no longer in memory. Re-upload it in card 3, then re-run processing — your decisions are kept on disk.');
     return;
@@ -10343,6 +11238,113 @@ const runPreReviewExport = () => {
 };
 document.getElementById('exportPreReviewBtn')?.addEventListener('click', runPreReviewExport);
 document.getElementById('exportPreReviewSetupBtn')?.addEventListener('click', runPreReviewExport);
+
+// ---------- Import decisions (testing) ----------
+// Lets the user round-trip the Confirmed / Canceled / Replanned exports
+// back into the app to populate reviewState.decisions without walking
+// through the rep flow. Useful for testing the Done screen layout against
+// a known decision set.
+const importBuffer = { confirmed: null, canceled: null, replanned: null };
+const importIds = {
+  confirmed: { fileId: 'importConfirmedFile', dropId: 'importConfirmedDrop', summaryId: 'importConfirmedSummary' },
+  canceled:  { fileId: 'importCanceledFile',  dropId: 'importCanceledDrop',  summaryId: 'importCanceledSummary'  },
+  replanned: { fileId: 'importReplannedFile', dropId: 'importReplannedDrop', summaryId: 'importReplannedSummary' },
+};
+
+async function handleImportFile(kind, file) {
+  const ids = importIds[kind];
+  if (!ids) return;
+  if (!file) {
+    importBuffer[kind] = null;
+    setSummary(ids.summaryId, '', null);
+    setFileDropState(ids.dropId, false);
+    return;
+  }
+  try {
+    const rows = await readXlsx(file);
+    if (!rows.length) throw new Error('File is empty');
+    importBuffer[kind] = rows;
+    setSummary(ids.summaryId, `Loaded <b>${rows.length.toLocaleString()}</b> row(s).`, 'success');
+    setFileDropState(ids.dropId, true);
+  } catch (e) {
+    importBuffer[kind] = null;
+    setSummary(ids.summaryId, `Error: ${escapeHtml(e.message)}`, 'danger');
+    setFileDropState(ids.dropId, false);
+  }
+}
+
+['confirmed', 'canceled', 'replanned'].forEach(kind => {
+  const inp = document.getElementById(importIds[kind].fileId);
+  if (inp) inp.addEventListener('change', e => handleImportFile(kind, e.target.files[0]));
+});
+
+document.getElementById('importApplyBtn')?.addEventListener('click', () => {
+  if (!processed || !processed.reviewOrders || !processed.reviewOrders.length) {
+    alert('Run "Run processing" first (cards 1–5) so the app knows which orders to apply decisions to.');
+    return;
+  }
+  const anyFile = ['confirmed', 'canceled', 'replanned'].some(k => importBuffer[k] && importBuffer[k].length);
+  if (!anyFile) {
+    alert('Upload at least one of the three files (Confirmed / Canceled / Replanned).');
+    return;
+  }
+
+  // Build a code → orderKey lookup from the just-processed reviewOrders.
+  // The exports carry the order Code in column "Code", which is what the
+  // app uses (along with normalized phone) to build keys. Iterate over
+  // unique codes from each file, ignoring per-product duplicate rows.
+  const keyByCode = new Map();
+  processed.reviewOrders.forEach(o => {
+    if (o.orderCode) keyByCode.set(String(o.orderCode).trim(), o.key);
+  });
+
+  // Wipe any prior decisions so the imported file is the source of truth.
+  // Without this, leftover state from a previous review could mix with
+  // imported decisions and produce a confusing Done screen.
+  reviewState.decisions = {};
+  reviewState.replanDates = {};
+  reviewState.reasons = {};
+  reviewState.autoReplanned = {};
+
+  let applied = 0, skipped = 0;
+  const apply = (rows, decision, isReplan) => {
+    if (!rows || !rows.length) return;
+    const cCode = findCol(rows[0], ['Code']);
+    const cReplanDate = isReplan ? findCol(rows[0], ['New Delivery Date']) : null;
+    if (!cCode) { skipped += rows.length; return; }
+    const seen = new Set();
+    rows.forEach(r => {
+      const code = String(r[cCode] || '').trim();
+      if (!code || seen.has(code)) return;
+      seen.add(code);
+      const key = keyByCode.get(code);
+      if (!key) { skipped++; return; }
+      reviewState.decisions[key] = decision;
+      if (isReplan && cReplanDate) {
+        const d = parseDate(r[cReplanDate]);
+        if (d) reviewState.replanDates[key] = toLocalISODate(d);
+      }
+      applied++;
+    });
+  };
+  apply(importBuffer.confirmed, 'confirmed', false);
+  apply(importBuffer.canceled,  'canceled',  false);
+  apply(importBuffer.replanned, 'replanned', true);
+
+  // Persist so the state survives a reload, and surface progress.
+  saveReviewState();
+
+  reviewState.started = true;
+  reviewState.userFinished = true;
+  showPage('review');
+  // Render the review stage — with userFinished=true, it routes straight
+  // to the Done screen using the freshly imported decisions.
+  renderReviewStage(false);
+
+  setSummary('importApplyResult',
+    `Applied <b>${applied}</b> decision(s)${skipped ? ` · skipped <b>${skipped}</b> unmatched code(s)` : ''}. Opened Review.`,
+    skipped ? 'warn' : 'success');
+});
 
 // ---------- Awal Delivery Documents ----------
 // IndexedDB-backed feature: stores Articles Matjar catalog once, accepts
