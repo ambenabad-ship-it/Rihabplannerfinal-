@@ -12322,6 +12322,39 @@ updateState();
       awalArticlesLookup = awalBuildLookup(saved);
       setFileDropState('awalCatalogDrop', true);
       setSummary('awalCatalogSummary', `Restored <b>${awalArticlesLookup.size}</b> product(s) from your previous session.`, 'info');
+    } else {
+      // No local catalog yet → try to auto-load a bundled Articles Matjar
+      // file from the app folder so every desktop opening the app gets the
+      // same shared reference catalog without needing to upload. The user
+      // can still click "Update catalog" later to override with their own.
+      // We try a few common filenames; first hit wins. Silent fallback to
+      // the SVG-only state if every fetch fails (file:// CORS, missing).
+      const catalogCandidates = [
+        './Export_Articles_Matjar_2026-04-30.xlsx',
+        './Export_Articles_Matjar.xlsx',
+        './articles_matjar.xlsx',
+        './catalog.xlsx',
+        './articles.xlsx'
+      ];
+      for (const url of catalogCandidates) {
+        try {
+          const r = await fetch(url, { cache: 'force-cache' });
+          if (!r.ok) continue;
+          const buf = await r.arrayBuffer();
+          const wb = (window.XLSX_READ || window.XLSX).read(new Uint8Array(buf), { type: 'array' });
+          const sheetName = wb.SheetNames.includes('Products') ? 'Products' : wb.SheetNames[0];
+          const ws = wb.Sheets[sheetName];
+          const rows = (window.XLSX_READ || window.XLSX).utils.sheet_to_json(ws, { defval: '' });
+          if (!rows.length) continue;
+          const lookup = awalBuildLookup(rows);
+          if (!lookup.size) continue;
+          await awalSaveArticles(rows);
+          awalArticlesLookup = lookup;
+          setFileDropState('awalCatalogDrop', true);
+          setSummary('awalCatalogSummary', `Auto-loaded <b>${lookup.size}</b> product(s) from the bundled catalog.`, 'success');
+          break;
+        } catch (e) { /* try next candidate */ }
+      }
     }
     const savedLogo = await awalGetMeta('logo_data_url');
     if (savedLogo) {
