@@ -3379,6 +3379,12 @@ const REVIEW_STATE_KEY = 'rihab_review_state_v1';
 // Per-region minimum van GMV target — number, defaults to 0 (no target).
 // Stored separately from schedule so we don't reshape the schedule object.
 const REGION_MIN_GMV_KEY = 'rihab_region_min_gmv_v1';
+// Full-state persistence keys. The raw orders and stock arrays are saved
+// after each upload so a browser reopen can restore the entire app state
+// (not just decisions). Keys are versioned so a future schema change can
+// invalidate old data without a manual clear.
+const ORDERS_KEY = 'rihab_orders_v1';
+const STOCK_KEY  = 'rihab_stock_v1';
 const CURRENCY_KEY = 'rihab_currency_v1';
 const TARGET_DAY_KEY = 'rihab_target_day_v1';
 const ALL_DAYS_KEY   = 'rihab_all_days_v1';
@@ -4462,6 +4468,16 @@ document.getElementById('ordersFile').addEventListener('change', async e => {
     }
     checkCoverage();
     updateState();
+    // Persist the raw rows so a browser reopen restores the full state.
+    // Strip __-prefixed shadow fields if any have already been added by a
+    // re-process pass (defensive — they get re-added at next doProcess).
+    try {
+      saveJSON(ORDERS_KEY, orders.map(o => {
+        const c = {};
+        Object.keys(o).forEach(k => { if (!k.startsWith('__')) c[k] = o[k]; });
+        return c;
+      }));
+    } catch (e) { /* quota — silently skip */ }
   } catch (err) { setSummary('ordersSummary', 'Error: ' + escapeHtml(err.message), 'danger'); }
 });
 
@@ -4483,6 +4499,13 @@ document.getElementById('reprocessFile')?.addEventListener('change', async e => 
     // the column aliases (Ordered Qty → Quantity, Somme de Price total →
     // Price total) carry over.
     orders = rows;
+    try {
+      saveJSON(ORDERS_KEY, orders.map(o => {
+        const c = {};
+        Object.keys(o).forEach(k => { if (!k.startsWith('__')) c[k] = o[k]; });
+        return c;
+      }));
+    } catch (e) { /* quota — skip */ }
     reprocessIteration++;
     // Re-run the main pipeline — it reads orders + stock + clientsDB
     // from globals and rebuilds `processed` from scratch, so the
@@ -4604,6 +4627,7 @@ document.getElementById('stockFile').addEventListener('change', async e => {
     stock = await readXlsx(f);
     setSummary('stockSummary', `Loaded <b>${stock.length.toLocaleString()}</b> stock rows from <b>${escapeHtml(f.name)}</b>.`, 'success');
     updateState();
+    try { saveJSON(STOCK_KEY, stock); } catch (e) { /* quota — silently skip */ }
   } catch (err) { setSummary('stockSummary', 'Error: ' + escapeHtml(err.message), 'danger'); }
 });
 
@@ -11627,6 +11651,8 @@ async function awalHandleDispatchers(file) {
       const inp = document.getElementById('awalDeliveryDate');
       if (inp) inp.value = awalDeliveryDate;
     }
+    try { await awalSaveMeta('dispatchers_rows', rows); } catch (e) { /* skip */ }
+    if (m) { try { await awalSaveMeta('delivery_date', m[1]); } catch (e) { /* skip */ } }
     setSummary('awalDispatchersSummary', `Loaded <b>${rows.length}</b> dispatch row(s).`, 'success');
     awalUpdateValidateState();
   } catch (e) {
@@ -11648,6 +11674,10 @@ async function awalHandleConfirmed(file) {
       awalDeliveryDate = m[1];
       const inp = document.getElementById('awalDeliveryDate');
       if (inp) inp.value = awalDeliveryDate;
+    }
+    try { await awalSaveMeta('confirmed_rows', rows); } catch (e) { /* skip */ }
+    if (m && awalDeliveryDate === m[1]) {
+      try { await awalSaveMeta('delivery_date', m[1]); } catch (e) { /* skip */ }
     }
     setSummary('awalConfirmedSummary', `Loaded <b>${rows.length}</b> confirmed line(s).`, 'success');
     awalUpdateValidateState();
@@ -12244,6 +12274,46 @@ renderDbStatus();
 buildScheduleUI();
 updateState();
 
+// Full-state restore: pull saved orders + stock back from localStorage,
+// then re-run doProcess so the Review pipeline (allocations, decisions,
+// region confirmation, exports) is exactly where the user left it. Done
+// after the basic state init so the existing UI hooks fire normally.
+(() => {
+  try {
+    const savedOrders = loadJSON(ORDERS_KEY);
+    const savedStock  = loadJSON(STOCK_KEY);
+    let restoredAny = false;
+    if (Array.isArray(savedOrders) && savedOrders.length) {
+      orders = savedOrders;
+      setSummary('ordersSummary', `Restored <b>${orders.length.toLocaleString()}</b> order rows from your previous session. Re-upload to refresh.`, 'info');
+      setFileDropState('ordersDrop', true);
+      restoredAny = true;
+    }
+    if (Array.isArray(savedStock) && savedStock.length) {
+      stock = savedStock;
+      setSummary('stockSummary', `Restored <b>${stock.length.toLocaleString()}</b> stock rows from your previous session. Re-upload to refresh.`, 'info');
+      setFileDropState('stockDrop', true);
+      restoredAny = true;
+    }
+    if (!restoredAny) return;
+    updateState();
+    // If everything's in place, re-run the pipeline silently so allocations
+    // + the review state are usable immediately. Wrap in try/catch — a
+    // schema mismatch shouldn't block the rest of the app from loading.
+    if (orders.length && stock.length && Object.keys(clientsDB).length) {
+      try {
+        checkCoverage();
+        doProcess();
+        if (typeof maybeOfferRestore === 'function') maybeOfferRestore();
+      } catch (err) {
+        console.error('Auto-reprocess on restore failed:', err);
+      }
+    }
+  } catch (e) {
+    console.error('State restore failed:', e);
+  }
+})();
+
 // Restore Awal state from IndexedDB (catalog + saved logo).
 (async () => {
   try {
@@ -12255,6 +12325,33 @@ updateState();
     }
     const savedLogo = await awalGetMeta('logo_data_url');
     if (savedLogo) awalLogoDataUrl = savedLogo;
+    // Restore the day-specific files too. Catalog is the heavyweight one
+    // and lives in its own IndexedDB store; dispatchers/confirmed/delivery
+    // date are small enough to ride along in the meta store.
+    try {
+      const savedDisp = await awalGetMeta('dispatchers_rows');
+      if (Array.isArray(savedDisp) && savedDisp.length) {
+        awalDispatchers = savedDisp;
+        setFileDropState('awalDispatchersDrop', true);
+        setSummary('awalDispatchersSummary', `Restored <b>${savedDisp.length}</b> dispatch row(s) from your previous session.`, 'info');
+      }
+    } catch (e) { /* skip */ }
+    try {
+      const savedConf = await awalGetMeta('confirmed_rows');
+      if (Array.isArray(savedConf) && savedConf.length) {
+        awalConfirmed = savedConf;
+        setFileDropState('awalConfirmedDrop', true);
+        setSummary('awalConfirmedSummary', `Restored <b>${savedConf.length}</b> confirmed line(s) from your previous session.`, 'info');
+      }
+    } catch (e) { /* skip */ }
+    try {
+      const savedDate = await awalGetMeta('delivery_date');
+      if (savedDate) {
+        awalDeliveryDate = savedDate;
+        const inp = document.getElementById('awalDeliveryDate');
+        if (inp) inp.value = savedDate;
+      }
+    } catch (e) { /* skip */ }
     awalRenderCatalogStatus();
     awalUpdateValidateState();
   } catch (e) {
