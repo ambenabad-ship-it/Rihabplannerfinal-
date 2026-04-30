@@ -1,0 +1,281 @@
+{
+  "delivery_date": "2026-04-30",
+  "agents": {
+    "L119": {
+      "orders": 1,
+      "lines": 6,
+      "deliverable_total": 23758.8
+    },
+    "L216": {
+      "orders": 4,
+      "lines": 9,
+      "deliverable_total": 38587.2
+    },
+    "L220": {
+      "orders": 9,
+      "lines": 20,
+      "deliverable_total": 100964.74
+    },
+    "L222": {
+      "orders": 9,
+      "lines": 24,
+      "deliverable_total": 85767.9
+    },
+    "L228": {
+      "orders": 6,
+      "lines": 26,
+      "deliverable_total": 53382.7
+    },
+    "L229": {
+      "orders": 5,
+      "lines": 12,
+      "deliverable_total": 75225.65
+    }
+  },
+  "orders": {
+    "CMD260410117": {
+      "agent": "L228",
+      "lines": 2,
+      "deliverable_total": 39380.0,
+      "oos_lines": 0,
+      "partial_lines": 1
+    },
+    "CMD260411503": {
+      "agent": "L222",
+      "lines": 2,
+      "deliverable_total": 2110.9,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260411504": {
+      "agent": "L222",
+      "lines": 4,
+      "deliverable_total": 3185.0,
+      "oos_lines": 3,
+      "partial_lines": 0
+    },
+    "CMD260411557": {
+      "agent": "L222",
+      "lines": 2,
+      "deliverable_total": 4221.0,
+      "oos_lines": 1,
+      "partial_lines": 0
+    },
+    "CMD260411565": {
+      "agent": "L222",
+      "lines": 2,
+      "deliverable_total": 5123.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260411573": {
+      "agent": "L222",
+      "lines": 8,
+      "deliverable_total": 36224.0,
+      "oos_lines": 3,
+      "partial_lines": 0
+    },
+    "CMD260411612": {
+      "agent": "L220",
+      "lines": 1,
+      "deliverable_total": 7596.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260413848": {
+      "agent": "L229",
+      "lines": 2,
+      "deliverable_total": 5096.0,
+      "oos_lines": 1,
+      "partial_lines": 0
+    },
+    "CMD260413861": {
+      "agent": "L229",
+      "lines": 2,
+      "deliverable_total": 25480.0,
+      "oos_lines": 1,
+      "partial_lines": 0
+    },
+    "CMD260414464": {
+      "agent": "L220",
+      "lines": 1,
+      "deliverable_total": 5986.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260416295": {
+      "agent": "L119",
+      "lines": 6,
+      "deliverable_total": 23758.8,
+      "oos_lines": 1,
+      "partial_lines": 0
+    },
+    "CMD260417317": {
+      "agent": "L220",
+      "lines": 9,
+      "deliverable_total": 49753.42,
+      "oos_lines": 2,
+      "partial_lines": 2
+    },
+    "CMD260417326": {
+      "agent": "L228",
+      "lines": 6,
+      "deliverable_total": 2832.0,
+      "oos_lines": 2,
+      "partial_lines": 0
+    },
+    "CMD260417332": {
+      "agent": "L228",
+      "lines": 3,
+      "deliverable_total": 3899.7,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260417333": {
+      "agent": "L228",
+      "lines": 4,
+      "deliverable_total": 2394.4,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260417334": {
+      "agent": "L228",
+      "lines": 6,
+      "deliverable_total": 2832.0,
+      "oos_lines": 2,
+      "partial_lines": 0
+    },
+    "CMD260418042": {
+      "agent": "L229",
+      "lines": 1,
+      "deliverable_total": 17405.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD26041828": {
+      "agent": "L220",
+      "lines": 3,
+      "deliverable_total": 6170.0,
+      "oos_lines": 2,
+      "partial_lines": 0
+    },
+    "CMD260418626": {
+      "agent": "L228",
+      "lines": 5,
+      "deliverable_total": 2044.6,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260418667": {
+      "agent": "L220",
+      "lines": 2,
+      "deliverable_total": 10306.8,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260419572": {
+      "agent": "L220",
+      "lines": 1,
+      "deliverable_total": 911.52,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260419573": {
+      "agent": "L220",
+      "lines": 1,
+      "deliverable_total": 12060.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260419575": {
+      "agent": "L220",
+      "lines": 1,
+      "deliverable_total": 585.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260423477": {
+      "agent": "L222",
+      "lines": 3,
+      "deliverable_total": 7452.0,
+      "oos_lines": 1,
+      "partial_lines": 0
+    },
+    "CMD260424029": {
+      "agent": "L216",
+      "lines": 1,
+      "deliverable_total": 8702.5,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260424518": {
+      "agent": "L229",
+      "lines": 1,
+      "deliverable_total": 174.05,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260424519": {
+      "agent": "L229",
+      "lines": 6,
+      "deliverable_total": 27070.6,
+      "oos_lines": 2,
+      "partial_lines": 1
+    },
+    "CMD260425077": {
+      "agent": "L216",
+      "lines": 3,
+      "deliverable_total": 20859.1,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260426179": {
+      "agent": "L216",
+      "lines": 4,
+      "deliverable_total": 7819.6,
+      "oos_lines": 1,
+      "partial_lines": 0
+    },
+    "CMD260426428": {
+      "agent": "L216",
+      "lines": 1,
+      "deliverable_total": 1206.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260426972": {
+      "agent": "L222",
+      "lines": 1,
+      "deliverable_total": 16712.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260426973": {
+      "agent": "L222",
+      "lines": 1,
+      "deliverable_total": 5370.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD260427637": {
+      "agent": "L222",
+      "lines": 1,
+      "deliverable_total": 5370.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    },
+    "CMD26045133": {
+      "agent": "L220",
+      "lines": 1,
+      "deliverable_total": 7596.0,
+      "oos_lines": 0,
+      "partial_lines": 0
+    }
+  },
+  "global": {
+    "total_orders": 34,
+    "total_lines": 97,
+    "total_deliverable": 377686.99,
+    "total_ordered": 551383.37
+  }
+}
