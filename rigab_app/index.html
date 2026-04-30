@@ -2697,6 +2697,39 @@
   }
   .card:not(.locked) .lock-overlay { display: none; }
 
+  /* ---------- Bulk-rescue confirmation modal ---------- */
+  .bulk-rescue-overlay {
+    position: fixed; inset: 0; z-index: 9000;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, 0.55);
+    padding: 20px;
+  }
+  .bulk-rescue-modal {
+    background: var(--bg-elev); color: var(--text);
+    border-radius: 12px; max-width: 560px; width: 100%;
+    max-height: 80vh; overflow-y: auto;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.32);
+    padding: 22px 24px;
+  }
+  .bulk-rescue-header h3 { margin: 0 0 8px; font-size: 18px; color: #b45309; }
+  .bulk-rescue-header p { margin: 0 0 14px; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .bulk-rescue-section { margin-top: 12px; }
+  .bulk-rescue-label {
+    font-weight: 700; font-size: 12px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;
+  }
+  .bulk-rescue-list {
+    margin: 0; padding: 0 0 0 18px;
+    list-style: disc; font-size: 13px; line-height: 1.7;
+  }
+  .bulk-rescue-list li { margin-bottom: 2px; }
+  .bulk-rescue-sub { color: var(--text-soft); font-weight: 500; }
+  .bulk-rescue-actions {
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .bulk-rescue-actions .btn { font-size: 13px; padding: 8px 14px; }
+
   /* ---------- Region confirmation panel (Done screen) ---------- */
   .region-confirm-panel {
     background: var(--bg-elev); border: 1px solid var(--border);
@@ -7517,6 +7550,229 @@ function findClientGroup(clientKey) {
   return processed.reviewClientGroups.find(g => g.clientKey === clientKey) || null;
 }
 
+// ---------- Bulk-rescue check ----------
+// Before a bulk cancel / bulk replan is committed, simulate the action
+// and identify orders inside the bulk that would jump from < 80% to ≥ 80%
+// deliverable rate if they were kept pending while the rest of the bulk
+// went through. The freed stock (from the rest being canceled/replanned)
+// can sometimes flow to siblings in the same bulk and "rescue" them.
+//
+// Returns:
+//   {
+//     rescuableKeys:   [orderKey, ...],            // keys whose rate would jump < 80% → ≥ 80%
+//     rescuableClients: [{ phone, name, keys: [...] }, ...]   // clients whose every bulk order is rescuable (≥ 2 orders)
+//   }
+//
+// Pure read — restores reviewState exactly to its entry value before returning.
+function detectRescuableFromBulk(bulkKeys, action, replanDate) {
+  const result = { rescuableKeys: [], rescuableClients: [] };
+  if (!Array.isArray(bulkKeys) || !bulkKeys.length) return result;
+
+  // Snapshot the slices of state we'll mutate during simulation.
+  const snapDecisions   = { ...reviewState.decisions };
+  const snapReplanDates = { ...reviewState.replanDates };
+  const snapAuto        = { ...reviewState.autoReplanned };
+  const snapReasons     = { ...reviewState.reasons };
+
+  const restore = () => {
+    reviewState.decisions     = { ...snapDecisions };
+    reviewState.replanDates   = { ...snapReplanDates };
+    reviewState.autoReplanned = { ...snapAuto };
+    reviewState.reasons       = { ...snapReasons };
+  };
+
+  try {
+    // BEFORE rates — current allocation snapshot.
+    const beforeAllocs = computeReviewAllocations();
+    const beforeRates  = new Map();
+    const beforeMap    = new Map();
+    beforeAllocs.forEach(a => {
+      beforeMap.set(a.order.key, a);
+      const ord = a.totalOrdered || 0;
+      const dlv = a.totalDeliverable || 0;
+      beforeRates.set(a.order.key, ord > 0 ? dlv / ord : 0);
+    });
+
+    // For each bulk key K, simulate "K stays pending, all others in the
+    // bulk get the action". If K's rate jumps < 80% → ≥ 80%, K is rescuable.
+    const rescuableSet = new Set();
+    for (const K of bulkKeys) {
+      // Apply bulk to all keys EXCEPT K; restore K to its snapshot state.
+      bulkKeys.forEach(k => {
+        if (k === K) {
+          if (snapDecisions[k] === undefined) delete reviewState.decisions[k];
+          else reviewState.decisions[k] = snapDecisions[k];
+          if (snapReplanDates[k] === undefined) delete reviewState.replanDates[k];
+          else reviewState.replanDates[k] = snapReplanDates[k];
+          if (snapAuto[k] === undefined) delete reviewState.autoReplanned[k];
+          else reviewState.autoReplanned[k] = snapAuto[k];
+        } else {
+          if (action === 'canceled') {
+            reviewState.decisions[k] = 'canceled';
+            delete reviewState.replanDates[k];
+          } else if (action === 'replanned') {
+            reviewState.decisions[k] = 'replanned';
+            if (replanDate) reviewState.replanDates[k] = replanDate;
+          }
+          delete reviewState.autoReplanned[k];
+        }
+      });
+
+      const allocs = computeReviewAllocations();
+      const a = allocs.find(x => x.order.key === K);
+      if (!a) continue;
+      const ord = a.totalOrdered || 0;
+      const dlv = a.totalDeliverable || 0;
+      const newRate = ord > 0 ? dlv / ord : 0;
+      const oldRate = beforeRates.get(K) || 0;
+      if (oldRate < 0.80 && newRate >= 0.80) rescuableSet.add(K);
+    }
+
+    // Per-order rescue only — client-level grouping was removed per
+    // product request. Every rescuable surfaces individually.
+    result.rescuableKeys = Array.from(rescuableSet);
+    result.rescuableClients = [];
+  } finally {
+    restore();
+  }
+
+  return result;
+}
+
+// Joint-simulation refinement: per-K detection is optimistic because each
+// K is checked alone. When several candidates are kept pending together
+// they compete for the same freed stock and some still land below 80%.
+// This helper iteratively prunes candidates that don't actually clear
+// 80% in the joint scenario, returning the FINAL set of rescuable keys
+// that truly reach ≥ 80% if all of them stay pending together while the
+// rest of the bulk gets the action. Pure read — restores state on exit.
+function refineRescuableSet(bulkKeys, candidateKeys, action, replanDate) {
+  if (!Array.isArray(candidateKeys) || !candidateKeys.length) return new Set();
+
+  const snapDecisions   = { ...reviewState.decisions };
+  const snapReplanDates = { ...reviewState.replanDates };
+  const snapAuto        = { ...reviewState.autoReplanned };
+  const snapReasons     = { ...reviewState.reasons };
+
+  const restore = () => {
+    reviewState.decisions     = { ...snapDecisions };
+    reviewState.replanDates   = { ...snapReplanDates };
+    reviewState.autoReplanned = { ...snapAuto };
+    reviewState.reasons       = { ...snapReasons };
+  };
+
+  let kept = new Set(candidateKeys);
+  try {
+    let safety = 0;
+    while (safety++ < 50) {
+      // Reset to outer snapshot so every iteration starts from a clean
+      // baseline. Without this, side effects from applyAutoReplan in the
+      // previous iteration (which can mutate non-bulk orders' decisions)
+      // would carry over and skew the next round.
+      reviewState.decisions     = { ...snapDecisions };
+      reviewState.replanDates   = { ...snapReplanDates };
+      reviewState.autoReplanned = { ...snapAuto };
+      reviewState.reasons       = { ...snapReasons };
+
+      // Apply the action to every non-kept bulk key. Kept keys stay in
+      // their snapshot state (just-restored above).
+      bulkKeys.forEach(k => {
+        if (kept.has(k)) return;
+        if (action === 'canceled') {
+          reviewState.decisions[k] = 'canceled';
+          delete reviewState.replanDates[k];
+        } else if (action === 'replanned') {
+          reviewState.decisions[k] = 'replanned';
+          if (replanDate) reviewState.replanDates[k] = replanDate;
+        }
+        delete reviewState.autoReplanned[k];
+      });
+
+      // Use the same path renderReviewStage uses: computeReviewAllocations
+      // followed by applyAutoReplan (which can revoke now-coverable
+      // auto-replans of OTHER orders, shifting the post-bulk allocation
+      // landscape). Re-allocate if applyAutoReplan changed anything, so
+      // the rates we measure here match what the user will actually see.
+      let allocs = computeReviewAllocations();
+      try {
+        const ar = applyAutoReplan(allocs);
+        if (ar && ar.changed) allocs = computeReviewAllocations();
+      } catch (_) { /* defensive — fall back to first pass */ }
+
+      // Find the kept candidate with the WORST rate that's still below 80%.
+      // Demoting one at a time avoids over-pruning — sometimes removing the
+      // worst-fitting candidate lets the others clear the bar comfortably.
+      let worstK = null, worstRate = 1;
+      for (const K of kept) {
+        const a = allocs.find(x => x.order.key === K);
+        if (!a) continue;
+        const ord = a.totalOrdered || 0;
+        const dlv = a.totalDeliverable || 0;
+        const r = ord > 0 ? dlv / ord : 0;
+        if (r < 0.80 && r < worstRate) { worstK = K; worstRate = r; }
+      }
+      if (!worstK) break;
+      kept.delete(worstK);
+      if (!kept.size) break;
+    }
+  } finally {
+    restore();
+  }
+
+  return kept;
+}
+
+// Show a confirmation modal listing the rescuable orders / clients.
+// Returns a Promise resolving to one of:
+//   'all'    — proceed with the full bulk (cancel/replan everyone)
+//   'skip'   — proceed but skip the rescuable ones (keep them pending)
+//   'abort'  — cancel the whole bulk action
+function askBulkRescueConfirm(rescuable, action, allBulkKeys, beforeAllocs) {
+  return new Promise(resolve => {
+    const verb = action === 'canceled' ? 'Cancel' : 'Replan';
+    const verbLow = action === 'canceled' ? 'cancel' : 'replan';
+    const allocByKey = new Map();
+    (beforeAllocs || []).forEach(a => allocByKey.set(a.order.key, a));
+
+    const orderRescued = rescuable.rescuableKeys || [];
+
+    const orderHtml = orderRescued.map(k => {
+      const a = allocByKey.get(k);
+      const code = a ? (a.order.orderCode || k) : k;
+      const cn   = a ? (a.order.clientName || '') : '';
+      return `<li><b>${escapeHtml(code)}</b>${cn ? ` <span class="bulk-rescue-sub">— ${escapeHtml(cn)}</span>` : ''}</li>`;
+    }).join('');
+
+    const total = orderRescued.length;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'bulk-rescue-overlay';
+    overlay.innerHTML = `
+      <div class="bulk-rescue-modal" role="dialog" aria-modal="true" aria-labelledby="bulkRescueTitle">
+        <div class="bulk-rescue-header">
+          <h3 id="bulkRescueTitle">⚠ ${total} rescuable order(s) inside this bulk</h3>
+          <p>If you keep these pending instead, they would reach <b>≥ 80%</b> deliverable thanks to stock freed by the rest of the bulk. They were below 80% before.</p>
+        </div>
+        <div class="bulk-rescue-section">
+          <ul class="bulk-rescue-list">${orderHtml}</ul>
+        </div>
+        <div class="bulk-rescue-actions">
+          <button class="btn bulk-rescue-abort" type="button">↩ Cancel — don't ${verbLow} anything</button>
+          <button class="btn bulk-rescue-skip" type="button">Keep these pending, ${verbLow} the rest</button>
+          <button class="btn btn-danger bulk-rescue-all" type="button">${verb} everything anyway</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = (val) => { overlay.remove(); resolve(val); };
+    overlay.querySelector('.bulk-rescue-abort').onclick = () => close('abort');
+    overlay.querySelector('.bulk-rescue-skip').onclick  = () => close('skip');
+    overlay.querySelector('.bulk-rescue-all').onclick   = () => close('all');
+    // Keyboard: Esc = abort
+    overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close('abort'); });
+    overlay.querySelector('.bulk-rescue-skip').focus();
+  });
+}
+
 // Primary review renderer — now iterates SALES REPS, showing all of a rep's
 // deliverable clients on one screen so you call each rep once and handle
 // everyone at once. Pass `scroll=true` only for navigation events (Next/Back/
@@ -9063,13 +9319,29 @@ function wireTableView(stage) {
       title: `Why cancel ${eligible.length} order(s)?`,
       intro: 'The same reason will be applied to all selected orders. Optional — type a reason or skip.',
       initial: ''
-    }, (reason, applied) => {
+    }, async (reason, applied) => {
       if (!applied) return;
+      // Rescue check: would any of the selected orders jump from < 80%
+      // to ≥ 80% if kept pending while the rest get canceled? If yes,
+      // surface a confirmation modal so the user decides per-rescuable.
+      const before = computeReviewAllocations();
+      const rescuable = detectRescuableFromBulk(eligible, 'canceled', null);
+      let skipKeys = new Set();
+      if (rescuable.rescuableKeys.length) {
+        const choice = await askBulkRescueConfirm(rescuable, 'canceled', eligible, before);
+        if (choice === 'abort') return;
+        if (choice === 'skip') {
+          // Refine: per-K detection is optimistic. Joint simulation
+          // demotes candidates that can't all reach ≥ 80% together.
+          skipKeys = refineRescuableSet(eligible, rescuable.rescuableKeys, 'canceled', null);
+        }
+      }
       const am = getAllocsMap();
-      let ok = 0, skippedHc = 0;
+      let ok = 0, skippedHc = 0, skippedRescue = 0;
       keys.forEach(k => {
         const a = am.get(k); if (!a) return;
         if (a.isHcPending) { skippedHc++; return; }
+        if (skipKeys.has(k)) { skippedRescue++; return; }
         reviewState.decisions[k] = 'canceled';
         reviewState.reasons[k] = reason || '';
         delete reviewState.replanDates[k];
@@ -9082,6 +9354,7 @@ function wireTableView(stage) {
       renderReviewStage();
       const parts = [`Canceled ${ok} order(s)`];
       if (skippedHc) parts.push(`${skippedHc} HC-held skipped`);
+      if (skippedRescue) parts.push(`${skippedRescue} kept pending (≥80% rescue)`);
       showUndoToast(parts.join(' · '));
     });
   });
@@ -9107,13 +9380,24 @@ function wireTableView(stage) {
       title: `Why replan ${eligible.length} order(s)?`,
       intro: 'The same reason will be applied to all selected orders. Optional — type a reason or skip.',
       initial: ''
-    }, (reason, applied) => {
+    }, async (reason, applied) => {
       if (!applied) return;
+      const before = computeReviewAllocations();
+      const rescuable = detectRescuableFromBulk(eligible, 'replanned', val);
+      let skipKeys = new Set();
+      if (rescuable.rescuableKeys.length) {
+        const choice = await askBulkRescueConfirm(rescuable, 'replanned', eligible, before);
+        if (choice === 'abort') return;
+        if (choice === 'skip') {
+          skipKeys = refineRescuableSet(eligible, rescuable.rescuableKeys, 'replanned', val);
+        }
+      }
       const am = getAllocsMap();
-      let ok = 0, skippedHc = 0;
+      let ok = 0, skippedHc = 0, skippedRescue = 0;
       keys.forEach(k => {
         const a = am.get(k); if (!a) return;
         if (a.isHcPending) { skippedHc++; return; }
+        if (skipKeys.has(k)) { skippedRescue++; return; }
         reviewState.decisions[k] = 'replanned';
         reviewState.replanDates[k] = val;
         reviewState.reasons[k] = reason || '';
@@ -9127,6 +9411,7 @@ function wireTableView(stage) {
       renderReviewStage();
       const parts = [`Replanned ${ok} order(s) to ${new Date(val + 'T00:00:00').toLocaleDateString()}`];
       if (skippedHc) parts.push(`${skippedHc} HC-held skipped`);
+      if (skippedRescue) parts.push(`${skippedRescue} kept pending (≥80% rescue)`);
       showUndoToast(parts.join(' · '));
     });
   });
@@ -9561,12 +9846,23 @@ function renderReviewStage(scroll) {
         title: `Why cancel ${n} order(s) for ${clientName}?`,
         intro: 'The same reason will be applied to every order of this client. Optional — type a reason or skip.',
         initial: ''
-      }, (reason, applied) => {
+      }, async (reason, applied) => {
         if (!applied) return;
+        const allKeys = group.orders.map(o => o.key);
+        const before = computeReviewAllocations();
+        const rescuable = detectRescuableFromBulk(allKeys, 'canceled', null);
+        let skipKeys = new Set();
+        if (rescuable.rescuableKeys.length) {
+          const choice = await askBulkRescueConfirm(rescuable, 'canceled', allKeys, before);
+          if (choice === 'abort') return;
+          if (choice === 'skip') skipKeys = refineRescuableSet(allKeys, rescuable.rescuableKeys, 'canceled', null);
+        }
         // Snapshot each order's prior state so the whole bulk cancel can be
         // reverted in one click via the undo toast.
         const prevState = {};
+        let okCount = 0;
         group.orders.forEach(o => {
+          if (skipKeys.has(o.key)) return;
           prevState[o.key] = snapshotDecision(o.key);
           reviewState.decisions[o.key] = 'canceled';
           reviewState.reasons[o.key] = reason || '';
@@ -9576,10 +9872,13 @@ function renderReviewStage(scroll) {
           // doesn't treat the bulk-canceled order as still-auto and
           // wipe the user's decision back to Pending on the next render.
           delete reviewState.autoReplanned[o.key];
+          okCount++;
         });
         delete reviewState.bulkReplanOpen[ck];
         renderReviewStage();
-        showUndoToast(`Canceled all ${n} order(s) for ${clientName}`, () => {
+        const skippedRescue = skipKeys.size;
+        const tail = skippedRescue ? ` · ${skippedRescue} kept pending (≥80% rescue)` : '';
+        showUndoToast(`Canceled ${okCount} order(s) for ${clientName}${tail}`, () => {
           Object.keys(prevState).forEach(k => {
             const snap = prevState[k];
             if (snap.decision === undefined) delete reviewState.decisions[k];
@@ -9652,9 +9951,19 @@ function renderReviewStage(scroll) {
         title: `Why replan all order(s) for ${clientName}?`,
         intro: 'The same reason will be applied to every order of this client. Optional — type a reason or skip.',
         initial: ''
-      }, (reason, applied) => {
+      }, async (reason, applied) => {
         if (!applied) return;
+        const allKeys = group.orders.map(o => o.key);
+        const before = computeReviewAllocations();
+        const rescuable = detectRescuableFromBulk(allKeys, 'replanned', val);
+        let skipKeys = new Set();
+        if (rescuable.rescuableKeys.length) {
+          const choice = await askBulkRescueConfirm(rescuable, 'replanned', allKeys, before);
+          if (choice === 'abort') return;
+          if (choice === 'skip') skipKeys = refineRescuableSet(allKeys, rescuable.rescuableKeys, 'replanned', val);
+        }
         group.orders.forEach(o => {
+          if (skipKeys.has(o.key)) return;
           reviewState.decisions[o.key] = 'replanned';
           reviewState.replanDates[o.key] = val;
           reviewState.reasons[o.key] = reason || '';
