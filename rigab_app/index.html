@@ -5922,7 +5922,32 @@ const reviewState = {
   // region confirmation, the Done screen highlights those orders and asks
   // the user to either confirm the region or change the orders' decisions.
   // Map: { regionName: true }.
-  regionConfirmed: {}
+  regionConfirmed: {},
+  // Manual line-quantity overrides — set when the user clicks "Modify
+  // qty" on a pending/OOS order's product line. Shape:
+  //   { [orderKey]: { [prodCode]: number } }
+  // The allocation engine applies these BEFORE VIP/FIFO so the user's
+  // chosen qty always wins. Capped to the line's ordered qty and the
+  // current free stock at apply-time.
+  lineOverride: {},
+  // Sub-Orders gate. Five exports (Confirmed Deliveries, Canceled,
+  // Replanned, Delivery Report, Dispatch) are blocked until BOTH:
+  //   • subOrdersDownloaded — the user has actually clicked the
+  //     "Download Sub-Orders file" button (set on click);
+  //   • subOrdersConfirmed  — the operator has confirmed Sub-Orders
+  //     "did its purpose" by uploading a NEW orders file in which
+  //     every original order with a sub-order has a corresponding
+  //     <origCode>-Sub row containing the exact same products + qtys.
+  // Both reset on Restart review / fresh process.
+  subOrdersDownloaded: false,
+  subOrdersConfirmed:  false,
+  // Snapshot of the Sub-Orders rows captured on download. Shape:
+  //   { [originalOrderCode]: { [prodCode]: qty } }
+  // Used by the verifier to compare against the re-uploaded orders file.
+  subOrdersData: {},
+  // Last verifier result — surfaced in the gate banner so the user
+  // sees what didn't match. Cleared on a fresh successful run.
+  subOrdersVerifyReport: null
 };
 
 function resetReviewUI() {
@@ -5953,6 +5978,11 @@ function resetReviewUI() {
   reviewState.started = false;
   reviewState.userFinished = false;
   reviewState.regionConfirmed = {};
+  reviewState.lineOverride = {};
+  reviewState.subOrdersDownloaded = false;
+  reviewState.subOrdersConfirmed  = false;
+  reviewState.subOrdersData = {};
+  reviewState.subOrdersVerifyReport = null;
   try { localStorage.removeItem(REVIEW_STATE_KEY); } catch (e) {}
   const startEl = document.getElementById('reviewStart');
   const stageEl = document.getElementById('reviewStage');
@@ -5983,7 +6013,12 @@ function saveReviewState() {
       currentIndex:   reviewState.currentIndex,
       started:        reviewState.started,
       userFinished:   reviewState.userFinished,
-      regionConfirmed: reviewState.regionConfirmed
+      regionConfirmed: reviewState.regionConfirmed,
+      lineOverride:    reviewState.lineOverride,
+      subOrdersDownloaded: reviewState.subOrdersDownloaded,
+      subOrdersConfirmed:  reviewState.subOrdersConfirmed,
+      subOrdersData:       reviewState.subOrdersData,
+      subOrdersVerifyReport: reviewState.subOrdersVerifyReport
     };
     localStorage.setItem(REVIEW_STATE_KEY, JSON.stringify(payload));
   } catch (e) { /* quota exceeded etc — silently ignore */ }
@@ -6020,6 +6055,11 @@ function maybeOfferRestore() {
     reviewState.started        = !!saved.started;
     reviewState.userFinished   = !!saved.userFinished;
     reviewState.regionConfirmed = saved.regionConfirmed || {};
+    reviewState.lineOverride   = saved.lineOverride || {};
+    reviewState.subOrdersDownloaded = !!saved.subOrdersDownloaded;
+    reviewState.subOrdersConfirmed  = !!saved.subOrdersConfirmed;
+    reviewState.subOrdersData       = saved.subOrdersData || {};
+    reviewState.subOrdersVerifyReport = saved.subOrdersVerifyReport || null;
     if (reviewState.started) {
       document.getElementById('reviewStart').classList.add('hidden');
       document.getElementById('reviewStage').classList.remove('hidden');
@@ -6039,6 +6079,184 @@ function maybeOfferRestore() {
 // seller when possible" (the UI groups by seller; the allocator sorts by
 // date). This ordering guarantees the app can never ship more than the
 // physical stock for any product.
+// Open the "Modify distributed quantity" modal for a specific (order,
+// product) pair. Computes the runtime cap (current free stock + this
+// line's current allocation), lists confirmed orders that hold stock
+// for the same product (click-to-jump), and on Save writes the chosen
+// qty into reviewState.lineOverride and re-renders the stage so the
+// allocation engine picks up the override.
+function openModifyQtyModal(orderKey, prodCode) {
+  if (!processed || !processed.reviewOrders) return;
+  if (!orderKey || !prodCode) return;
+  const fresh = (typeof computeReviewStats === 'function' ? computeReviewStats() : null) || { allocs: computeReviewAllocations() };
+  const allocs = fresh.allocs || [];
+  const targetAlloc = allocs.find(a => a.order && a.order.key === orderKey);
+  if (!targetAlloc) { alert('Order not found in current scope.'); return; }
+  const targetLine = (targetAlloc.lines || []).find(l => (l.prodCode || '') === prodCode);
+  if (!targetLine) { alert('Product line not found on this order.'); return; }
+  const initial = (processed.initialStock && processed.initialStock.get(prodCode)) || 0;
+  let sumAllocated = 0;
+  allocs.forEach(a => {
+    a.lines.forEach(l => {
+      if ((l.prodCode || '') === prodCode) sumAllocated += (l.allocated || 0);
+    });
+  });
+  const freeLeftover = Math.max(0, initial - sumAllocated);
+  const currentLineAlloc = targetLine.allocated || 0;
+  // Max = pure leftover + this line's current alloc, capped by ordered qty.
+  const maxQty = Math.min(targetLine.ordered || 0, freeLeftover + currentLineAlloc);
+
+  // Confirmed orders that hold stock for this product (allocated > 0).
+  // Used to populate the click-to-jump list inside the modal.
+  const heldBy = allocs
+    .filter(a => a.decision === 'confirmed' && a !== targetAlloc)
+    .map(a => {
+      const l = (a.lines || []).find(x => (x.prodCode || '') === prodCode);
+      return l && (l.allocated > 0) ? { alloc: a, line: l } : null;
+    })
+    .filter(Boolean)
+    .sort((x, y) => (y.line.allocated - x.line.allocated));
+
+  // Lazy-inject CSS once.
+  if (!document.getElementById('modifyQtyModalStyle')) {
+    const style = document.createElement('style');
+    style.id = 'modifyQtyModalStyle';
+    style.textContent = `
+      .mq-modal-backdrop { position: fixed; inset: 0; z-index: 10000; background: rgba(15,23,42,0.45); display:flex; align-items:center; justify-content:center; animation: mqFadeIn .12s ease-out; }
+      @keyframes mqFadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .mq-modal-card { background: var(--bg-elev); color: var(--text); width: 92%; max-width: 520px; padding: 22px; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); font-family: var(--font-sans); }
+      .mq-modal-title { font-weight: 700; font-size: 16px; margin: 0 0 4px; }
+      .mq-modal-sub { color: var(--text-muted); font-size: 12px; margin: 0 0 14px; line-height: 1.5; }
+      .mq-modal-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+      .mq-modal-row label { font-size: 12px; color: var(--text-muted); }
+      .mq-modal-input { width: 110px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font: inherit; text-align: right; background: var(--bg); color: var(--text); }
+      .mq-modal-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-50); }
+      .mq-cap { font-size: 12px; color: var(--text-soft); }
+      .mq-held-title { font-weight: 600; font-size: 13px; margin: 14px 0 6px; color: var(--text); }
+      .mq-held-empty { font-size: 12px; color: var(--text-soft); padding: 8px 10px; background: var(--bg-muted); border-radius: var(--radius-sm); }
+      .mq-held-list { max-height: 200px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+      .mq-held-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border-soft); cursor: pointer; font-size: 13px; }
+      .mq-held-row:hover { background: var(--bg-muted); }
+      .mq-held-row:last-child { border-bottom: none; }
+      .mq-held-row .mq-h-code { font-weight: 600; color: var(--primary); }
+      .mq-held-row .mq-h-cli { color: var(--text); flex: 1; margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .mq-held-row .mq-h-qty { font-weight: 600; color: var(--text); }
+      .mq-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+      .modify-qty-btn { font-size: 11px; padding: 2px 8px; margin-left: 6px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-muted); color: var(--text); cursor: pointer; }
+      .modify-qty-btn:hover { background: var(--primary-50); border-color: var(--primary); color: var(--primary); }
+    `;
+    document.head.appendChild(style);
+  }
+  const ord = targetAlloc.order;
+  const back = document.createElement('div');
+  back.className = 'mq-modal-backdrop';
+  const heldHtml = heldBy.length
+    ? `<div class="mq-held-list">${heldBy.map(h => `
+        <div class="mq-held-row" data-jump-key="${escapeHtml(h.alloc.order.key)}">
+          <span class="mq-h-code">${escapeHtml(h.alloc.order.orderCode || '—')}</span>
+          <span class="mq-h-cli">${escapeHtml(h.alloc.order.clientName || '(no client)')}</span>
+          <span class="mq-h-qty">${h.line.allocated}</span>
+        </div>`).join('')}</div>`
+    : `<div class="mq-held-empty">No confirmed order is currently holding stock for this product.</div>`;
+  back.innerHTML = `
+    <div class="mq-modal-card" role="dialog" aria-modal="true">
+      <div class="mq-modal-title">Modify distributed quantity</div>
+      <div class="mq-modal-sub">
+        <b>${escapeHtml(prodCode)}</b> · ${escapeHtml(targetLine.prodName || '')}<br>
+        Order <b>${escapeHtml(ord.orderCode || '—')}</b> · ${escapeHtml(ord.clientName || '(no client)')}
+      </div>
+      <div class="mq-modal-row">
+        <label>New qty:</label>
+        <input type="number" class="mq-modal-input" min="0" max="${maxQty}" step="1" value="${currentLineAlloc}">
+        <span class="mq-cap">Max ${maxQty} (current ${currentLineAlloc} + free leftover ${freeLeftover}). Ordered: ${targetLine.ordered}.</span>
+      </div>
+      <div class="mq-held-title">Confirmed orders holding stock for this product</div>
+      ${heldHtml}
+      <div class="mq-modal-actions">
+        <button type="button" class="btn" data-act="cancel">Cancel</button>
+        <button type="button" class="btn" data-act="reset" title="Remove the override and let FIFO recompute">Reset to FIFO</button>
+        <button type="button" class="btn btn-primary" data-act="save">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(back);
+  const input = back.querySelector('input.mq-modal-input');
+  setTimeout(() => { input.focus(); input.select(); }, 0);
+  let done = false;
+  const close = () => {
+    if (done) return; done = true;
+    if (back.parentNode) back.parentNode.removeChild(back);
+    document.removeEventListener('keydown', keyHandler, true);
+  };
+  const keyHandler = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+    else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
+  };
+  document.addEventListener('keydown', keyHandler, true);
+  back.addEventListener('click', (e) => { if (e.target === back) close(); });
+  back.querySelector('[data-act="cancel"]').addEventListener('click', close);
+  const save = () => {
+    let v = parseFloat(input.value);
+    if (!isFinite(v) || v < 0) v = 0;
+    v = Math.min(Math.round(v), maxQty);
+    if (!reviewState.lineOverride) reviewState.lineOverride = {};
+    if (!reviewState.lineOverride[orderKey]) reviewState.lineOverride[orderKey] = {};
+    reviewState.lineOverride[orderKey][prodCode] = v;
+    try { saveReviewState(); } catch (_) {}
+    close();
+    if (typeof renderReviewStage === 'function') renderReviewStage(true);
+  };
+  back.querySelector('[data-act="save"]').addEventListener('click', save);
+  back.querySelector('[data-act="reset"]').addEventListener('click', () => {
+    if (reviewState.lineOverride && reviewState.lineOverride[orderKey]) {
+      delete reviewState.lineOverride[orderKey][prodCode];
+      if (!Object.keys(reviewState.lineOverride[orderKey]).length) {
+        delete reviewState.lineOverride[orderKey];
+      }
+      try { saveReviewState(); } catch (_) {}
+    }
+    close();
+    if (typeof renderReviewStage === 'function') renderReviewStage(true);
+  });
+  // Click-to-jump: expand the target order in the table and scroll to it.
+  back.querySelectorAll('.mq-held-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const k = row.dataset.jumpKey || '';
+      if (!k) return;
+      // Reset filters that would hide the target.
+      reviewState.searchQuery = '';
+      reviewState.tableStatusFilter = 'all';
+      reviewState.tableRepFilter = '';
+      reviewState.tableRowExpanded = reviewState.tableRowExpanded || {};
+      reviewState.tableRowExpanded[k] = true;
+      reviewState.orderExpanded = reviewState.orderExpanded || {};
+      reviewState.orderExpanded[k] = true;
+      close();
+      if (typeof renderReviewStage === 'function') renderReviewStage(true);
+      // Defer the scroll so the new DOM is in place.
+      setTimeout(() => {
+        const el = document.querySelector(`[data-order-key="${CSS.escape(k)}"]`);
+        if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+    });
+  });
+}
+
+// Document-level click delegation for the per-line "Modify" button. A
+// single listener at document level survives all the partial re-renders
+// of the review stage without needing to be re-wired.
+if (!window.__modifyQtyDelegated) {
+  window.__modifyQtyDelegated = true;
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest && e.target.closest('.modify-qty-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const ok = btn.dataset.orderKey || '';
+    const pc = btn.dataset.prodCode || '';
+    if (ok && pc) openModifyQtyModal(ok, pc);
+  }, true);
+}
+
 function computeReviewAllocations() {
   if (!processed || !processed.reviewOrders) return [];
 
@@ -6076,11 +6294,18 @@ function computeReviewAllocations() {
     };
   });
 
+  // Set of (alloc, line) pairs that have been pre-allocated by the
+  // override pass — doAllocate must skip them so it doesn't re-FIFO them.
+  const overriddenLines = new WeakSet();
+
   // Allocate one order from the shared stock map. Deducts per line so
   // two lines of the same product inside a single order can't both
-  // "see" the full remaining pool.
+  // "see" the full remaining pool. Lines pre-set by the override pass
+  // are skipped — their `allocated`, `deliverable/outOfStock` placement,
+  // and the `a.totalDeliverable` tally are already done.
   const doAllocate = (a) => {
     a.lines.forEach(l => {
+      if (overriddenLines.has(l)) return; // pre-allocated by override
       const available = Math.max(0, stock.get(l.prodCode) || 0);
       const got = Math.min(l.ordered, available);
       l.allocated = got;
@@ -6094,6 +6319,46 @@ function computeReviewAllocations() {
       a.totalDeliverable += got;
     });
   };
+
+  // ---- Override pass --------------------------------------------------
+  // Apply user-set per-line quantity overrides BEFORE any VIP or FIFO
+  // pass. Excluded orders (canceled / manually-replanned / HC-pending)
+  // are skipped — their lines never ship, so an override on them is
+  // moot and we don't want to consume stock for them.
+  //
+  // For each override:
+  //   • cap to min(ordered, current free stock for that prodCode);
+  //   • set the line's allocated/notAllocated;
+  //   • route the line into deliverable/outOfStock so the consumers
+  //     downstream (renderOrderCardHtml, exports) see it correctly;
+  //   • debit the stock pool;
+  //   • mark the line in overriddenLines so doAllocate doesn't touch it.
+  const lineOverrideMap = reviewState.lineOverride || {};
+  allocs.forEach(a => {
+    const ovForOrder = lineOverrideMap[a.order.key];
+    if (!ovForOrder) return;
+    if (a.decision === 'canceled') return;
+    if (a.decision === 'replanned' && !reviewState.autoReplanned[a.order.key]) return;
+    if (reviewState.hcOrderKeys[a.order.key]) return;
+    const ph = a.order.clientPhone;
+    if (ph && reviewState.hcClientPhones[ph]) return;
+    a.lines.forEach(l => {
+      const want = ovForOrder[l.prodCode];
+      if (typeof want !== 'number' || !isFinite(want)) return;
+      const avail = Math.max(0, stock.get(l.prodCode) || 0);
+      const cap = Math.max(0, Math.min(Math.round(want), l.ordered, avail));
+      l.allocated = cap;
+      l.notAllocated = Math.max(0, l.ordered - cap);
+      if (cap > 0) {
+        stock.set(l.prodCode, avail - cap);
+        a.deliverable.push(l);
+      } else {
+        a.outOfStock.push(l);
+      }
+      a.totalDeliverable += cap;
+      overriddenLines.add(l);
+    });
+  });
 
   // ---------- NEW ALLOCATION MODEL (pure FIFO + VIP priority) ----------
   //
@@ -7110,6 +7375,11 @@ function renderOrderCardHtml(a) {
                  : pct === 0   ? 'pct-zero'
                  : 'pct-partial';
 
+  // Modify-qty button is offered on lines whose ORDER is still in a
+  // mutable state — same rule as the table-view expand view.
+  const isAuto = !!reviewState.autoReplanned[a.order.key];
+  const canModifyQty = !a.decision || isAuto;
+  const modBtn = (l) => canModifyQty ? `<button type="button" class="modify-qty-btn" data-order-key="${escapeHtml(a.order.key)}" data-prod-code="${escapeHtml(l.prodCode || '')}" title="Modify the distributed quantity for this product line">Modify</button>` : '';
   const deliverableHtml = a.deliverable.length ? `
     <div class="review-product-list" style="margin-bottom:10px;">
       <div class="pl-header ok">
@@ -7125,6 +7395,7 @@ function renderOrderCardHtml(a) {
           <div class="qty">
             <span class="ok-num">${l.allocated}</span><span class="sep">/</span>${l.ordered}
             ${l.notAllocated > 0 ? ` <span style="color:var(--danger);font-size:11px;">(+${l.notAllocated} missing)</span>` : ''}
+            ${modBtn(l)}
           </div>
         </div>`).join('')}
     </div>` : '';
@@ -7142,6 +7413,7 @@ function renderOrderCardHtml(a) {
           </div>
           <div class="qty">
             <span class="bad-num">0</span><span class="sep">/</span>${l.ordered}
+            ${modBtn(l)}
           </div>
         </div>`).join('')}
     </div>` : '';
@@ -8828,11 +9100,18 @@ function renderOrderExpandCompact(a) {
       <button class="btn btn-warn replan-save-btn" data-order-key="${escapeHtml(ord.key)}">Save</button>
       <button class="btn replan-cancel-btn" data-order-key="${escapeHtml(ord.key)}">×</button>
     </div>` : '';
+  // Modify-qty button is offered on lines whose ORDER is still in a
+  // mutable state (no decision yet, or auto-replanned out-of-stock). A
+  // user-decided order (confirmed / canceled / manually-replanned) is
+  // not modifiable from this control.
+  const isAuto = !!reviewState.autoReplanned[a.order.key];
+  const canModifyQty = !a.decision || isAuto;
   const lines = a.lines.map(l => `
     <div class="rvt-prod-line ${l.allocated > 0 ? 'ok' : 'oos'}">
       <span class="rvt-prod-code">${escapeHtml(l.prodCode || '')}</span>
       <span class="rvt-prod-name">${escapeHtml(l.prodName || '(unnamed)')}</span>
       <span class="rvt-prod-qty"><b>${l.allocated}</b><span class="rvt-sep">/</span>${l.ordered} <span class="rvt-pct">${formatRate(l.allocated, l.ordered)}</span>${l.notAllocated > 0 ? ` <span class="rvt-miss">(−${l.notAllocated})</span>` : ''}</span>
+      ${canModifyQty ? `<button type="button" class="modify-qty-btn" data-order-key="${escapeHtml(a.order.key)}" data-prod-code="${escapeHtml(l.prodCode || '')}" title="Modify the distributed quantity for this product line">Modify</button>` : ''}
     </div>`).join('');
   return `<div class="rvt-compact-expand">${lines || '<div class="rvt-prod-line muted">No product lines.</div>'}${replanPanelHtml}</div>`;
 }
@@ -10568,24 +10847,54 @@ function renderReviewDone(allocs, stats) {
         Across <b>${confirmedClients.size}</b> unique client(s) for delivery · <b>${totalLines}</b> product line(s) · <b>${totalDeliverableUnits}</b> unit(s) to ship tomorrow.
       </div>
     </div>
-    <div style="display:flex; flex-wrap:wrap; gap:8px;">
-      <button class="btn btn-primary btn-lg" id="exportConfirmedBtn">
+    ${(() => {
+      // Sub-Orders gate banner. Renders only while the gate is closed.
+      const dl = !!reviewState.subOrdersDownloaded;
+      const ok = !!reviewState.subOrdersConfirmed;
+      if (ok) return '';
+      return `<div id="subOrdersGateBanner" style="padding:14px 16px; background:#fef3c7; border:1px solid #f59e0b; border-radius:10px; margin:6px 0 10px; color:#78350f; font-size:13px; line-height:1.6;">
+        <b>Exports locked until Sub-Orders is processed.</b><br>
+        Five exports (Confirmed Deliveries, Canceled, Replanned, Delivery Report, Dispatch) are blocked until you (1) <b>download the Sub-Orders file</b>, and (2) confirm it did its purpose.<br>
+        <span style="display:inline-block; margin-top:4px;">${dl ? '✓' : '◻︎'} Sub-Orders downloaded</span>
+        &nbsp;·&nbsp;
+        <span>${ok ? '✓' : '◻︎'} Sub-Orders confirmed</span>
+        ${dl && !ok ? `
+          <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
+            <div style="font-size:12px; color:#78350f; line-height:1.5;">
+              Upload the <b>new orders file</b> below. The verifier checks that for every original order code in the Sub-Orders file (e.g. <code>CMD260313342</code>), the new file contains <code>CMD260313342-Sub</code> (case-insensitive) with exactly the same products + quantities. When all match, the 5 exports unlock.
+            </div>
+            <label class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; max-width:fit-content;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Upload new orders file to verify
+              <input type="file" id="subOrdersVerifyFile" accept=".xlsx,.xls" style="display:none;">
+            </label>
+          </div>
+          ${reviewState.subOrdersVerifyReport ? renderSubOrdersVerifyReport(reviewState.subOrdersVerifyReport) : ''}
+        ` : ''}
+      </div>`;
+    })()}
+    ${(() => {
+      // Tag a class on the wrapper while the gate is closed so we can
+      // grey out the locked buttons via existing :disabled styling.
+      return `<div style="display:flex; flex-wrap:wrap; gap:8px;">`;
+    })()}
+      <button class="btn btn-primary btn-lg" id="exportConfirmedBtn"${!reviewState.subOrdersConfirmed ? ' disabled title="Locked — download Sub-Orders first, then confirm."' : ''}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download confirmed deliveries (.xlsx)
       </button>
-      <button class="btn btn-danger btn-lg" id="exportCanceledBtn"${canceledAllocs.length === 0 ? ' disabled' : ''}>
+      <button class="btn btn-danger btn-lg" id="exportCanceledBtn"${canceledAllocs.length === 0 || !reviewState.subOrdersConfirmed ? ' disabled' : ''}${!reviewState.subOrdersConfirmed ? ' title="Locked — download Sub-Orders first, then confirm."' : ''}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         Download canceled orders (.xlsx)
       </button>
-      <button class="btn btn-warn btn-lg" id="exportReplannedBtn"${replannedAllocs.length === 0 ? ' disabled' : ''} title="Includes ${userReplannedAllocs.length} order(s) you replanned and ${autoReplannedAllocs.length} auto-replanned out-of-stock order(s) (rescheduled to today + 2 days).">
+      <button class="btn btn-warn btn-lg" id="exportReplannedBtn"${replannedAllocs.length === 0 || !reviewState.subOrdersConfirmed ? ' disabled' : ''} title="${!reviewState.subOrdersConfirmed ? 'Locked — download Sub-Orders first, then confirm.' : `Includes ${userReplannedAllocs.length} order(s) you replanned and ${autoReplannedAllocs.length} auto-replanned out-of-stock order(s) (rescheduled to today + 2 days).`}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Download replanned orders (.xlsx)${replannedAllocs.length ? ` · ${replannedAllocs.length}` : ''}
       </button>
-      <button class="btn btn-lg" id="exportDeliveryReportBtn" title="Full delivery report — every order line still in scope (confirmed + pending + auto-replanned), with per-order and per-client deliverable rates and a 'Confirmed' yes/no flag.">
+      <button class="btn btn-lg" id="exportDeliveryReportBtn"${!reviewState.subOrdersConfirmed ? ' disabled' : ''} title="${!reviewState.subOrdersConfirmed ? 'Locked — download Sub-Orders first, then confirm.' : 'Full delivery report — every order line still in scope (confirmed + pending + auto-replanned), with per-order and per-client deliverable rates and a Confirmed yes/no flag.'}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Download delivery report (.xlsx)
       </button>
-      <button class="btn btn-primary btn-lg" id="exportDispatchBtn"${confirmedAllocs.length === 0 ? ' disabled' : ''} title="Same column layout as your uploaded orders file, restricted to confirmed orders only. Use this to feed downstream dispatch / shipping systems that expect the original file shape.">
+      <button class="btn btn-primary btn-lg" id="exportDispatchBtn"${confirmedAllocs.length === 0 || !reviewState.subOrdersConfirmed ? ' disabled' : ''} title="${!reviewState.subOrdersConfirmed ? 'Locked — download Sub-Orders first, then confirm.' : 'Same column layout as your uploaded orders file, restricted to confirmed orders only. Use this to feed downstream dispatch / shipping systems that expect the original file shape.'}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
         Download dispatch file (.xlsx)${confirmedAllocs.length ? ` · ${confirmedAllocs.length}` : ''}
       </button>
@@ -10657,7 +10966,42 @@ function renderReviewDone(allocs, stats) {
   });
   document.getElementById('exportSubOrdersBtn')?.addEventListener('click', () => {
     exportSubOrders(allocs);
+    // Mark "Sub-Orders downloaded". We do this even if the export
+    // alert-bailed (no rows) so the user can still proceed; a more
+    // thoughtful future check can flip this back to false on bail.
+    if (!reviewState.subOrdersDownloaded) {
+      reviewState.subOrdersDownloaded = true;
+      try { saveReviewState(); } catch (_) {}
+      renderReviewDone(allocs, stats);
+    }
   });
+  // Sub-Orders verifier — reads the re-uploaded orders file, checks
+  // every captured Sub-Orders entry has a matching <code>-Sub row in
+  // it with the same products and quantities, and on full match flips
+  // the gate. On any mismatch, stores a structured report so the gate
+  // banner can show the user exactly what went wrong.
+  const verifyInput = document.getElementById('subOrdersVerifyFile');
+  if (verifyInput) {
+    verifyInput.addEventListener('change', async (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      try {
+        const rows = await readXlsx(f);
+        const report = verifySubOrdersAgainstNewOrders(rows, reviewState.subOrdersData || {});
+        reviewState.subOrdersVerifyReport = report;
+        if (report.ok) {
+          reviewState.subOrdersConfirmed = true;
+        }
+        try { saveReviewState(); } catch (_) {}
+        renderReviewDone(allocs, stats);
+      } catch (err) {
+        alert('Failed to read the file: ' + (err && err.message ? err.message : err));
+      } finally {
+        // Reset the input so the same file can be selected again after a fix.
+        try { e.target.value = ''; } catch (_) {}
+      }
+    });
+  }
   document.getElementById('exportStockNeededBtn')?.addEventListener('click', () => {
     exportStockNeeded(allocs);
   });
@@ -10904,6 +11248,19 @@ function exportSubOrders(allocs) {
 
   rows.sort((a, b) => String(a.partnerReference).localeCompare(String(b.partnerReference)));
 
+  // Snapshot the Sub-Orders payload for later verification by re-upload.
+  // Map<orderCode, Map<prodCode, qty>> compacted into plain objects so
+  // localStorage can round-trip it.
+  const snap = {};
+  rows.forEach(r => {
+    const oc = String(r.partnerReference || '').trim();
+    const pc = String(r.partnerCode || '').trim();
+    if (!oc || !pc) return;
+    if (!snap[oc]) snap[oc] = {};
+    snap[oc][pc] = (snap[oc][pc] || 0) + (r.quantity || 0);
+  });
+  reviewState.subOrdersData = snap;
+
   const headers = ['partnerReference', 'partnerCode', 'quantity'];
   const aoa = [headers].concat(rows.map(r => headers.map(h => r[h])));
   const ws = XLSX_WRITE.utils.aoa_to_sheet(aoa);
@@ -10921,6 +11278,119 @@ function exportSubOrders(allocs) {
   const wb = XLSX_WRITE.utils.book_new();
   XLSX_WRITE.utils.book_append_sheet(wb, ws, 'Sub-Orders');
   XLSX_WRITE.writeFile(wb, `Sub_Orders_${tomorrowLabel()}.xlsx`);
+}
+
+// Verify a re-uploaded orders file against the Sub-Orders snapshot
+// captured at download time. For every original order code in
+// subOrdersData, look for a row group named "<origCode>-Sub" (case-
+// insensitive) in the new orders file. The matched group's products
+// and quantities must equal the snapshot's. Returns a structured
+// report:
+//   {
+//     ok: bool,
+//     missing:    [origCode, ...]                               // no -Sub row found
+//     extraSubs:  [subCode, ...]                                // -Sub rows with no matching original
+//     mismatches: [{ origCode, subCode, diffs: [{ prodCode, expected, actual }] }]
+//     totalChecked: N
+//   }
+function verifySubOrdersAgainstNewOrders(rows, subOrdersData) {
+  const report = { ok: false, missing: [], extraSubs: [], mismatches: [], totalChecked: 0 };
+  const codes = Object.keys(subOrdersData || {});
+  if (!codes.length) {
+    report.error = 'No Sub-Orders snapshot is available to verify against. Re-download the Sub-Orders file first.';
+    return report;
+  }
+  if (!Array.isArray(rows) || !rows.length) {
+    report.error = 'The uploaded file appears to be empty.';
+    return report;
+  }
+  // Discover columns the same way doProcess does — tolerant of aliases.
+  const sample = rows[0];
+  const cCode  = findCol(sample, ['Code']);
+  const cProd  = findCol(sample, ['Product code','ProductCode']);
+  const cQty   = findCol(sample, ['Quantity','Ordered Qty','OrderedQty']);
+  if (!cCode || !cProd || !cQty) {
+    report.error = 'Missing required columns. Need: Code · Product code · Quantity.';
+    return report;
+  }
+  // Group new-orders rows by their Code (lowercased so "-sub" / "-SUB" /
+  // "-Sub" all collapse together). Sum same-product duplicate rows.
+  const groupsLc = new Map();   // codeLc -> { codeRaw, lines: { prodCode: qty } }
+  rows.forEach(r => {
+    const codeRaw = String(r[cCode] || '').trim();
+    const pc = String(r[cProd] || '').trim();
+    if (!codeRaw || !pc) return;
+    const qty = parseFloat(r[cQty]);
+    const q = isFinite(qty) ? qty : 0;
+    const key = codeRaw.toLowerCase();
+    if (!groupsLc.has(key)) groupsLc.set(key, { codeRaw, lines: {} });
+    const g = groupsLc.get(key);
+    g.lines[pc] = (g.lines[pc] || 0) + q;
+  });
+  // For each original orderCode, look for its -sub variant in the new
+  // file and compare line-by-line.
+  const matchedSubLcKeys = new Set();
+  codes.forEach(origCode => {
+    report.totalChecked++;
+    const wantedKey = (origCode + '-sub').toLowerCase();
+    const g = groupsLc.get(wantedKey);
+    if (!g) { report.missing.push(origCode); return; }
+    matchedSubLcKeys.add(wantedKey);
+    const expected = subOrdersData[origCode] || {};
+    const actual   = g.lines || {};
+    const allCodes = new Set([...Object.keys(expected), ...Object.keys(actual)]);
+    const diffs = [];
+    allCodes.forEach(pc => {
+      const e = Math.round((expected[pc] || 0));
+      const a = Math.round((actual[pc]   || 0));
+      if (e !== a) diffs.push({ prodCode: pc, expected: e, actual: a });
+    });
+    if (diffs.length) {
+      report.mismatches.push({ origCode, subCode: g.codeRaw, diffs });
+    }
+  });
+  // Surface any -Sub rows that don't correspond to an original code in
+  // the snapshot. Not required for OK, but informative.
+  groupsLc.forEach((g, key) => {
+    if (key.endsWith('-sub') && !matchedSubLcKeys.has(key)) {
+      report.extraSubs.push(g.codeRaw);
+    }
+  });
+  report.ok = report.missing.length === 0 && report.mismatches.length === 0;
+  return report;
+}
+
+// Render the per-mismatch report inside the gate banner. Returns HTML.
+function renderSubOrdersVerifyReport(report) {
+  if (!report) return '';
+  if (report.ok) {
+    return `<div style="margin-top:10px; padding:10px 12px; background:#dcfce7; border:1px solid #16a34a; border-radius:8px; color:#166534; font-size:12px; line-height:1.5;">
+      ✓ Verified — all ${report.totalChecked} Sub-Orders entry(ies) matched the re-uploaded file. Exports unlocked.
+    </div>`;
+  }
+  if (report.error) {
+    return `<div style="margin-top:10px; padding:10px 12px; background:#fee2e2; border:1px solid #ef4444; border-radius:8px; color:#7f1d1d; font-size:12px; line-height:1.5;">${escapeHtml(report.error)}</div>`;
+  }
+  const missingHtml = report.missing.length ? `
+    <div style="margin-top:6px;"><b>Missing:</b> ${report.missing.length} order(s) had no matching <code>-Sub</code> row in the new file.<br>
+      <span style="color:#7f1d1d;">${report.missing.slice(0, 10).map(c => `<code>${escapeHtml(c)}</code>`).join(', ')}${report.missing.length > 10 ? ` · and ${report.missing.length - 10} more` : ''}</span>
+    </div>` : '';
+  const mismatchHtml = report.mismatches.length ? `
+    <div style="margin-top:6px;"><b>${report.mismatches.length} mismatch(es):</b>
+      <ul style="margin:4px 0 0 18px; padding:0;">
+        ${report.mismatches.slice(0, 10).map(m => `
+          <li style="margin-bottom:4px;"><code>${escapeHtml(m.origCode)}</code> ↔ <code>${escapeHtml(m.subCode)}</code>:
+            ${m.diffs.slice(0, 6).map(d => `<code>${escapeHtml(d.prodCode)}</code> expected <b>${d.expected}</b>, got <b>${d.actual}</b>`).join('; ')}${m.diffs.length > 6 ? `; +${m.diffs.length - 6} more` : ''}
+          </li>`).join('')}
+        ${report.mismatches.length > 10 ? `<li>… and ${report.mismatches.length - 10} more</li>` : ''}
+      </ul>
+    </div>` : '';
+  const extraHtml = report.extraSubs.length ? `
+    <div style="margin-top:6px;"><b>Note:</b> the new file has ${report.extraSubs.length} <code>-Sub</code> row(s) that don't correspond to any Sub-Orders entry. These don't block the gate but suggest a stale file.</div>` : '';
+  return `<div style="margin-top:10px; padding:10px 12px; background:#fee2e2; border:1px solid #ef4444; border-radius:8px; color:#7f1d1d; font-size:12px; line-height:1.6;">
+    ✗ Verification failed — fix the new orders file and upload again.
+    ${missingHtml}${mismatchHtml}${extraHtml}
+  </div>`;
 }
 
 // Export a "Stock Needed" file — per product, the EXTRA quantity you must
