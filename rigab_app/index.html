@@ -11169,6 +11169,24 @@ function exportDispatchFile(allocs) {
     return;
   }
 
+  // ---- Region override from clients DB --------------------------------
+  // The orders file's Region column reflects whatever upstream sent us
+  // (e.g. GRAND_CASABLANCA), but the dispatch team works off the
+  // canonical region naming from the clients file (Customer_Region —
+  // e.g. Casablanca-Settat). Look each row's phone up in clientsDB and
+  // rewrite the Region cell. Rows whose phone isn't in the DB keep the
+  // original value, so we never blank a known cell by mistake.
+  const oRegionCol = findCol(O, ['Customer_Region','Region']);
+  const oPhoneCol  = oPhone; // already discovered above
+  if (oRegionCol && oPhoneCol) {
+    filtered.forEach(r => {
+      const np = normalizePhone(r[oPhoneCol]);
+      if (!np) return;
+      const c = clientsDB[np];
+      if (c && c.region) r[oRegionCol] = c.region;
+    });
+  }
+
   // Preserve the source column order. SheetJS's sheet_to_json keeps the
   // original header order in the object's key insertion order, so iterating
   // Object.keys on the first row gives us exactly the upload's columns.
