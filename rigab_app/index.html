@@ -88,6 +88,11 @@
     --radius-lg: 14px;
     --radius-xl: 18px;
 
+    --row-hover: #f8fafc;
+    --border-strong: #cbd5e1;
+    --cmdbar-bg: rgba(255, 255, 255, 0.86);
+    --bullet-tick: #0f172a;
+
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   }
@@ -121,39 +126,53 @@
      features will be added as additional entries in the sidebar later. */
   .app-shell { display: flex; min-height: 100vh; align-items: stretch; }
   .app-sidebar {
-    width: 260px;
-    flex: 0 0 260px;
+    width: 160px;
+    flex: 0 0 160px;
     background: var(--bg-elev);
     border-right: 1px solid var(--border);
-    padding: 20px 14px 28px;
-    display: flex; flex-direction: column; gap: 10px;
+    padding: 14px 8px 20px;
+    display: flex; flex-direction: column; gap: 4px;
     position: sticky; top: 0;
-    height: 100vh; overflow-y: auto;
+    height: 100vh; overflow-y: auto; overflow-x: hidden;
     box-sizing: border-box;
   }
-  .as-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px; border-bottom: 1px solid var(--border-soft); margin-bottom: 6px; }
+  .as-brand {
+    display: flex; align-items: center; gap: 8px;
+    padding: 2px 6px 10px; margin-bottom: 4px;
+    border-bottom: 1px solid var(--border-soft);
+    width: 100%;
+  }
+  .as-brand .as-brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+  .as-brand-name { font-weight: 800; font-size: 12.5px; color: var(--text); letter-spacing: -0.01em; }
+  .as-brand-sub { display: none; }
   .as-brand .as-logo {
-    width: 34px; height: 34px; border-radius: 8px;
+    width: 26px; height: 26px; border-radius: 7px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-700, #c2410c) 100%);
     color: #fff; display:flex; align-items:center; justify-content:center;
     box-shadow: var(--shadow-sm);
   }
   .as-brand .as-brand-text { display:flex; flex-direction:column; line-height:1.1; }
-  .as-brand .as-brand-name { font-weight: 800; font-size: 15px; color: var(--text); letter-spacing: -0.01em; }
-  .as-brand .as-brand-sub  { font-size: 11px; color: var(--text-soft); margin-top: 2px; }
+  .as-brand .as-brand-name { font-weight: 800; font-size: 13px; color: var(--text); letter-spacing: -0.01em; }
+  .as-brand .as-brand-sub  { font-size: 10.5px; color: var(--text-soft); margin-top: 1px; }
   .as-section-title {
-    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--text-soft); padding: 12px 10px 6px; font-weight: 700;
+    font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-soft); padding: 8px 8px 2px; font-weight: 700;
   }
   .as-feature {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 10px; border-radius: var(--radius-sm);
-    color: var(--text); font-size: 13px; font-weight: 500;
-    cursor: pointer; border: 1px solid transparent;
-    background: transparent; width: 100%; text-align: left;
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 8px;
+    border-radius: var(--radius-sm); border: 1px solid transparent;
+    background: transparent; cursor: pointer; width: 100%; text-align: left;
+    color: var(--text);
+    font-size: 12px; font-weight: 500; line-height: 1.2;
     transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+    position: relative;
   }
-  .as-feature .as-icon { width:18px; height:18px; flex:0 0 18px; color: var(--text-soft); }
+  .as-feature .as-icon { width: 16px; height: 16px; flex: 0 0 16px; color: var(--text-soft); }
+  .as-feature > span:not(.as-icon) {
+    display: block;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   .as-feature:hover { background: var(--bg-muted); }
   .as-feature.active {
     background: var(--primary-50, #fff7ed);
@@ -167,6 +186,7 @@
   .as-coming-pill { margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 999px; background: var(--bg-muted); color: var(--text-soft); border: 1px solid var(--border-soft); font-style: normal; }
   .app-main { flex: 1 1 auto; min-width: 0; }
   .app-main > .app { max-width: 1200px; }
+  .app-main > .gmv-app { max-width: none; margin: 0; padding-left: 0; padding-right: 0; }
 
   /* Mobile collapse — hide sidebar, show hamburger that toggles it. */
   .as-toggle {
@@ -185,6 +205,7 @@
     .as-toggle { display: inline-flex; }
     .app-sidebar {
       position: fixed; top: 0; left: 0; height: 100vh; z-index: 1000;
+      width: 200px; flex: 0 0 200px;
       transform: translateX(-100%); transition: transform .2s ease;
       box-shadow: var(--shadow-lg);
     }
@@ -586,56 +607,73 @@
     border-radius: var(--radius-md);
     background: var(--bg-elev);
     box-shadow: var(--shadow-xs);
-    overflow-x: auto;
+    overflow: auto;
+    max-height: 70vh;
   }
   .gmv-table {
     width: 100%; min-width: 960px;
     border-collapse: separate; border-spacing: 0;
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .gmv-table thead th {
     background: var(--bg-muted);
-    padding: 10px 12px; text-align: left;
+    padding: 7px 10px; text-align: left;
     font-weight: 700; font-size: 11px;
-    text-transform: uppercase; letter-spacing: 0.05em;
-    color: var(--text-soft);
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-muted);
     border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 1;
+    position: sticky; top: 0; z-index: 2;
     white-space: nowrap;
+    box-shadow: 0 1px 0 var(--border);
+    transition: box-shadow .15s ease;
   }
-  .gmv-table thead th.num { text-align: right; }
+  .gmv-table thead th.num {
+    text-align: right; padding-right: 14px;
+    text-transform: none; letter-spacing: 0;
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+  }
+  .gmv-table-wrap.is-scrolled .gmv-table thead th {
+    box-shadow: 0 4px 8px rgba(15, 23, 42, 0.06), 0 1px 0 var(--border);
+  }
   .gmv-table tbody td {
-    padding: 10px 12px;
+    padding: 5px 10px;
     border-bottom: 1px solid var(--border-soft);
     color: var(--text);
     vertical-align: middle;
+    line-height: 1.35;
   }
-  .gmv-table tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .gmv-table tbody td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+    padding-right: 14px;
+  }
   .gmv-table tbody td.muted-num { color: var(--text-soft); }
   .gmv-table tbody tr:last-child td { border-bottom: none; }
   .gmv-table tbody tr.gmv-row-seller { background: var(--bg-elev); font-weight: 600; }
   .gmv-table tbody tr.gmv-row-seller.target-met { background: linear-gradient(90deg, var(--success-50) 0%, transparent 60%); }
-  .gmv-table tbody tr.gmv-row-seller:hover { background: #fffaf5; }
+  .gmv-table tbody tr.gmv-row-seller:hover td { background: var(--row-hover, #f8fafc); }
   .gmv-table tbody tr.gmv-row-client { background: var(--bg); font-size: 12px; }
-  .gmv-table tbody tr.gmv-row-client:hover { background: var(--bg-muted); }
+  .gmv-table tbody tr.gmv-row-client:hover td { background: var(--row-hover, #f8fafc); }
   .gmv-table tfoot td {
     background: var(--bg-muted);
     border-top: 2px solid var(--border);
-    padding: 12px;
+    padding: 8px 10px;
     font-weight: 800; font-size: 13px;
   }
 
   /* Indented client name cell inside the expand */
-  .gmv-cli-cell { padding-left: 36px !important; }
-  .gmv-cli-name { color: var(--text); font-weight: 500; }
-  .gmv-cli-phone { color: var(--text-soft); font-size: 11px; margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .gmv-cli-cell { padding-left: 30px !important; }
+  .gmv-cli-name { color: var(--text); font-weight: 500; line-height: 1.2; }
+  .gmv-cli-phone { color: var(--text-soft); font-size: 10.5px; margin-top: 0; line-height: 1.15; font-variant-numeric: tabular-nums; }
 
   /* Toggle chevron */
   .gmv-toggle-btn {
     background: none; border: none; cursor: pointer;
-    width: 22px; height: 22px;
+    width: 18px; height: 18px;
     display: inline-flex; align-items: center; justify-content: center;
-    border-radius: 4px; color: var(--text-soft); font-size: 11px;
+    border-radius: 3px; color: var(--text-soft); font-size: 10px;
     transition: background-color .12s, color .12s;
   }
   .gmv-toggle-btn:hover { background: var(--bg-muted); color: var(--primary); }
@@ -737,6 +775,418 @@
   }
   .gmv-period-banner .gpb-preset.active {
     background: var(--primary); border-color: var(--primary); color: white;
+  }
+  /* ------------------------------------------------------------------
+     GMV — redesigned (Stripe/Linear/Vercel-tier polish).
+     Drops the 5-card setup-wizard layout in favor of a command bar +
+     collapsible data sources strip + hero KPI + lean secondary tiles +
+     a single dense table with inline target editing.
+     ------------------------------------------------------------------ */
+  .gmv-app { padding: 0 0 80px; max-width: none; margin: 0; }
+  .gmv-app .gmv-inner {
+    max-width: none; margin: 0; padding: 0 24px;
+  }
+
+  /* Command bar — sticky, blur on scroll, never wastes height. */
+  .gmv-cmdbar {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 24px;
+    background: var(--cmdbar-bg);
+    backdrop-filter: saturate(180%) blur(12px);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .gmv-cmdbar .cmd-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .gmv-cmdbar .cmd-logo {
+    width: 28px; height: 28px; flex: 0 0 28px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-600) 100%);
+    color: white; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-xs);
+  }
+  .gmv-cmdbar .cmd-title {
+    font-weight: 700; font-size: 14px; color: var(--text); letter-spacing: -0.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .gmv-cmdbar .cmd-spacer { flex: 1 1 auto; }
+  .gmv-cmdbar .cmd-period {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 32px; padding: 0 12px;
+    background: var(--bg-muted); border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600; color: var(--text);
+    cursor: pointer; transition: background-color .12s, border-color .12s;
+  }
+  .gmv-cmdbar .cmd-period:hover { background: var(--primary-50); border-color: var(--primary-100); color: var(--primary); }
+  .gmv-cmdbar .cmd-period .period-dates { font-weight: 500; color: var(--text-soft); font-size: 12px; }
+  .gmv-cmdbar .cmd-period .caret { color: var(--text-soft); font-size: 9px; }
+  .gmv-cmdbar .cmd-save-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-soft); padding: 0 8px;
+    transition: opacity .2s;
+  }
+  .gmv-cmdbar .cmd-save-status.saving { color: var(--primary); }
+  .gmv-cmdbar .cmd-save-status.saved  { color: var(--success); }
+  .gmv-cmdbar .cmd-save-status .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  }
+  .gmv-cmdbar .cmd-account {
+    font-size: 12px; color: var(--text-soft); padding: 0 8px;
+    max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Period popover — anchored under .cmd-period when open. */
+  .gmv-period-popover {
+    position: absolute; z-index: 40;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: 6px;
+    min-width: 240px;
+    display: none;
+  }
+  .gmv-period-popover.open { display: block; }
+  .gmv-period-popover .pp-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    font-size: 13px; color: var(--text); cursor: pointer;
+  }
+  .gmv-period-popover .pp-row:hover { background: var(--bg-muted); }
+  .gmv-period-popover .pp-row.active { background: var(--primary-50); color: var(--primary); font-weight: 600; }
+  .gmv-period-popover .pp-row .pp-shortcut { font-size: 11px; color: var(--text-soft); }
+  .gmv-period-popover .pp-divider { height: 1px; background: var(--border-soft); margin: 4px 6px; }
+  .gmv-period-popover .pp-custom {
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .gmv-period-popover .pp-custom .pp-row-input {
+    display: flex; gap: 6px; align-items: center;
+  }
+  .gmv-period-popover .pp-custom input[type="date"] {
+    height: 28px; padding: 0 8px; flex: 1;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font: inherit; font-size: 12px; background: var(--bg-elev); color: var(--text);
+  }
+  .gmv-period-popover .pp-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-soft); padding: 6px 10px 2px;
+  }
+
+  /* Data Sources strip — collapsed by default; reveals upload tiles on click. */
+  .gmv-ds-strip {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .gmv-ds-summary {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    cursor: pointer; user-select: none;
+    list-style: none;
+  }
+  .gmv-ds-summary::-webkit-details-marker { display: none; }
+  .gmv-ds-summary .ds-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 10px;
+    background: var(--bg-muted); border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600; color: var(--text);
+  }
+  .gmv-ds-summary .ds-pill.ok { background: var(--success-50); color: var(--success); border-color: #a7f3d0; }
+  .gmv-ds-summary .ds-pill .ds-count { color: var(--text-soft); font-weight: 500; font-size: 11px; }
+  .gmv-ds-summary .ds-pill.ok .ds-count { color: var(--success); }
+  .gmv-ds-summary .ds-pill .ds-check { font-size: 10px; }
+  .gmv-ds-summary .ds-pill.ok .ds-check { color: var(--success); }
+  .gmv-ds-summary .ds-spacer { flex: 1 1 auto; }
+  .gmv-ds-summary .ds-toggle {
+    font-size: 11px; color: var(--text-soft); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  details[open] .gmv-ds-summary .ds-toggle .ds-caret { transform: rotate(90deg); }
+  .gmv-ds-summary .ds-caret {
+    display: inline-block; transition: transform .15s;
+    font-size: 9px;
+  }
+  .gmv-ds-body {
+    border-top: 1px solid var(--border);
+    padding: 16px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;
+    background: var(--bg);
+  }
+  .gmv-ds-card {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 12px;
+  }
+  .gmv-ds-card .ds-card-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-soft); margin-bottom: 8px;
+  }
+
+  /* Hero DELIVERED KPI */
+  .gmv-hero {
+    background: linear-gradient(135deg, var(--success-50) 0%, var(--bg-elev) 70%);
+    border: 1px solid #a7f3d0;
+    border-radius: var(--radius-lg);
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    display: grid; grid-template-columns: 1fr auto; gap: 24px;
+    align-items: center;
+    box-shadow: var(--shadow-xs);
+  }
+  .gmv-hero .hero-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--success); margin-bottom: 4px;
+  }
+  .gmv-hero .hero-value {
+    font-size: 32px; font-weight: 800; color: var(--text); letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .gmv-hero .hero-suffix { font-size: 18px; font-weight: 600; color: var(--text-muted); margin-left: 6px; }
+  .gmv-hero .hero-meta { display: flex; gap: 16px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+  .gmv-hero .hero-target {
+    font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  }
+  .gmv-hero .hero-target b { color: var(--text); font-weight: 700; }
+  .gmv-hero .hero-pct {
+    font-weight: 700; color: var(--success); font-variant-numeric: tabular-nums;
+  }
+  .gmv-hero .hero-bullet {
+    display: flex; flex-direction: column; gap: 6px; min-width: 320px;
+  }
+  .gmv-hero .hero-bullet-bar {
+    position: relative; height: 14px; border-radius: 4px;
+    background: var(--bg-muted);
+    border: 1px solid var(--border);
+    overflow: visible;
+  }
+  .gmv-hero .hero-bullet-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: linear-gradient(90deg, var(--success) 0%, #10b981 100%);
+    border-radius: 3px; transition: width .3s ease;
+  }
+  .gmv-hero .hero-bullet-tick {
+    position: absolute; top: -3px; bottom: -3px; width: 2px;
+    background: var(--bullet-tick); border-radius: 1px;
+  }
+  .gmv-hero .hero-bullet-scale {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--text-soft); font-variant-numeric: tabular-nums;
+  }
+
+  /* Secondary KPI strip — minis */
+  .gmv-mini-strip {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px; margin-bottom: 16px;
+  }
+  .gmv-mini {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 6px;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .gmv-mini:hover { border-color: var(--border-strong, var(--text-soft)); box-shadow: var(--shadow-xs); }
+  .gmv-mini .mini-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-soft);
+  }
+  .gmv-mini .mini-value {
+    font-size: 18px; font-weight: 800; color: var(--text);
+    font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  .gmv-mini .mini-sub {
+    font-size: 11px; color: var(--text-soft);
+  }
+  .gmv-mini.pending     { border-left: 3px solid #fbbf24; }
+  .gmv-mini.to-deliver  { border-left: 3px solid #38bdf8; }
+  .gmv-mini.returned    { border-left: 3px solid #f87171; }
+  .gmv-mini.canceled    { border-left: 3px solid #9ca3af; }
+  .gmv-mini.replaned    { border-left: 3px solid #facc15; }
+  .gmv-mini.rescheduled { border-left: 3px solid #facc15; }
+  .gmv-mini.delivery-in-progress { border-left: 3px solid #818cf8; }
+
+  /* Status tabs — segmented control above the table */
+  .gmv-tabs {
+    display: inline-flex; padding: 3px; margin-bottom: 12px;
+    background: var(--bg-muted); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow-x: auto; max-width: 100%;
+  }
+  .gmv-tabs::-webkit-scrollbar { display: none; }
+  .gmv-tab {
+    padding: 5px 12px;
+    background: transparent; border: none; cursor: pointer;
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    transition: background-color .12s, color .12s;
+  }
+  .gmv-tab:hover { color: var(--text); }
+  .gmv-tab.active {
+    background: var(--bg-elev); color: var(--text);
+    box-shadow: var(--shadow-xs);
+  }
+
+  /* Bullet chart — used in the table per row */
+  .gmv-bullet {
+    position: relative; width: 120px; height: 6px;
+    background: var(--bg-muted); border: 1px solid var(--border-soft);
+    border-radius: 3px; overflow: visible;
+  }
+  .gmv-bullet-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    border-radius: 2px; transition: width .25s ease;
+  }
+  .gmv-bullet-fill.ok      { background: var(--success); }
+  .gmv-bullet-fill.partial { background: var(--primary); }
+  .gmv-bullet-tick {
+    position: absolute; top: -3px; bottom: -3px; width: 2px;
+    background: var(--bullet-tick); border-radius: 1px;
+  }
+
+  /* Per-seller client search row inside an expanded seller. */
+  .gmv-clisrch-row td {
+    background: var(--bg);
+    padding: 5px 10px 5px 30px !important;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .gmv-clisrch {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 8px 4px 30px;
+    height: 28px; min-width: 240px; max-width: 360px; width: 100%;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 12px; color: var(--text);
+    position: relative;
+  }
+  .gmv-clisrch:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-50); }
+  .gmv-clisrch::before {
+    content: ''; position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>') no-repeat center / contain;
+    opacity: 0.85;
+  }
+  .gmv-clisrch input {
+    border: none; background: transparent; flex: 1; min-width: 0;
+    padding: 0; height: 24px;
+    font: inherit; font-size: 12px; color: var(--text);
+    outline: none;
+  }
+  .gmv-clisrch input::placeholder { color: var(--text-soft); }
+  .gmv-clisrch-clear {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-soft); font-size: 12px; padding: 0 2px;
+    display: inline-flex; align-items: center;
+  }
+  .gmv-clisrch-clear:hover { color: var(--danger); }
+  .gmv-clisrch-count {
+    margin-left: 8px;
+    font-size: 11px; color: var(--text-soft);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* Seller-name + meta stack — name on top, count below in muted text. */
+  .gmv-seller-cell { padding-top: 6px !important; padding-bottom: 6px !important; }
+  .gmv-seller-name {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    letter-spacing: -0.005em; line-height: 1.25;
+  }
+  .gmv-seller-meta {
+    font-size: 10.5px; color: var(--text-soft);
+    margin-top: 1px; line-height: 1.15; font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Lighter empty-cell dash so the table reads cleaner. */
+  .gmv-table tbody td.muted-num { color: #cbd5e1; font-weight: 400; }
+  .gmv-table tfoot td.muted-num { color: #cbd5e1; font-weight: 600; }
+
+  /* Slightly more breathing room for seller rows + a touch tighter for client rows. */
+  .gmv-table tbody tr.gmv-row-seller td { padding-top: 7px; padding-bottom: 7px; }
+  .gmv-table tbody tr.gmv-row-client td { padding-top: 4px; padding-bottom: 4px; }
+
+  /* Number inputs in rows — slimmer to feel less form-like. */
+  .gmv-table .gmv-num-input {
+    height: 24px; width: 90px !important;
+    padding: 2px 8px; font-size: 12px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--text);
+  }
+  .gmv-table .gmv-num-input:hover  { background: var(--bg-elev); border-color: var(--border); }
+  .gmv-table .gmv-num-input:focus  { background: var(--bg-elev); border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-50); }
+  .gmv-table .gmv-num-input::placeholder { color: #cbd5e1; }
+
+  /* Show more row inside an expanded seller. */
+  .gmv-showmore-row td {
+    padding: 4px 10px 4px 30px !important;
+    background: var(--bg);
+    text-align: left;
+  }
+  .gmv-showmore-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 11.5px; font-weight: 600; color: var(--text);
+    cursor: pointer;
+    transition: background-color .12s, border-color .12s, color .12s;
+    height: 24px;
+  }
+  .gmv-showmore-btn:hover { background: var(--primary-50); border-color: var(--primary); color: var(--primary); }
+  .gmv-showmore-btn .gmv-showmore-count {
+    font-weight: 500; color: var(--text-soft); font-variant-numeric: tabular-nums;
+  }
+  .gmv-showmore-btn:hover .gmv-showmore-count { color: var(--primary); }
+
+  /* Saved indicator flash on inline edit */
+  .gmv-num-input.flash-saved {
+    border-color: var(--success);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    animation: gmvFlashSaved 600ms ease;
+  }
+  @keyframes gmvFlashSaved {
+    0%   { box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+    100% { box-shadow: 0 0 0 3px rgba(16,185,129,0); }
+  }
+
+
+
+
+  /* High-contrast dark mode — toggle via <html data-theme="dark"> */
+  [data-theme="dark"] {
+    --bg:        #0A0A0B;
+    --bg-elev:   #131317;
+    --bg-muted:  #1B1B20;
+    --border:        #26262B;
+    --border-soft:   #1F1F23;
+    --border-strong: #3A3A40;
+
+    --text:       #F4F4F5;
+    --text-muted: #A1A1AA;
+    --text-soft:  #71717A;
+
+    --primary:     #FF7A5F;
+    --primary-50:  #2A1A14;
+    --primary-100: #3F2419;
+    --primary-600: #E0533A;
+
+    --success:     #34D399;
+    --success-50:  #052E1B;
+    --warning:     #FBBF24;
+    --warning-50:  #2A1F08;
+    --danger:      #F87171;
+    --danger-50:   #2A1010;
+    --info:        #38BDF8;
+    --info-50:     #061A2A;
+
+    --hero-dark:    #0A0A0B;
+    --hero-dark-2:  #131317;
+
+    --row-hover:   #1A1A1F;
+    --cmdbar-bg:   rgba(19, 19, 23, 0.86);
+    --bullet-tick: #F4F4F5;
   }
 
   /* ---------- Buttons ---------- */
@@ -3406,17 +3856,16 @@
       </div>
       <div class="as-brand-text">
         <span class="as-brand-name">Z.systems</span>
-        <span class="as-brand-sub">Operator suite</span>
       </div>
     </div>
     <div class="as-section-title">Features</div>
     <button type="button" class="as-feature active" data-feature="planner" title="Daily delivery planning">
       <svg class="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-      <span>Z Delivery Planner</span>
+      <span>Delivery Planner</span>
     </button>
     <button type="button" class="as-feature" data-feature="gmv" title="Set GMV targets per seller and per client; track reached vs target">
       <svg class="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
-      <span>Sellers GMV maker</span>
+      <span>GMV Tracker</span>
     </button>
   </aside>
 
@@ -14650,8 +15099,64 @@ const gmv = {
   namesByPhone: {}, // phone -> displayName        (sourced from the orders file; preferred over clients-file name)
   dateFrom: '', dateTo: '',
   targets: { sellers: {}, clients: {} },
-  expandedSellers: {}
+  expandedSellers: {},
+  clientSearch: {}, // sellerName -> string, in-memory per-seller search query
+  clientLimit: {},  // sellerName -> number, how many client rows to show
+  clientsByName: {} // normalizedName -> canonical phone (built from clients file)
 };
+
+// Lowercase-trim-collapse-whitespace name normalizer used by the name index.
+function gmvNormName(s) {
+  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+// Rebuild the name -> phone index from the current clients map. Called
+// after a clients upload and on restore. If two clients share the same
+// normalized name, the first wins (the operator can review duplicates
+// in the table; ambiguous cases would need phones anyway).
+function gmvRebuildClientsByName() {
+  const idx = {};
+  Object.entries(gmv.clients || {}).forEach(([phone, c]) => {
+    const nm = gmvNormName(c && c.name);
+    if (!nm) return;
+    if (!(nm in idx)) idx[nm] = phone;
+  });
+  gmv.clientsByName = idx;
+}
+
+// Pull clients from the signed-in user's Supabase row when local cache
+// is empty. Runs on init. No-op when not signed in or when local data
+// already exists (manual upload always wins).
+async function gmvPullClientsFromSupabaseIfNeeded() {
+  if (gmv.clients && Object.keys(gmv.clients).length > 0) return;
+  if (!sbUser || typeof sbReadKey !== 'function') return;
+  try {
+    const cloud = await sbReadKey('gmv_clients');
+    if (!cloud || typeof cloud !== 'object') return;
+    const phones = Object.keys(cloud);
+    if (!phones.length) return;
+    gmv.clients = cloud;
+    gmvRebuildClientsByName();
+    try { saveJSON(GMV_LS_CLIENTS, gmv.clients); } catch (_) {}
+    gmvSetSummary('gmvClientsSummary',
+      'Synced <b>' + phones.length + '</b> client(s) from your Supabase account ' +
+      '(<b>' + new Set(Object.values(cloud).map(c => c.seller)).size + '</b> seller(s)).'
+    );
+  } catch (e) {
+    console.warn('gmv pull clients from supabase failed:', e);
+  }
+}
+
+// Push the current clients map up to Supabase. Called after a successful
+// manual upload. Silent no-op if not signed in.
+async function gmvPushClientsToSupabase() {
+  if (!sbUser || typeof sbWriteKey !== 'function') return false;
+  try {
+    return await sbWriteKey('gmv_clients', gmv.clients || {});
+  } catch (e) {
+    console.warn('gmv push clients to supabase failed:', e);
+    return false;
+  }
+}
 
 async function gmvInit() {
   if (gmvInited) return;
@@ -14672,17 +15177,16 @@ async function gmvInit() {
     const r = loadJSON(GMV_LS_RANGE) || {};
     if (r.dateFrom) gmv.dateFrom = r.dateFrom;
     if (r.dateTo)   gmv.dateTo   = r.dateTo;
-    const fEl = document.getElementById('gmvDateFrom');
-    const tEl = document.getElementById('gmvDateTo');
-    if (fEl) fEl.value = gmv.dateFrom || '';
-    if (tEl) tEl.value = gmv.dateTo   || '';
   } catch (_) {}
   // Restore previously-uploaded data so a refresh doesn't wipe the
   // operator's work. Stored as plain JSON; orders' Date is round-tripped
   // through ISO strings (JSON.stringify drops the Date prototype).
   try {
     const savedClients = loadJSON(GMV_LS_CLIENTS);
-    if (savedClients && typeof savedClients === 'object') gmv.clients = savedClients;
+    if (savedClients && typeof savedClients === 'object') {
+      gmv.clients = savedClients;
+      gmvRebuildClientsByName();
+    }
     const savedNames = loadJSON(GMV_LS_NAMES);
     if (savedNames && typeof savedNames === 'object') gmv.namesByPhone = savedNames;
     const savedOrders = loadJSON(GMV_LS_ORDERS);
@@ -14706,18 +15210,20 @@ async function gmvInit() {
   } catch (e) { console.error('gmv restore failed:', e); }
   document.getElementById('gmvClientsFile')?.addEventListener('change', gmvOnUploadClients);
   document.getElementById('gmvOrdersFile')?.addEventListener('change', gmvOnUploadOrders);
-  document.getElementById('gmvDateFrom')?.addEventListener('change', e => { gmv.dateFrom = e.target.value || ''; saveJSON(GMV_LS_RANGE, { dateFrom: gmv.dateFrom, dateTo: gmv.dateTo }); gmvRenderResults(); });
-  document.getElementById('gmvDateTo')?.addEventListener('change', e => { gmv.dateTo = e.target.value || ''; saveJSON(GMV_LS_RANGE, { dateFrom: gmv.dateFrom, dateTo: gmv.dateTo }); gmvRenderResults(); });
-  document.getElementById('gmvClearRangeBtn')?.addEventListener('click', () => {
-    gmv.dateFrom = ''; gmv.dateTo = '';
-    const fEl = document.getElementById('gmvDateFrom'); if (fEl) fEl.value = '';
-    const tEl = document.getElementById('gmvDateTo');   if (tEl) tEl.value = '';
-    saveJSON(GMV_LS_RANGE, { dateFrom: '', dateTo: '' });
-    gmvRenderResults();
+
+  // Wire the period button + popover.
+  const pBtn = document.getElementById('gmvPeriodBtn');
+  if (pBtn) pBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const pop = document.getElementById('gmvPeriodPopover');
+    if (pop && pop.classList.contains('open')) gmvClosePeriodPopover();
+    else gmvOpenPeriodPopover();
   });
-  document.getElementById('gmvSaveTargetsBtn')?.addEventListener('click', gmvSaveTargets);
-  gmvRenderTargets();
-  gmvRenderResults();
+  // If signed in to Supabase and we don't have local clients, pull
+  // them down from the user's private gmv_clients row.
+  await gmvPullClientsFromSupabaseIfNeeded();
+  // Single render entry point.
+  gmvRenderAll();
   gmvRenderAuthChip();
 }
 
@@ -14759,15 +15265,25 @@ async function gmvOnUploadClients(e) {
       added++;
     });
     gmv.clients = map;
+    gmvRebuildClientsByName();
     try { saveJSON(GMV_LS_CLIENTS, gmv.clients); } catch (_) {}
+    // Mirror to Supabase so other devices/operators auto-receive it.
+    let synced = false;
+    if (sbUser) {
+      synced = await gmvPushClientsToSupabase();
+    }
+    const syncSuffix = sbUser
+      ? (synced ? ' <span style="color:var(--success); font-weight:600;">\u2713 Synced to your account</span>'
+                : ' <span style="color:var(--warning); font-weight:600;">\u26A0 Local only \u2014 sync to Supabase failed</span>')
+      : ' <span style="color:var(--text-soft);">\u2014 Local only (sign in to sync across devices)</span>';
     gmvSetSummary('gmvClientsSummary',
       'Loaded <b>' + added + '</b> client(s) across <b>' + new Set(Object.values(map).map(c => c.seller)).size + '</b> seller(s).' +
-      (skipped ? ' Skipped <b>' + skipped + '</b> with bad/empty phone.' : ''));
+      (skipped ? ' Skipped <b>' + skipped + '</b> with bad/empty phone.' : '') +
+      syncSuffix);
     // No automatic seeding — each period starts at zero. The targets
     // table will render rows for every seller/phone via gmv.clients;
     // missing entries display as 0 and become real entries on first edit.
-    gmvRenderTargets();
-    gmvRenderResults();
+    gmvRenderAll();
   } catch (err) {
     alert('Clients file error: ' + (err && err.message ? err.message : err));
   } finally { try { e.target.value = ''; } catch (_) {} }
@@ -14776,6 +15292,9 @@ async function gmvOnUploadClients(e) {
 async function gmvOnUploadOrders(e) {
   const f = e.target.files && e.target.files[0]; if (!f) return;
   try {
+    if (!gmv.clients || !Object.keys(gmv.clients).length) {
+      throw new Error('Upload the clients file first. Orders are filtered to clients in your DB to save storage.');
+    }
     const rows = await readXlsx(f);
     if (!rows.length) throw new Error('Empty file.');
     const cPhone = findCol(rows[0], ['Customer_PhoneNumber','Client phone number','ClientPhoneNumber','Client_phone_number','Phone number','Phone']);
@@ -14798,7 +15317,7 @@ async function gmvOnUploadOrders(e) {
     const WHOLESALER = (typeof WHOLESALER_CHANNEL === 'string') ? WHOLESALER_CHANNEL : 'Z_WHOLESALER';
     const out = [];
     const namesMap = {};
-    let unmatched = 0, badDate = 0, namesFound = 0;
+    let unmatched = 0, badDate = 0, namesFound = 0, nameMatches = 0;
     let skippedChannel = 0, skippedStatus = 0;
     rows.forEach(r => {
       // Channel filter — only wholesale rows count. If the file has no
@@ -14809,8 +15328,18 @@ async function gmvOnUploadOrders(e) {
         const chRaw = String(r[cChannel] || '').trim().toUpperCase();
         if (chRaw !== WHOLESALER) { skippedChannel++; return; }
       }
-      const np = normalizePhone(r[cPhone]);
-      if (!np) return;
+      let np = normalizePhone(r[cPhone]);
+      // Try phone match first. If it fails (or no phone column), fall back
+      // to matching the orders' Client name against the clients DB's
+      // full_name index. If the name matches, remap to the client's
+      // canonical phone so subsequent renders find the row correctly.
+      let matched = !!(np && gmv.clients[np]);
+      if (!matched && cName) {
+        const nameKey = gmvNormName(r[cName]);
+        const fromName = nameKey && gmv.clientsByName[nameKey];
+        if (fromName) { np = fromName; matched = true; nameMatches++; }
+      }
+      if (!np || !matched) { unmatched++; return; }
       const dt = parseDate(r[cDate]);
       if (!dt) { badDate++; return; }
       const amt = parsePrice(r[cAmount]);
@@ -14822,7 +15351,6 @@ async function gmvOnUploadOrders(e) {
         const nm = String(r[cName] || '').trim();
         if (nm) { namesMap[np] = nm; namesFound++; }
       }
-      if (!gmv.clients[np]) unmatched++;
     });
     gmv.orders = out;
     // Accumulate names across uploads — new file's names take precedence
@@ -14843,15 +15371,16 @@ async function gmvOnUploadOrders(e) {
       console.error('gmv persist orders failed:', e);
     }
     gmvSetSummary('gmvOrdersSummary',
-      'Loaded <b>' + out.length + '</b> wholesale order(s).' +
+      'Loaded <b>' + out.length + '</b> wholesale order(s) for clients in your DB.' +
       (cName
         ? ' Captured <b>' + Object.keys(namesMap).length + '</b> name(s) from this file (total cached: <b>' + Object.keys(gmv.namesByPhone).length + '</b>).'
         : ' (No client-name column detected — relying on the cached names from previous uploads.)') +
       (skippedChannel ? ' <b>' + skippedChannel + '</b> skipped (Channel != ' + WHOLESALER + ').' : '') +
       (skippedStatus ? ' <b>' + skippedStatus + '</b> skipped (unrecognised Status).' : '') +
-      (unmatched ? ' <b>' + unmatched + '</b> have phones not in the clients file (will be ignored).' : '') +
+      (nameMatches ? ' <b>' + nameMatches + '</b> matched by name (phone differed).' : '') +
+      (unmatched ? ' <b>' + unmatched + '</b> dropped (no phone or name match — saved storage).' : '') +
       (badDate ? ' <b>' + badDate + '</b> skipped (unparseable date).' : ''));
-    gmvRenderResults();
+    gmvRenderAll();
   } catch (err) {
     alert('Orders file error: ' + (err && err.message ? err.message : err));
   } finally { try { e.target.value = ''; } catch (_) {} }
@@ -15031,21 +15560,283 @@ async function gmvSaveTargets() {
   } catch (e) { console.error('gmv save targets failed:', e); }
 }
 
+
+
+
+// =========================================================================
+// GMV redesign — drives the new command-bar / hero / mini-strip / tabs /
+// results-table layout. The earlier render functions are replaced; the
+// upload handlers, period helpers, computation, and persistence keep
+// working unchanged.
+// =========================================================================
+
+// Active status filter for the table tabs. 'ALL' shows everything.
+gmv.statusFilter = gmv.statusFilter || 'ALL';
+
+// Compact number formatter — 487K, 1.2M, etc. Hover reveals full value.
+function gmvFmtCompact(n) {
+  const v = (typeof n === 'number' && isFinite(n)) ? n : 0;
+  const a = Math.abs(v);
+  if (a >= 1e9) return (v / 1e9).toFixed(a >= 1e10 ? 0 : 1).replace(/\.0$/, '') + 'B';
+  if (a >= 1e6) return (v / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+  // 10K–999K: keep one decimal in the 10K–99K range, round in the 100K+ range
+  // so we never lose more than ~10% of precision in the visible number.
+  if (a >= 1e5) return Math.round(v / 1e3) + 'K';
+  if (a >= 1e4) return (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  if (a >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  return Math.round(v).toString();
+}
+function gmvFmtFull(n) {
+  return (Math.round((n || 0) * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+// Save-status indicator in the command bar.
+let gmvSaveStatusTimer = null;
+function gmvShowSaveStatus(state) {
+  const el = document.getElementById('gmvSaveStatus');
+  if (!el) return;
+  const txt = el.querySelector('.txt');
+  el.classList.remove('saving', 'saved');
+  el.style.opacity = '1';
+  if (state === 'saving') { el.classList.add('saving'); if (txt) txt.textContent = 'Saving…'; }
+  else if (state === 'saved') {
+    el.classList.add('saved'); if (txt) txt.textContent = 'Saved';
+    // No fade — keep the indicator at full opacity. Subtle color is enough.
+    clearTimeout(gmvSaveStatusTimer);
+  }
+}
+
+// Period popover — replaces the old chip row inside the targets card.
+function gmvRenderPeriodChip() {
+  const lbl = document.getElementById('gmvPeriodLabel');
+  const dts = document.getElementById('gmvPeriodDates');
+  const active = gmvActivePreset();
+  const presetNames = {
+    'this-week': 'This week', 'last-week': 'Last week',
+    'this-month': 'This month', 'last-month': 'Last month',
+    'this-year': 'This year', 'all-time': 'All time'
+  };
+  if (lbl) lbl.textContent = active ? presetNames[active] : 'Custom range';
+  if (dts) {
+    if (gmv.dateFrom && gmv.dateTo) {
+      const f = new Date(gmv.dateFrom + 'T00:00:00').toLocaleDateString();
+      const t = new Date(gmv.dateTo   + 'T00:00:00').toLocaleDateString();
+      dts.textContent = '· ' + f + ' → ' + t;
+    } else {
+      dts.textContent = '';
+    }
+  }
+}
+
+function gmvOpenPeriodPopover() {
+  const pop = document.getElementById('gmvPeriodPopover');
+  const btn = document.getElementById('gmvPeriodBtn');
+  if (!pop || !btn) return;
+  const presets = [
+    ['this-week', 'This week'], ['last-week', 'Last week'],
+    ['this-month', 'This month'], ['last-month', 'Last month'],
+    ['this-year', 'This year'],
+  ];
+  const active = gmvActivePreset();
+  let html = '<div class="pp-label">Quick periods</div>';
+  presets.forEach(([key, label]) => {
+    html += '<div class="pp-row' + (active === key ? ' active' : '') + '" data-preset="' + key + '">' +
+      '<span>' + label + '</span>' +
+      '<span class="pp-shortcut">' + (gmvActivePreset() === key ? '✓' : '') + '</span>' +
+    '</div>';
+  });
+  html += '<div class="pp-divider"></div>';
+  html += '<div class="pp-row' + (active === 'all-time' ? ' active' : '') + '" data-preset="all-time">' +
+    '<span>All time</span><span class="pp-shortcut">' + (active === 'all-time' ? '✓' : '') + '</span>' +
+  '</div>';
+  html += '<div class="pp-divider"></div>';
+  html += '<div class="pp-label">Custom range</div>';
+  html += '<div class="pp-custom">' +
+    '<div class="pp-row-input">' +
+      '<input type="date" id="ppFrom" value="' + (gmv.dateFrom || '') + '" placeholder="From">' +
+      '<input type="date" id="ppTo"   value="' + (gmv.dateTo   || '') + '" placeholder="To">' +
+    '</div>' +
+  '</div>';
+  pop.innerHTML = html;
+
+  // Position under the trigger button.
+  const r = btn.getBoundingClientRect();
+  const pageY = window.scrollY + r.bottom + 6;
+  const pageX = window.scrollX + r.right - 240; // right-align under button
+  pop.style.left = Math.max(8, pageX) + 'px';
+  pop.style.top  = pageY + 'px';
+  pop.classList.add('open');
+
+  pop.querySelectorAll('.pp-row[data-preset]').forEach(row => {
+    row.addEventListener('click', () => {
+      const r2 = gmvPresetRange(row.dataset.preset);
+      if (!r2) return;
+      gmv.dateFrom = r2.from || '';
+      gmv.dateTo   = r2.to   || '';
+      try { saveJSON(GMV_LS_RANGE, { dateFrom: gmv.dateFrom, dateTo: gmv.dateTo }); } catch (_) {}
+      gmvClosePeriodPopover();
+      gmvRenderAll();
+    });
+  });
+  pop.querySelectorAll('input[type="date"]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const f = pop.querySelector('#ppFrom');
+      const t = pop.querySelector('#ppTo');
+      gmv.dateFrom = (f && f.value) || '';
+      gmv.dateTo   = (t && t.value) || '';
+      try { saveJSON(GMV_LS_RANGE, { dateFrom: gmv.dateFrom, dateTo: gmv.dateTo }); } catch (_) {}
+      gmvRenderAll();
+    });
+  });
+  // Close on outside click + on scroll/resize so the popover never visually
+  // detaches from its trigger button.
+  setTimeout(() => {
+    const handler = (e) => {
+      if (pop.contains(e.target) || btn.contains(e.target)) return;
+      gmvClosePeriodPopover();
+      cleanup();
+    };
+    const dismiss = () => { gmvClosePeriodPopover(); cleanup(); };
+    const cleanup = () => {
+      document.removeEventListener('mousedown', handler, true);
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('resize', dismiss, true);
+    };
+    document.addEventListener('mousedown', handler, true);
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('resize', dismiss, true);
+  }, 0);
+}
+function gmvClosePeriodPopover() {
+  const pop = document.getElementById('gmvPeriodPopover');
+  if (pop) pop.classList.remove('open');
+}
+
+// Data sources strip — pill state.
+function gmvRenderDsStrip() {
+  const cliPill = document.getElementById('gmvDsClientsPill');
+  const ordPill = document.getElementById('gmvDsOrdersPill');
+  const cliCount = document.getElementById('gmvDsClientsCount');
+  const ordCount = document.getElementById('gmvDsOrdersCount');
+  const nC = Object.keys(gmv.clients || {}).length;
+  const nO = (gmv.orders || []).length;
+  if (cliPill) cliPill.classList.toggle('ok', nC > 0);
+  if (ordPill) ordPill.classList.toggle('ok', nO > 0);
+  if (cliPill) cliPill.querySelector('.ds-check').textContent = nC > 0 ? '✓' : '○';
+  if (ordPill) ordPill.querySelector('.ds-check').textContent = nO > 0 ? '✓' : '○';
+  if (cliCount) cliCount.textContent = nC > 0 ? (nC.toLocaleString() + ' loaded') : 'not loaded';
+  if (ordCount) ordCount.textContent = nO > 0 ? (nO.toLocaleString() + ' loaded') : 'not loaded';
+  // Auto-toggle: open when nothing is loaded, close once both have data
+  // — but only the first time we cross either threshold; respect manual
+  // toggling after that via gmv._dsManuallyToggled.
+  const strip = document.getElementById('gmvDsStrip');
+  if (strip && !gmv._dsManuallyToggled) {
+    if (nC === 0 && nO === 0) strip.open = true;
+    else if (nC > 0 && nO > 0) strip.open = false;
+  }
+  if (strip && !strip.__listenerHooked) {
+    strip.__listenerHooked = true;
+    strip.addEventListener('toggle', () => { gmv._dsManuallyToggled = true; });
+  }
+}
+
+// Hero DELIVERED tile + bullet chart.
+function gmvRenderHero(result) {
+  const valueEl = document.getElementById('gmvHeroValue');
+  const metaEl  = document.getElementById('gmvHeroMeta');
+  const bulletEl = document.getElementById('gmvHeroBullet');
+  if (!valueEl) return;
+  const total = result.total || 0;
+  const totalTarget = Object.values(gmvActivePeriodBucket().sellers).reduce((n, v) => n + (v || 0), 0);
+  valueEl.textContent = gmvFmtCompact(total);
+  valueEl.title = gmvFmtFull(total) + ' MAD';
+  if (metaEl) {
+    if (totalTarget > 0) {
+      const pct = Math.round((total / totalTarget) * 100);
+      const ok = total >= totalTarget;
+      metaEl.innerHTML =
+        '<span class="hero-target">vs target <b>' + gmvFmtCompact(totalTarget) + '</b> MAD</span>' +
+        '<span class="hero-pct" style="color:' + (ok ? 'var(--success)' : 'var(--primary)') + ';">' + pct + '% reached</span>';
+    } else {
+      metaEl.innerHTML = '<span class="hero-target">No target set for this period — set one in the Targets column below.</span>';
+    }
+  }
+  if (bulletEl) {
+    if (totalTarget > 0) {
+      // Bullet chart: target ALWAYS sits at 75% of the bar so the visual
+      // is stable. When reached overshoots scaleMax, the fill clips to
+      // 100% (the green bar reaching past the tick reads as "over target").
+      const scaleMax = totalTarget / 0.75;
+      const fillPct = Math.max(0, Math.min(100, (total / scaleMax) * 100));
+      const tickPct = 75;
+      const ok = total >= totalTarget;
+      bulletEl.innerHTML =
+        '<div class="hero-bullet-bar">' +
+          '<div class="hero-bullet-fill" style="width:' + fillPct + '%; background:' + (ok ? 'linear-gradient(90deg,var(--success) 0%,#10b981 100%)' : 'linear-gradient(90deg,var(--primary) 0%,var(--primary-600) 100%)') + ';"></div>' +
+          '<div class="hero-bullet-tick" style="left:' + tickPct + '%;"></div>' +
+        '</div>' +
+        '<div class="hero-bullet-scale">' +
+          '<span>0</span>' +
+          '<span title="Target ' + gmvFmtFull(totalTarget) + ' MAD">target</span>' +
+          '<span>' + gmvFmtCompact(scaleMax) + ' MAD</span>' +
+        '</div>';
+    } else {
+      bulletEl.innerHTML = '';
+    }
+  }
+}
+
+// Secondary KPI strip — minis for non-DELIVERED statuses.
+function gmvRenderMiniStrip(result) {
+  const wrap = document.getElementById('gmvMiniStrip');
+  if (!wrap) return;
+  const niceStatus = st => st.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  const statusKey = st => st.toLowerCase().replace(/_/g, '-');
+  const others = GMV_STATUSES.filter(s => s !== 'DELIVERED');
+  let html = '';
+  others.forEach(st => {
+    const v = (result.totalByStatus && result.totalByStatus[st]) || 0;
+    const sub = (st === 'PENDING') ? 'all-time backlog' : (v > 0 ? 'in pipeline' : '—');
+    html += '<div class="gmv-mini ' + statusKey(st) + '" title="' + niceStatus(st) + ': ' + gmvFmtFull(v) + ' MAD">' +
+      '<span class="mini-label">' + niceStatus(st) + '</span>' +
+      '<span class="mini-value">' + gmvFmtCompact(v) + '</span>' +
+      '<span class="mini-sub">' + sub + '</span>' +
+    '</div>';
+  });
+  wrap.innerHTML = html;
+}
+
+// Top-level render that updates everything in dependency order.
+function gmvRenderAll() {
+  gmvRenderPeriodChip();
+  gmvRenderDsStrip();
+  gmvRenderResults();
+}
+
 function gmvRenderResults() {
   const wrap = document.getElementById('gmvResultsWrap');
   if (!wrap) return;
-  if (!Object.keys(gmv.clients).length || !gmv.orders.length) {
+  const nClients = Object.keys(gmv.clients).length;
+  const nOrders  = (gmv.orders || []).length;
+  if (!nClients || !nOrders) {
     wrap.innerHTML = '<div class="gmv-empty"><div class="gmv-empty-icon">' +
       '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' +
-      '</div>Upload both clients and orders to see results.</div>';
+      '</div>Upload both clients and orders above to see results.</div>';
+    // Hero & minis stay empty.
+    gmvRenderHero({ total: 0, totalByStatus: {} });
+    gmvRenderMiniStrip({ totalByStatus: {} });
     return;
   }
   const result = gmvComputeReached();
+  gmvRenderHero(result);
+  gmvRenderMiniStrip(result);
+
   const byClient = result.byClient, bySeller = result.bySeller, total = result.total;
   const byClientByStatus = result.byClientByStatus;
   const bySellerByStatus = result.bySellerByStatus;
   const totalByStatus    = result.totalByStatus;
   const bucket = gmvActivePeriodBucket();
+
   const sellersMap = {};
   Object.entries(gmv.clients).forEach(([ph, c]) => {
     if (!sellersMap[c.seller]) sellersMap[c.seller] = { clients: [], reached: 0, target: bucket.sellers[c.seller] || 0 };
@@ -15053,63 +15844,53 @@ function gmvRenderResults() {
       phone: ph,
       name: c.name,
       reached: byClient[ph] || 0,
-      target: bucket.clients[ph] || 0
+      target: bucket.clients[ph] || 0,
+      perStatus: byClientByStatus[ph] || {}
     });
     sellersMap[c.seller].reached = bySeller[c.seller] || 0;
+    sellersMap[c.seller].perStatus = bySellerByStatus[c.seller] || {};
   });
-  const sellerNames = Object.keys(sellersMap).sort((a,b) => sellersMap[b].reached - sellersMap[a].reached);
-  const totalTarget = Object.values(bucket.sellers).reduce((n,v) => n + (v || 0), 0);
-  const fmt = n => (Math.round((n || 0) * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
-  const pct = (r, t) => (t > 0) ? Math.round((r / t) * 100) : null;
-  const bar = (r, t) => {
-    if (!(t > 0)) return '<span class="muted" style="font-size:11px;">no target</span>';
-    const p = Math.max(0, Math.min(100, (r / t) * 100));
-    const ok = r >= t;
-    return '<div class="gmv-progress"><div class="gmv-progress-fill ' + (ok ? 'ok' : 'partial') + '" style="width:' + p + '%;"></div></div>';
-  };
-  const totalPct = pct(total, totalTarget);
-  const statusKey = st => st.toLowerCase().replace(/_/g, '-');
+
+  // Sort sellers by Delivered amount descending, alpha tiebreaker.
+  const sortKey = (entry) => entry.reached || 0;
+  const sellerNames = Object.keys(sellersMap)
+    .sort((a, b) => sortKey(sellersMap[b]) - sortKey(sellersMap[a]) || a.localeCompare(b));
+
+  const totalTarget = Object.values(bucket.sellers).reduce((n, v) => n + (v || 0), 0);
   const niceStatus = st => st.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
-  // KPI strip — DELIVERED first as the headline tile, then per-status.
-  let html = '<div class="gmv-stats-strip">';
-  GMV_STATUSES.forEach(st => {
-    const amt = totalByStatus[st] || 0;
-    const isDelivered = st === 'DELIVERED';
-    html += '<div class="gmv-stat-tile' + (isDelivered ? ' headline' : '') + '">' +
-      '<div class="gmv-stat-label"><span class="gmv-status-pill ' + statusKey(st) + '">' + niceStatus(st) + '</span></div>' +
-      '<div class="gmv-stat-value">' + fmt(amt) + '</div>' +
-      (isDelivered
-        ? (totalTarget > 0
-            ? '<div class="gmv-stat-sub">vs target ' + fmt(totalTarget) + ' · <b style="color:var(--success);">' + (totalPct || 0) + '%</b></div>'
-            : '<div class="gmv-stat-sub">counts toward target</div>')
-        : (st === 'PENDING'
-            ? '<div class="gmv-stat-sub" title="Pending always shows the full backlog regardless of the date range above">all-time backlog</div>'
-            : '<div class="gmv-stat-sub">' + (amt > 0 ? 'in pipeline' : '—') + '</div>')) +
+  // Bullet chart helper for a given (reached, target) pair.
+  const bullet = (reached, target) => {
+    if (!(target > 0)) return '<span style="font-size:11px; color:var(--text-soft);">0</span>';
+    // Same trick as the hero bullet — target locked at 75% mark.
+    const scaleMax = target / 0.75;
+    const fillPct = Math.max(0, Math.min(100, (reached / scaleMax) * 100));
+    const tickPct = 75;
+    const ok = reached >= target;
+    return '<div class="gmv-bullet" title="' + gmvFmtFull(reached) + ' / ' + gmvFmtFull(target) + ' MAD">' +
+      '<div class="gmv-bullet-fill ' + (ok ? 'ok' : 'partial') + '" style="width:' + fillPct + '%;"></div>' +
+      '<div class="gmv-bullet-tick" style="left:' + tickPct + '%;"></div>' +
     '</div>';
-  });
-  html += '<div class="gmv-stat-tile muted">' +
-    '<div class="gmv-stat-label">Sellers</div>' +
-    '<div class="gmv-stat-value">' + sellerNames.length + '</div>' +
-  '</div>';
-  html += '<div class="gmv-stat-tile muted">' +
-    '<div class="gmv-stat-label">Active clients</div>' +
-    '<div class="gmv-stat-value">' + Object.keys(byClient).length + '</div>' +
-  '</div>';
-  html += '</div>';
+  };
 
-  // Per-seller / per-client table.
-  html += '<div class="gmv-table-wrap"><table class="gmv-table"><thead><tr>' +
-    '<th style="width:32px;"></th>' +
-    '<th>Seller / Client</th>' +
-    '<th class="num">Delivered</th>' +
-    '<th class="num">Target</th>' +
-    '<th>Progress</th>' +
-    '<th class="num" style="width:60px;">%</th>' +
-    GMV_STATUSES.filter(s => s !== 'DELIVERED').map(s =>
-      '<th class="num" title="' + s + '">' + niceStatus(s) + '</th>'
-    ).join('') +
-  '</tr></thead><tbody>';
+  const pct = (r, t) => (t > 0) ? Math.round((r / t) * 100) : null;
+  const numCell = (v) => '<td class="num' + (v > 0 ? '' : ' muted-num') + '" title="' + gmvFmtFull(v) + ' MAD">' + (v > 0 ? gmvFmtCompact(v) : '0') + '</td>';
+
+  // Build the table.
+  let html = '<div class="gmv-table-wrap"><table class="gmv-table">' +
+    '<thead><tr>' +
+      '<th style="width:32px;"></th>' +
+      '<th>Seller / Client</th>' +
+      '<th class="num">Delivered</th>' +
+      '<th class="num">Target</th>' +
+      '<th>Progress</th>' +
+      '<th class="num" style="width:54px;">%</th>';
+  GMV_STATUSES.filter(s => s !== 'DELIVERED').forEach(s => {
+    const lbl = s === 'PENDING' ? niceStatus(s) + ' <sup style="color:var(--text-soft); font-weight:600; font-size:9px;" title="All-time backlog — ignores the active period">all</sup>' : niceStatus(s);
+    const tip = s === 'PENDING' ? 'PENDING — all-time backlog (ignores the date range)' : s;
+    html += '<th class="num" title="' + tip + '">' + lbl + '</th>';
+  });
+  html += '</tr></thead><tbody>';
 
   sellerNames.forEach(s => {
     const e = sellersMap[s];
@@ -15117,58 +15898,219 @@ function gmvRenderResults() {
     const sp = pct(e.reached, e.target);
     const targetMet = e.target > 0 && e.reached >= e.target;
     html += '<tr class="gmv-row-seller' + (targetMet ? ' target-met' : '') + '">' +
-      '<td><button type="button" class="gmv-toggle-btn gmv-res-toggle" data-seller="' + escapeHtml(s) + '">' + (open ? '▼' : '▶') + '</button></td>' +
-      '<td>' + escapeHtml(s) + '</td>' +
-      '<td class="num">' + fmt(e.reached) + '</td>' +
-      '<td class="num' + (e.target > 0 ? '' : ' muted-num') + '">' + (e.target > 0 ? fmt(e.target) : '—') + '</td>' +
-      '<td>' + bar(e.reached, e.target) + '</td>' +
-      '<td class="num">' + (sp != null ? sp + '%' : '—') + '</td>' +
-      GMV_STATUSES.filter(st => st !== 'DELIVERED').map(st => {
-        const v = (bySellerByStatus[s] && bySellerByStatus[s][st]) || 0;
-        return '<td class="num' + (v > 0 ? '' : ' muted-num') + '">' + (v > 0 ? fmt(v) : '—') + '</td>';
-      }).join('') +
-    '</tr>';
+      '<td><button type="button" class="gmv-toggle-btn gmv-res-toggle" data-seller="' + escapeHtml(s) + '">' + (open ? '▾' : '▸') + '</button></td>' +
+      '<td class="gmv-seller-cell">' +
+        '<div class="gmv-seller-name">' + escapeHtml(s) + '</div>' +
+        '<div class="gmv-seller-meta">' + e.clients.length + ' client' + (e.clients.length !== 1 ? 's' : '') + '</div>' +
+      '</td>' +
+      '<td class="num" title="' + gmvFmtFull(e.reached) + ' MAD">' + gmvFmtCompact(e.reached) + '</td>' +
+      '<td class="num">' +
+        '<input type="number" class="gmv-num-input gmv-seller-target" data-seller="' + escapeHtml(s) + '" value="' + (e.target > 0 ? e.target : '') + '" min="0" step="any" placeholder="0" style="width:110px;">' +
+      '</td>' +
+      '<td>' + bullet(e.reached, e.target) + '</td>' +
+      '<td class="num">' + (sp != null ? sp + '%' : '<span class="muted-num">0%</span>') + '</td>';
+    GMV_STATUSES.filter(st => st !== 'DELIVERED').forEach(st => {
+      const v = (e.perStatus && e.perStatus[st]) || 0;
+      html += numCell(v);
+    });
+    html += '</tr>';
     if (open) {
-      e.clients.sort((a,b) => b.reached - a.reached).forEach(c => {
+      const cs = (gmv.clientSearch && gmv.clientSearch[s]) || '';
+      const csLc = cs.trim().toLowerCase();
+      // "Activity score" = total amount across statuses + small target bonus.
+      // Active clients (any non-zero) sort above zero-activity clients;
+      // zero-activity clients sort alphabetically by display name.
+      const activityScore = (c) => {
+        let n = c.reached || 0;
+        if (c.perStatus) {
+          GMV_STATUSES.forEach(st => { n += (c.perStatus[st] || 0); });
+        }
+        if (c.target > 0) n += 0.0001; // tiny bump so target-set clients also count as active
+        return n;
+      };
+      const sortedClients = e.clients.slice().sort((a, b) => {
+        const sa = activityScore(a), sb = activityScore(b);
+        if (sb !== sa) return sb - sa;
+        return gmvDisplayName(a.phone).localeCompare(gmvDisplayName(b.phone));
+      });
+      const filteredClients = csLc
+        ? sortedClients.filter(c => {
+            const nm = gmvDisplayName(c.phone).toLowerCase();
+            const ph = (c.phone || '').toLowerCase();
+            return nm.indexOf(csLc) >= 0 || ph.indexOf(csLc) >= 0;
+          })
+        : sortedClients;
+      // Pagination: 10 by default, "Show more" appends 10 each click.
+      // Search bypasses pagination so the operator always sees all matches.
+      const limit = csLc ? filteredClients.length : Math.max(5, (gmv.clientLimit && gmv.clientLimit[s]) || 5);
+      const visibleClients = filteredClients.slice(0, limit);
+      const hidden = Math.max(0, filteredClients.length - visibleClients.length);
+
+      const colSpan = 6 + (GMV_STATUSES.length - 1);
+      html += '<tr class="gmv-clisrch-row" data-seller-srch="' + escapeHtml(s) + '">' +
+        '<td colspan="' + colSpan + '">' +
+          '<label class="gmv-clisrch">' +
+            '<input type="text" placeholder="Search ' + escapeHtml(s) + '\u2019s clients\u2026" data-seller-srch-input="' + escapeHtml(s) + '" value="' + escapeHtml(cs) + '">' +
+            (cs ? '<button type="button" class="gmv-clisrch-clear" data-seller-srch-clear="' + escapeHtml(s) + '" title="Clear">\u2715</button>' : '') +
+          '</label>' +
+          '<span class="gmv-clisrch-count">' + visibleClients.length + ' / ' + sortedClients.length + ' clients' + (csLc ? ' matching \u201c' + escapeHtml(cs) + '\u201d' : '') + '</span>' +
+        '</td>' +
+      '</tr>';
+      if (!visibleClients.length) {
+        html += '<tr class="gmv-row-client"><td></td><td colspan="' + (colSpan - 1) + '" style="padding:14px 12px; color:var(--text-soft); font-style:italic;">No client matches that search.</td></tr>';
+      }
+      visibleClients.forEach(c => {
         const cp = pct(c.reached, c.target);
         html += '<tr class="gmv-row-client">' +
           '<td></td>' +
           '<td class="gmv-cli-cell"><div class="gmv-cli-name">' + escapeHtml(gmvDisplayName(c.phone)) + '</div><div class="gmv-cli-phone">' + escapeHtml(c.phone) + '</div></td>' +
-          '<td class="num">' + fmt(c.reached) + '</td>' +
-          '<td class="num' + (c.target > 0 ? '' : ' muted-num') + '">' + (c.target > 0 ? fmt(c.target) : '—') + '</td>' +
-          '<td>' + bar(c.reached, c.target) + '</td>' +
-          '<td class="num">' + (cp != null ? cp + '%' : '—') + '</td>' +
-          GMV_STATUSES.filter(st => st !== 'DELIVERED').map(st => {
-            const v = (byClientByStatus[c.phone] && byClientByStatus[c.phone][st]) || 0;
-            return '<td class="num' + (v > 0 ? '' : ' muted-num') + '">' + (v > 0 ? fmt(v) : '—') + '</td>';
-          }).join('') +
-        '</tr>';
+          '<td class="num" title="' + gmvFmtFull(c.reached) + ' MAD">' + gmvFmtCompact(c.reached) + '</td>' +
+          '<td class="num">' +
+            '<input type="number" class="gmv-num-input gmv-client-target" data-phone="' + escapeHtml(c.phone) + '" value="' + (c.target > 0 ? c.target : '') + '" min="0" step="any" placeholder="0" style="width:110px;">' +
+          '</td>' +
+          '<td>' + bullet(c.reached, c.target) + '</td>' +
+          '<td class="num">' + (cp != null ? cp + '%' : '<span class="muted-num">0%</span>') + '</td>';
+        GMV_STATUSES.filter(st => st !== 'DELIVERED').forEach(st => {
+          const v = (c.perStatus && c.perStatus[st]) || 0;
+          html += numCell(v);
+        });
+        html += '</tr>';
       });
+      if (hidden > 0) {
+        html += '<tr class="gmv-showmore-row"><td colspan="' + colSpan + '">' +
+          '<button type="button" class="gmv-showmore-btn" data-seller-more="' + escapeHtml(s) + '">' +
+            'Show more' +
+            '<span class="gmv-showmore-count">+' + Math.min(5, hidden) + ' (' + hidden + ' hidden)</span>' +
+          '</button>' +
+          (visibleClients.length > 5 ? '<button type="button" class="gmv-showmore-btn" data-seller-collapse="' + escapeHtml(s) + '" style="margin-left:8px;">Collapse</button>' : '') +
+        '</td></tr>';
+      } else if (visibleClients.length > 5 && !csLc) {
+        html += '<tr class="gmv-showmore-row"><td colspan="' + colSpan + '">' +
+          '<button type="button" class="gmv-showmore-btn" data-seller-collapse="' + escapeHtml(s) + '">Collapse to 5</button>' +
+        '</td></tr>';
+      }
     }
   });
 
+  // Grand total footer.
   html += '</tbody><tfoot><tr>' +
     '<td></td>' +
     '<td>Grand total</td>' +
-    '<td class="num">' + fmt(total) + '</td>' +
-    '<td class="num' + (totalTarget > 0 ? '' : ' muted-num') + '">' + (totalTarget > 0 ? fmt(totalTarget) : '—') + '</td>' +
-    '<td>' + bar(total, totalTarget) + '</td>' +
-    '<td class="num">' + (totalPct != null ? totalPct + '%' : '—') + '</td>' +
-    GMV_STATUSES.filter(st => st !== 'DELIVERED').map(st => {
-      const v = totalByStatus[st] || 0;
-      return '<td class="num' + (v > 0 ? '' : ' muted-num') + '">' + (v > 0 ? fmt(v) : '—') + '</td>';
-    }).join('') +
-  '</tr></tfoot></table></div>';
+    '<td class="num" title="' + gmvFmtFull(total) + ' MAD">' + gmvFmtCompact(total) + '</td>' +
+    '<td class="num' + (totalTarget > 0 ? '' : ' muted-num') + '">' + (totalTarget > 0 ? gmvFmtCompact(totalTarget) : '0') + '</td>' +
+    '<td>' + bullet(total, totalTarget) + '</td>' +
+    '<td class="num">' + (totalTarget > 0 ? Math.round(total / totalTarget * 100) + '%' : '0%') + '</td>';
+  GMV_STATUSES.filter(st => st !== 'DELIVERED').forEach(st => {
+    const v = (totalByStatus && totalByStatus[st]) || 0;
+    html += numCell(v);
+  });
+  html += '</tr></tfoot></table></div>';
 
   wrap.innerHTML = html;
+
+  // Wire per-seller client search inputs (preserve focus + caret position
+  // across re-renders so the user can type without interruption).
+  wrap.querySelectorAll('input[data-seller-srch-input]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const seller = inp.dataset.sellerSrchInput;
+      if (!gmv.clientSearch) gmv.clientSearch = {};
+      gmv.clientSearch[seller] = inp.value || '';
+      const caret = inp.selectionStart;
+      gmvRenderResults();
+      const sel = (window.CSS && CSS.escape) ? CSS.escape(seller) : seller;
+      const nextInp = document.querySelector('input[data-seller-srch-input="' + sel + '"]');
+      if (nextInp) {
+        nextInp.focus();
+        try { nextInp.setSelectionRange(caret, caret); } catch (_) {}
+      }
+    });
+  });
+  wrap.querySelectorAll('button[data-seller-srch-clear]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const seller = btn.dataset.sellerSrchClear;
+      if (gmv.clientSearch) delete gmv.clientSearch[seller];
+      gmvRenderResults();
+    });
+  });
+  wrap.querySelectorAll('button[data-seller-more]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const seller = btn.dataset.sellerMore;
+      if (!gmv.clientLimit) gmv.clientLimit = {};
+      const cur = Math.max(5, gmv.clientLimit[seller] || 5);
+      gmv.clientLimit[seller] = cur + 5;
+      gmvRenderResults();
+    });
+  });
+  wrap.querySelectorAll('button[data-seller-collapse]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const seller = btn.dataset.sellerCollapse;
+      if (gmv.clientLimit) delete gmv.clientLimit[seller];
+      gmvRenderResults();
+    });
+  });
+
+  // Wire scroll-shadow on the sticky header.
+  const tw = wrap.querySelector('.gmv-table-wrap');
+  if (tw) {
+    const onScroll = () => tw.classList.toggle('is-scrolled', tw.scrollTop > 0);
+    tw.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  // Wire row toggles.
   wrap.querySelectorAll('.gmv-res-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
       const s = btn.dataset.seller;
       gmv.expandedSellers[s] = !gmv.expandedSellers[s];
       gmvRenderResults();
-      gmvRenderTargets();
     });
   });
+
+  // Wire inline target editing — auto-saves with optimistic flash.
+  let saveTimer = null;
+  const debouncedSave = () => {
+    clearTimeout(saveTimer);
+    gmvShowSaveStatus('saving');
+    saveTimer = setTimeout(async () => {
+      await gmvSaveTargets();
+      gmvShowSaveStatus('saved');
+    }, 400);
+  };
+  wrap.querySelectorAll('.gmv-seller-target').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const s = inp.dataset.seller;
+      const v = parseFloat(inp.value);
+      gmvActivePeriodBucket().sellers[s] = isFinite(v) ? v : 0;
+      inp.classList.add('flash-saved');
+      setTimeout(() => inp.classList.remove('flash-saved'), 600);
+      debouncedSave();
+      // Re-render hero to reflect new totalTarget.
+      gmvRenderHero(result);
+    });
+    inp.addEventListener('blur', () => {
+      // Recompute everything once focus leaves so % cells refresh.
+      gmvRenderResults();
+    });
+  });
+  wrap.querySelectorAll('.gmv-client-target').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const ph = inp.dataset.phone;
+      const v = parseFloat(inp.value);
+      gmvActivePeriodBucket().clients[ph] = isFinite(v) ? v : 0;
+      inp.classList.add('flash-saved');
+      setTimeout(() => inp.classList.remove('flash-saved'), 600);
+      debouncedSave();
+    });
+    inp.addEventListener('blur', () => { gmvRenderResults(); });
+  });
+}
+
+// Replace the old gmvRenderTargets with a no-op wrapper so existing call
+// sites still work (they all now route through gmvRenderResults).
+function gmvRenderTargets() {
+  const tgtWrap = document.getElementById('gmvTargetsTableWrap');
+  if (tgtWrap) tgtWrap.innerHTML = '';
+  gmvRenderResults();
 }
 
 </script>
@@ -15178,138 +16120,104 @@ function gmvRenderResults() {
      Sellers GMV maker — independent feature, own uploads, own targets.
      Hidden by default; the sidebar feature switcher toggles visibility.
      ==================================================================== -->
-<div class="app" id="featureGmvMaker" style="display:none;">
+<div class="app gmv-app" id="featureGmvMaker" style="display:none;">
 
-  <header class="hero">
-    <div class="brand">
-      <div class="logo">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+  <!-- Command bar — sticky, no marketing tagline. -->
+  <div class="gmv-cmdbar">
+    <div class="cmd-brand">
+      <div class="cmd-logo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
       </div>
-      <div class="brand-text">
-        <h1>Sellers GMV maker</h1>
-        <div class="tagline">Set GMV targets per seller &amp; per client — track reached vs target</div>
-      </div>
+      <span class="cmd-title">GMV Tracker</span>
     </div>
-    <div class="hero-right">
-      <div id="gmvAuthChip" class="muted" style="font-size:12px; line-height:1.4;"></div>
+    <div class="cmd-spacer"></div>
+    <button type="button" class="cmd-period" id="gmvPeriodBtn" title="Change the active period">
+      <span class="period-label" id="gmvPeriodLabel">All time</span>
+      <span class="period-dates" id="gmvPeriodDates"></span>
+      <span class="caret">▼</span>
+    </button>
+    <div class="cmd-save-status" id="gmvSaveStatus">
+      <span class="dot"></span>
+      <span class="txt">Saved</span>
     </div>
-  </header>
+    <div class="cmd-account" id="gmvAuthChip"></div>
+    <div id="gmvPeriodPopover" class="gmv-period-popover" role="menu"></div>
+  </div>
 
-  <section class="card" id="gmv-card-clients">
-    <div class="card-header">
-      <div class="card-header-left">
-        <div class="card-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+  <div class="gmv-inner">
+
+    <!-- Data sources strip — collapsed by default, holds upload tiles. -->
+    <details class="gmv-ds-strip" id="gmvDsStrip">
+      <summary class="gmv-ds-summary">
+        <span class="ds-pill" id="gmvDsClientsPill">
+          <span class="ds-check">○</span>
+          <span>Clients</span>
+          <span class="ds-count" id="gmvDsClientsCount">not loaded</span>
+        </span>
+        <span class="ds-pill" id="gmvDsOrdersPill">
+          <span class="ds-check">○</span>
+          <span>Orders</span>
+          <span class="ds-count" id="gmvDsOrdersCount">not loaded</span>
+        </span>
+        <span class="ds-spacer"></span>
+        <span class="ds-toggle">
+          <span class="ds-caret">▶</span>
+          <span class="ds-toggle-label">Manage data sources</span>
+        </span>
+      </summary>
+      <div class="gmv-ds-body">
+        <div class="gmv-ds-card">
+          <div class="ds-card-title">1 · Clients (phone &amp; seller)</div>
+          <label class="file-drop">
+            <div class="file-drop-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="file-drop-text">
+              <div class="file-drop-title">Drop clients file</div>
+              <div class="file-drop-hint">phone · seller · name (any of: phoneNumber / Customer_PhoneNumber, SalesRep_Name / Seller Name, full_name / Customer_Name)</div>
+            </div>
+            <input type="file" id="gmvClientsFile" accept=".xlsx,.xls,.csv">
+          </label>
+          <div id="gmvClientsSummary" class="gmv-summary" style="display:none;"></div>
         </div>
+        <div class="gmv-ds-card">
+          <div class="ds-card-title">2 · Orders (wholesale only)</div>
+          <label class="file-drop">
+            <div class="file-drop-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="file-drop-text">
+              <div class="file-drop-title">Drop orders file</div>
+              <div class="file-drop-hint">phone · order date · status · total price (Channel = Z_WHOLESALER if present)</div>
+            </div>
+            <input type="file" id="gmvOrdersFile" accept=".xlsx,.xls,.csv">
+          </label>
+          <div id="gmvOrdersSummary" class="gmv-summary" style="display:none;"></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- Hero KPI -->
+    <div class="gmv-hero" id="gmvHero">
+      <div>
+        <div class="hero-label">Delivered</div>
         <div>
-          <div class="card-title">1. Clients (phone &amp; seller)</div>
-          <div class="card-subtitle">Excel/CSV with at least <code>Customer_PhoneNumber</code> and <code>SalesRep_Name</code>.</div>
+          <span class="hero-value" id="gmvHeroValue">—</span>
+          <span class="hero-suffix">MAD</span>
         </div>
+        <div class="hero-meta" id="gmvHeroMeta"></div>
       </div>
+      <div class="hero-bullet" id="gmvHeroBullet"></div>
     </div>
-    <div class="card-body">
-      <label class="file-drop">
-        <div class="file-drop-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        </div>
-        <div class="file-drop-text">
-          <div class="file-drop-title">Drop clients file</div>
-          <div class="file-drop-hint">Columns: Customer_PhoneNumber · SalesRep_Name · Customer_Name (optional)</div>
-        </div>
-        <input type="file" id="gmvClientsFile" accept=".xlsx,.xls,.csv">
-      </label>
-      <div id="gmvClientsSummary" class="gmv-summary" style="display:none;"></div>
-    </div>
-  </section>
 
-  <section class="card" id="gmv-card-orders">
-    <div class="card-header">
-      <div class="card-header-left">
-        <div class="card-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6"/><path d="M9 16h6"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        </div>
-        <div>
-          <div class="card-title">2. Orders</div>
-          <div class="card-subtitle">Excel/CSV with at least <code>Customer_PhoneNumber</code>, an <code>Order date</code>, and a <code>Price total</code> (or <code>Total</code> / <code>Amount</code>).</div>
-        </div>
-      </div>
-    </div>
-    <div class="card-body">
-      <label class="file-drop">
-        <div class="file-drop-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        </div>
-        <div class="file-drop-text">
-          <div class="file-drop-title">Drop orders file</div>
-          <div class="file-drop-hint">Phones not in the clients file are ignored (counted in the summary).</div>
-        </div>
-        <input type="file" id="gmvOrdersFile" accept=".xlsx,.xls,.csv">
-      </label>
-      <div id="gmvOrdersSummary" class="gmv-summary" style="display:none;"></div>
-    </div>
-  </section>
+    <!-- Secondary KPI strip -->
+    <div class="gmv-mini-strip" id="gmvMiniStrip"></div>
 
-  <section class="card" id="gmv-card-range">
-    <div class="card-header">
-      <div class="card-header-left">
-        <div class="card-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        </div>
-        <div>
-          <div class="card-title">3. Date range</div>
-          <div class="card-subtitle">Only orders with <code>Order date</code> in this range are summed.</div>
-        </div>
-      </div>
-    </div>
-    <div class="card-body">
-      <div class="gmv-range-row">
-        <div class="gmv-range-field">
-          <label for="gmvDateFrom">From</label>
-          <input type="date" id="gmvDateFrom">
-        </div>
-        <div class="gmv-range-field">
-          <label for="gmvDateTo">To</label>
-          <input type="date" id="gmvDateTo">
-        </div>
-        <button type="button" class="btn" id="gmvClearRangeBtn" title="Clear the date range so all orders count">Clear range</button>
-      </div>
-    </div>
-  </section>
+    <!-- Single Results table (target editing inline). -->
+    <div id="gmvResultsWrap"></div>
 
-  <section class="card" id="gmv-card-targets">
-    <div class="card-header">
-      <div class="card-header-left">
-        <div class="card-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-        </div>
-        <div>
-          <div class="card-title">4. Targets</div>
-          <div class="card-subtitle">Per seller and per client. Saved automatically to your Supabase row (<code>gmv_targets</code>).</div>
-        </div>
-      </div>
-      <button type="button" class="btn" id="gmvSaveTargetsBtn" title="Force a save now">Save targets</button>
-    </div>
-    <div class="card-body">
-      <div id="gmvTargetsTableWrap"></div>
-    </div>
-  </section>
 
-  <section class="card" id="gmv-card-results">
-    <div class="card-header">
-      <div class="card-header-left">
-        <div class="card-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        </div>
-        <div>
-          <div class="card-title">5. Results</div>
-          <div class="card-subtitle">Reached vs target. Recomputes whenever inputs change.</div>
-        </div>
-      </div>
-    </div>
-    <div class="card-body">
-      <div id="gmvResultsWrap"></div>
-    </div>
-  </section>
+  </div>
 
 </div>
 
