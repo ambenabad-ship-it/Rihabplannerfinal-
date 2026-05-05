@@ -3395,9 +3395,9 @@
     </div>
   </section>
 
-  <!-- Import decisions (testing) — hidden by default; appears only with
-       ?debug=1 in the URL or localStorage flag rihab_debug=1. -->
-  <section class="card hidden" id="card-import-decisions">
+  <!-- Import decisions (testing) — visible to all users so the team can
+       reload a previous day's decision exports without dev flags. -->
+  <section class="card" id="card-import-decisions">
     <div class="card-header">
       <div class="card-header-left">
         <div class="card-icon">
@@ -8104,7 +8104,10 @@ function renderReviewTable(stats) {
         && (r.units / r.ordered) >= 0.80
       );
     } else {
-      rows = rows.filter(r => r.status === statusFilter);
+      // 'pending' matches BOTH pending and oos rows (merged option).
+      rows = rows.filter(r => statusFilter === 'pending'
+        ? (r.status === 'pending' || r.status === 'oos')
+        : r.status === statusFilter);
     }
   }
   // Rep filter: exact name match, or the sentinel "__none__" to match
@@ -8161,14 +8164,17 @@ function renderReviewTable(stats) {
   const allRepNames = Array.from(new Set(all.map(a => a.order.salesRep || '').filter(Boolean))).sort();
   const hasNoRepOrders = all.some(a => !a.order.salesRep);
 
+  // Pending in the filter dropdown covers BOTH still-pending orders
+  // (no decision yet) AND out-of-stock auto-replanned orders. The two
+  // share a single user-facing option so reps don't have to flip between
+  // them. Per-row pills still render distinctly via the pill.* labels.
   const statusLabel = {
     'all':                 'All statuses',
     'pending':             t('pill.pending'),
     'deliverable_pending': t('pill.deliverable_pending'),
     'confirmed':           t('pill.confirmed'),
     'canceled':            t('pill.canceled'),
-    'replanned':           t('pill.replanned'),
-    'oos':                 t('pill.out_of_stock')
+    'replanned':           t('pill.replanned')
   };
 
   // Sort indicator helper.
@@ -8394,6 +8400,13 @@ function renderReviewTable(stats) {
       clientGroups = clientGroups.filter(g => {
         const phone = (g.ordersList[0] && g.ordersList[0].clientPhoneNorm) || '';
         const statuses = statusesByPhone.get(phone) || new Set();
+        // Merged Pending: a client qualifies if every order is either
+        // pending or oos (no other status mixed in).
+        if (statusFilter === 'pending') {
+          if (statuses.size === 0) return false;
+          for (const s of statuses) if (s !== 'pending' && s !== 'oos') return false;
+          return true;
+        }
         return statuses.size === 1 && statuses.has(statusFilter);
       });
     }
@@ -8966,6 +8979,9 @@ function wireTableView(stage) {
             const ord = a.totalOrdered || 0;
             const dlv = a.totalDeliverable || 0;
             if (!(ord > 0 && (dlv / ord) >= 0.80)) return false;
+          } else if (statusFilter === 'pending') {
+            const s = statusOf(a);
+            if (s !== 'pending' && s !== 'oos') return false;
           } else if (statusOf(a) !== statusFilter) {
             return false;
           }
@@ -9028,6 +9044,15 @@ function wireTableView(stage) {
             });
             groups.forEach((g, ph) => {
               const ss = statusesByPhone.get(ph) || new Set();
+              // Merged Pending: keep clients whose orders are entirely
+              // pending and/or oos. Any other status anywhere disqualifies.
+              if (statusFilter === 'pending') {
+                if (ss.size === 0) { groups.delete(ph); return; }
+                for (const s of ss) {
+                  if (s !== 'pending' && s !== 'oos') { groups.delete(ph); return; }
+                }
+                return;
+              }
               if (!(ss.size === 1 && ss.has(statusFilter))) groups.delete(ph);
             });
           }
@@ -10572,6 +10597,10 @@ function renderReviewDone(allocs, stats) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         Download Sub-Orders file (.xlsx)
       </button>
+      <button class="btn btn-lg" id="exportStockNeededBtn" title="Per product, the extra stock you need to fully serve every non-canceled order. Equals the sum of the Delivery Report's Not Deliverable Qty (canceled excluded), so leftover on-hand stock that would have covered part of a replanned order is NOT counted again.">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><line x1="12" y1="11" x2="12" y2="21"/></svg>
+        Download Stock Needed (.xlsx)
+      </button>
       <button class="btn" id="editDecisionsBtn" title="Go back to the review to change decisions you already made. Nothing is wiped.">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Edit decisions
@@ -10628,6 +10657,9 @@ function renderReviewDone(allocs, stats) {
   });
   document.getElementById('exportSubOrdersBtn')?.addEventListener('click', () => {
     exportSubOrders(allocs);
+  });
+  document.getElementById('exportStockNeededBtn')?.addEventListener('click', () => {
+    exportStockNeeded(allocs);
   });
   // Region confirm / unconfirm — toggles reviewState.regionConfirmed and
   // re-renders the Done screen so the panel + warning + export filtering
@@ -10889,6 +10921,98 @@ function exportSubOrders(allocs) {
   const wb = XLSX_WRITE.utils.book_new();
   XLSX_WRITE.utils.book_append_sheet(wb, ws, 'Sub-Orders');
   XLSX_WRITE.writeFile(wb, `Sub_Orders_${tomorrowLabel()}.xlsx`);
+}
+
+// Export a "Stock Needed" file — per product, the EXTRA quantity you must
+// source to satisfy every non-canceled order. To match the Delivery Report
+// (and avoid double-counting stock that's already on the shelf), we run
+// the same hypothetical-allocation pass the report uses: confirmed orders
+// take their actual delivered qty, then non-confirmed orders walk leftover
+// stock in FIFO order. The "needed" gap per line is ordered - effective
+// allocation. Canceled orders are excluded.
+function exportStockNeeded(allocs) {
+  const eligible = (allocs || []).filter(a => a.decision !== 'canceled');
+  if (!eligible.length) {
+    alert('No non-canceled orders yet.');
+    return;
+  }
+
+  // ---- Hypothetical allocation pass (mirrors exportDeliveryReport) ----
+  const remaining = new Map();
+  if (processed && processed.initialStock) {
+    processed.initialStock.forEach((v, k) => {
+      const n = (typeof v === 'number' && isFinite(v)) ? v : 0;
+      remaining.set(k, Math.max(0, n));
+    });
+  }
+  // Pass A - subtract every confirmed order's actual allocation.
+  (allocs || []).forEach(a => {
+    if (a.decision !== 'confirmed') return;
+    a.lines.forEach(l => {
+      const cur = remaining.get(l.prodCode) || 0;
+      const got = (typeof l.allocated === 'number' && isFinite(l.allocated)) ? l.allocated : 0;
+      remaining.set(l.prodCode, Math.max(0, cur - got));
+    });
+  });
+  // Pass B - non-confirmed orders grab leftover stock in FIFO order.
+  const hypoLine = new Map();
+  (allocs || []).forEach(a => {
+    if (a.decision === 'confirmed') return;
+    a.lines.forEach(l => {
+      const avail   = remaining.get(l.prodCode) || 0;
+      const ordered = (typeof l.ordered === 'number' && isFinite(l.ordered)) ? l.ordered : 0;
+      const got     = Math.min(ordered, avail);
+      if (got > 0) remaining.set(l.prodCode, avail - got);
+      hypoLine.set(l, got);
+    });
+  });
+  const effAlloc = (a, l) => (a.decision === 'confirmed')
+    ? ((typeof l.allocated === 'number' && isFinite(l.allocated)) ? l.allocated : 0)
+    : (hypoLine.get(l) || 0);
+
+  const byCode = new Map(); // prodCode -> { name, needed }
+  eligible.forEach(a => {
+    a.lines.forEach(l => {
+      const code = (l.prodCode || '').toString().trim();
+      if (!code) return;
+      const ordered   = (typeof l.ordered === 'number' && isFinite(l.ordered)) ? l.ordered : 0;
+      const allocated = effAlloc(a, l);
+      const gap       = Math.max(0, ordered - allocated);
+      if (gap <= 0) return;
+      if (!byCode.has(code)) byCode.set(code, { name: l.prodName || '', needed: 0 });
+      const e = byCode.get(code);
+      e.needed += gap;
+      if (!e.name && l.prodName) e.name = l.prodName;
+    });
+  });
+
+  const rows = [...byCode.entries()]
+    .map(([code, e]) => ({ code, name: e.name || '', needed: e.needed }))
+    .filter(r => r.needed > 0)
+    .sort((a, b) => b.needed - a.needed || a.code.localeCompare(b.code));
+
+  if (!rows.length) {
+    alert('Every non-canceled line is fully covered by current stock - no extra stock needed.');
+    return;
+  }
+
+  const headers = ['Product code', 'Product name', 'Quantity needed'];
+  const aoa = [headers].concat(rows.map(r => [r.code, r.name, r.needed]));
+  const ws = XLSX_WRITE.utils.aoa_to_sheet(aoa);
+  const headerStyle = {
+    font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+    fill: { patternType: 'solid', fgColor: { rgb: 'B45309' } },
+    alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+  };
+  headers.forEach((h, c) => {
+    const ref = XLSX_WRITE.utils.encode_cell({ r: 0, c });
+    if (ws[ref]) ws[ref].s = headerStyle;
+  });
+  ws['!cols'] = [{ wch: 14 }, { wch: 36 }, { wch: 16 }];
+  ws['!rows'] = [{ hpt: 26 }];
+  const wb = XLSX_WRITE.utils.book_new();
+  XLSX_WRITE.utils.book_append_sheet(wb, ws, 'Stock needed');
+  XLSX_WRITE.writeFile(wb, `Stock_needed_${tomorrowLabel()}.xlsx`);
 }
 
 // Export a "Remaining Stock" file — same column layout as the user's
@@ -13366,20 +13490,10 @@ updateState();
   } catch (e) { console.error('Supabase init failed:', e); }
 })();
 
-// Debug-only block reveal. The "Import decisions (testing)" card is
-// hidden in production for normal users; QA / dev flips it on by
-// appending ?debug=1 to the URL or by setting localStorage.rihab_debug=1.
-(() => {
-  let debug = false;
-  try {
-    if (/[?&]debug=1\b/.test(location.search || '')) debug = true;
-    if (localStorage.getItem('rihab_debug') === '1') debug = true;
-  } catch (_) {}
-  if (debug) {
-    const card = document.getElementById('card-import-decisions');
-    if (card) card.classList.remove('hidden');
-  }
-})();
+// Import decisions (testing) card is now visible to all users by default
+// (no longer behind ?debug=1 / rihab_debug=1). This block is intentionally
+// a no-op — kept so future debug-gated reveals have a clear home.
+(() => { /* no-op */ })();
 
 // Full-state restore: pull saved orders + stock back from localStorage,
 // then re-run doProcess so the Review pipeline (allocations, decisions,
