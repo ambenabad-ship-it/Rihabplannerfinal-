@@ -137,15 +137,22 @@
     box-sizing: border-box;
   }
   .as-brand {
-    display: flex; align-items: center; gap: 8px;
-    padding: 2px 6px 10px; margin-bottom: 4px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px 6px 12px; margin-bottom: 4px;
     border-bottom: 1px solid var(--border-soft);
     width: 100%;
   }
-  .as-brand .as-brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-  .as-brand-name { font-weight: 800; font-size: 12.5px; color: var(--text); letter-spacing: -0.01em; }
-  .as-brand-sub { display: none; }
+  .as-brand-logo {
+    display: block;
+    max-width: 100%;
+    max-height: 36px;
+    width: auto; height: auto;
+    user-select: none; -webkit-user-drag: none;
+  }
+  /* Legacy classes kept hidden in case the markup is rendered elsewhere. */
+  .as-brand .as-brand-text { display: none; }
   .as-brand .as-logo {
+    display: none;
     width: 26px; height: 26px; border-radius: 7px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-700, #c2410c) 100%);
     color: #fff; display:flex; align-items:center; justify-content:center;
@@ -4009,12 +4016,7 @@
   <div class="as-overlay" id="appShellOverlay"></div>
   <aside class="app-sidebar" id="appSidebar">
     <div class="as-brand">
-      <div class="as-logo">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18l-2 6H5L3 3z"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/></svg>
-      </div>
-      <div class="as-brand-text">
-        <span class="as-brand-name">Z.systems</span>
-      </div>
+      <img class="as-brand-logo" src="./0be7ba88-b9cc-44e5-9594-eae778fe9174.png" alt="Z.systems" draggable="false">
     </div>
     <div class="as-section-title">Features</div>
     <button type="button" class="as-feature active" data-feature="planner" title="Daily delivery planning">
