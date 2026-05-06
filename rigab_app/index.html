@@ -670,13 +670,23 @@
 
   /* Toggle chevron */
   .gmv-toggle-btn {
-    background: none; border: none; cursor: pointer;
-    width: 18px; height: 18px;
+    background: var(--bg-muted);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    width: 26px; height: 26px;
     display: inline-flex; align-items: center; justify-content: center;
-    border-radius: 3px; color: var(--text-soft); font-size: 10px;
-    transition: background-color .12s, color .12s;
+    border-radius: 6px; color: var(--text); font-size: 13px; font-weight: 700;
+    transition: background-color .12s, color .12s, border-color .12s, transform .12s;
+    line-height: 1;
   }
-  .gmv-toggle-btn:hover { background: var(--bg-muted); color: var(--primary); }
+  .gmv-toggle-btn:hover {
+    background: var(--primary-50);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  .gmv-toggle-btn:active { transform: scale(0.94); }
+  .gmv-row-seller .gmv-toggle-btn { background: var(--bg-elev); }
+  .gmv-row-seller:hover .gmv-toggle-btn { background: var(--primary-50); border-color: var(--primary); color: var(--primary); }
 
   /* Number input — used for targets */
   .gmv-num-input {
@@ -1141,6 +1151,115 @@
   .gmv-showmore-btn:hover .gmv-showmore-count { color: var(--primary); }
 
   /* Saved indicator flash on inline edit */
+
+  /* ============================================================
+     Auth gate — full-screen login. Hidden once a Supabase session
+     is established, returns when the user signs out.
+     ============================================================ */
+  .login-screen {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 30% 20%, rgba(247, 98, 74, 0.08) 0%, transparent 55%),
+                radial-gradient(circle at 80% 70%, rgba(59, 128, 131, 0.06) 0%, transparent 60%),
+                #fafafa;
+    padding: 24px;
+    overflow-y: auto;
+  }
+  [data-theme="dark"] .login-screen {
+    background: radial-gradient(circle at 30% 20%, rgba(247, 98, 74, 0.10) 0%, transparent 55%),
+                radial-gradient(circle at 80% 70%, rgba(59, 128, 131, 0.08) 0%, transparent 60%),
+                #0a0a0b;
+  }
+  .login-card {
+    width: 100%; max-width: 420px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.10), 0 4px 12px rgba(15, 23, 42, 0.05);
+    padding: 36px 32px 28px;
+    animation: loginFadeIn .35s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  @keyframes loginFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .login-brand { text-align: center; margin-bottom: 28px; }
+  .login-logo {
+    width: 56px; height: 56px; margin: 0 auto 14px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-600) 100%);
+    color: #fff;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px rgba(247, 98, 74, 0.32);
+  }
+  .login-title {
+    font-size: 22px; font-weight: 800; color: var(--text);
+    letter-spacing: -0.02em; margin: 0 0 4px;
+  }
+  .login-subtitle {
+    font-size: 13px; color: var(--text-soft); margin: 0;
+  }
+  .login-form { display: flex; flex-direction: column; gap: 14px; }
+  .login-field { display: flex; flex-direction: column; gap: 6px; }
+  .login-field span {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-muted);
+  }
+  .login-field input {
+    height: 40px; padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px; color: var(--text); background: var(--bg-elev);
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .login-field input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-50);
+  }
+  .login-btn {
+    margin-top: 4px; height: 42px;
+    background: linear-gradient(180deg, var(--primary) 0%, var(--primary-600) 100%);
+    color: #fff; border: none; border-radius: 8px;
+    font-weight: 700; font-size: 14px; letter-spacing: -0.005em;
+    cursor: pointer;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.18) inset, 0 1px 2px rgba(15,23,42,0.08);
+    transition: filter .12s, transform .04s;
+  }
+  .login-btn:hover { filter: brightness(1.05); }
+  .login-btn:active { transform: translateY(1px); }
+  .login-btn:disabled { opacity: 0.6; cursor: wait; }
+  .login-error {
+    margin-top: 4px;
+    padding: 8px 10px;
+    background: var(--danger-50, #fef2f2);
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    color: var(--danger);
+    font-size: 12px; line-height: 1.4;
+    display: none;
+  }
+  .login-error.visible { display: block; }
+  .login-footer {
+    margin-top: 22px; padding-top: 16px;
+    border-top: 1px solid var(--border-soft);
+    text-align: center; font-size: 12px; color: var(--text-soft);
+    line-height: 1.6;
+  }
+  .login-footer code {
+    background: var(--bg-muted); padding: 1px 6px; border-radius: 4px;
+    font-size: 11px; color: var(--text-muted);
+  }
+  .login-footer-link {
+    color: var(--primary); cursor: pointer; font-weight: 600; background: none; border: none; padding: 0;
+    text-decoration: underline; text-underline-offset: 2px; font-size: 12px;
+  }
+  .login-footer-link:hover { color: var(--primary-600); }
+
+  /* When the gate is up, hide the rest of the app. */
+  body.is-locked .app-shell { visibility: hidden; }
+  body.is-locked .sb-auth-chip { display: none !important; }
+
   .gmv-num-input.flash-saved {
     border-color: var(--success);
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
@@ -3839,7 +3958,38 @@
   @keyframes awal-spin { to { transform: rotate(360deg); } }
 </style>
 </head>
-<body>
+<body class="is-locked">
+<!-- ============================================================
+     Auth gate — full-screen login. Hidden once a Supabase session
+     is established. The body's .is-locked class hides the app
+     shell so unauthenticated users see only the login card.
+     ============================================================ -->
+<div id="loginScreen" class="login-screen" style="display:none;">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18l-2 6H5L3 3z"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/></svg>
+      </div>
+      <h1 class="login-title">Z.systems</h1>
+      <p class="login-subtitle">Sign in to continue</p>
+    </div>
+    <form class="login-form" id="loginForm" autocomplete="on">
+      <label class="login-field">
+        <span>Email</span>
+        <input type="email" id="loginEmail" autocomplete="email" required spellcheck="false" autocapitalize="none">
+      </label>
+      <label class="login-field">
+        <span>Password</span>
+        <input type="password" id="loginPassword" autocomplete="current-password" required>
+      </label>
+      <button type="submit" class="login-btn" id="loginSubmit">Sign in</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
+    <div class="login-footer">
+      Don't have an account? <span class="login-footer-text">Contact your administrator.</span>
+    </div>
+  </div>
+</div>
 
 <div class="app-shell" id="appShell">
 
@@ -12941,7 +13091,6 @@ function renderAuthChip() {
         <input type="email" placeholder="Email" class="sb-auth-email-in" autocomplete="email">
         <input type="password" placeholder="Password (≥6 chars)" class="sb-auth-pw" autocomplete="current-password">
         <button type="button" class="sb-auth-go btn btn-primary">Sign in</button>
-        <button type="button" class="sb-auth-signup">Create account</button>
         <button type="button" class="sb-auth-cancel">×</button>
         <div class="sb-auth-msg"></div>
       </div>`;
@@ -12991,7 +13140,7 @@ function renderAuthChip() {
       }
     };
     chip.querySelector('.sb-auth-go').onclick     = () => submit('signin');
-    chip.querySelector('.sb-auth-signup').onclick = () => submit('signup');
+    // Signups disabled — admin creates accounts via Supabase dashboard.
   }
 }
 
@@ -14978,8 +15127,144 @@ try {
   } catch (e) { console.error('sidebar init failed:', e); }
 })();
 
+
+// =========================================================================
+// Auth gate — block app until signed in. Re-shows on sign-out. Wired with
+// existing sbInitSession / sbSignIn / sbSignOut. Public signups are off
+// in Supabase, so we don't expose a "Create account" path here.
+// =========================================================================
+(function authGateInit() {
+  const lock = (locked) => {
+    document.body.classList.toggle('is-locked', !!locked);
+    const screen = document.getElementById('loginScreen');
+    if (screen) screen.style.display = locked ? 'flex' : 'none';
+    if (locked) {
+      // Focus the first empty field so the user can type immediately.
+      setTimeout(() => {
+        const ef = document.getElementById('loginEmail');
+        const pf = document.getElementById('loginPassword');
+        if (ef && !ef.value) ef.focus();
+        else if (pf) pf.focus();
+      }, 80);
+    }
+  };
+
+  const updateGate = () => {
+    if (typeof sbUser !== 'undefined' && sbUser) lock(false);
+    else lock(true);
+  };
+
+  // Initial state — assume locked. Wait for sbInitSession() to settle,
+  // then re-evaluate.
+  lock(true);
+
+  const waitForSb = setInterval(() => {
+    // sb is created in the main IIFE after Supabase config is read. If it's
+    // missing entirely (config not filled in), fall back to local-only mode
+    // and unlock so the user isn't trapped.
+    if (typeof sb === 'undefined') return;
+    clearInterval(waitForSb);
+    if (!sb) { lock(false); return; }
+    // sbInitSession already runs on app boot; poll briefly for sbUser to
+    // settle, then evaluate. Worst-case timeout: 4s — then keep showing the
+    // login form (which is what we want when no session exists).
+    let elapsed = 0;
+    const poll = setInterval(() => {
+      elapsed += 100;
+      if (typeof sbUser !== 'undefined' && sbUser) { clearInterval(poll); lock(false); return; }
+      if (elapsed >= 1500) { clearInterval(poll); updateGate(); }
+    }, 100);
+  }, 50);
+
+  // Form submit — calls existing sbSignIn.
+  const form = document.getElementById('loginForm');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const emailEl = document.getElementById('loginEmail');
+      const pwEl    = document.getElementById('loginPassword');
+      const err     = document.getElementById('loginError');
+      const submit  = document.getElementById('loginSubmit');
+      if (err) { err.textContent = ''; err.classList.remove('visible'); }
+      const email = (emailEl?.value || '').trim();
+      const pw    = pwEl?.value || '';
+      if (!email || !pw) {
+        if (err) { err.textContent = 'Email and password required.'; err.classList.add('visible'); }
+        return;
+      }
+      if (submit) { submit.disabled = true; submit.textContent = 'Signing in…'; }
+      try {
+        if (typeof sbSignIn !== 'function') throw new Error('Auth not configured.');
+        await sbSignIn(email, pw);
+        // Refresh existing chips + GMV view.
+        if (typeof renderAuthChip === 'function') renderAuthChip();
+        try {
+          const cloud = await sbReadKey('planning_history');
+          if (Array.isArray(cloud)) { planningHistory = cloud; savePlanningHistory(); }
+          if (typeof renderHistoryPage === 'function') renderHistoryPage();
+        } catch (_) {}
+        try {
+          if (typeof gmvPullClientsFromSupabaseIfNeeded === 'function') await gmvPullClientsFromSupabaseIfNeeded();
+          if (typeof gmvPullOrdersFromSupabaseIfNeeded === 'function') await gmvPullOrdersFromSupabaseIfNeeded();
+          if (typeof gmvPullRangeFromSupabaseIfNeeded === 'function') await gmvPullRangeFromSupabaseIfNeeded();
+          if (typeof gmvSyncAllToCloud === 'function') await gmvSyncAllToCloud();
+          if (typeof gmvRenderAuthChip === 'function') gmvRenderAuthChip();
+          if (typeof gmvRefreshSyncBtn === 'function') gmvRefreshSyncBtn();
+          if (typeof gmvRenderAll === 'function') gmvRenderAll();
+        } catch (_) {}
+        lock(false);
+      } catch (e) {
+        if (err) {
+          let msg = (e && e.message) ? e.message : 'Sign-in failed.';
+          // Friendly error rewrites.
+          if (/invalid login credentials/i.test(msg)) msg = 'Wrong email or password.';
+          if (/email not confirmed/i.test(msg)) msg = 'Please confirm your email first (check your inbox).';
+          if (/too many requests/i.test(msg)) msg = 'Too many attempts — wait a minute.';
+          err.textContent = msg;
+          err.classList.add('visible');
+        }
+      } finally {
+        if (submit) { submit.disabled = false; submit.textContent = 'Sign in'; }
+      }
+    });
+  }
+
+  // Re-show gate on sign-out. We hook by patching renderAuthChip's existing
+  // "Sign out" handler — every render attaches a fresh handler, so we wrap
+  // the function once at first paint.
+  const wrapSignOut = () => {
+    const chip = document.getElementById('sbAuthChip');
+    if (!chip) return;
+    const out = chip.querySelector('.sb-auth-out');
+    if (!out || out.__gateWrapped) return;
+    const orig = out.onclick;
+    out.__gateWrapped = true;
+    out.onclick = async (e) => {
+      if (orig) await orig.call(out, e);
+      lock(true);
+      // Wipe local caches so the next user can't see the previous user's data.
+      try {
+        localStorage.removeItem(GMV_LS_CLIENTS);
+        localStorage.removeItem(GMV_LS_ORDERS);
+        localStorage.removeItem(GMV_LS_NAMES);
+        localStorage.removeItem(GMV_LS_TARGETS);
+      } catch (_) {}
+      gmv.clients = {};
+      gmv.orders = [];
+      gmv.namesByPhone = {};
+      gmv.targets = {};
+      if (typeof gmvRenderAll === 'function') gmvRenderAll();
+    };
+  };
+  // Watch for the auth chip being (re)rendered.
+  const chipObserver = new MutationObserver(wrapSignOut);
+  chipObserver.observe(document.body, { childList: true, subtree: true });
+  setTimeout(wrapSignOut, 500);
+})();
+
 // =========================================================================
 // Sellers GMV maker — independent feature module.
+
 // Owns its own state (clients, orders, date range, targets) and its own
 // upload handlers + render functions. Persistence: targets sync to
 // Supabase under the key 'gmv_targets' for the signed-in user, with a
@@ -15716,7 +16001,11 @@ function gmvRenderTargets() {
     const open = !!gmv.expandedSellers[s];
     const target = bucket.sellers[s] || 0;
     html += '<tr class="gmv-row-seller">' +
-      '<td><button type="button" class="gmv-toggle-btn" data-seller="' + escapeHtml(s) + '">' + (open ? '▼' : '▶') + '</button></td>' +
+      '<td><button type="button" class="gmv-toggle-btn" data-seller="' + escapeHtml(s) + '" title="' + (open ? 'Collapse seller' : 'Show clients of this seller') + '" aria-label="Toggle clients">' +
+        (open
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>') +
+      '</button></td>' +
       '<td>' + escapeHtml(s) + '</td>' +
       '<td class="num">' + list.length + '</td>' +
       '<td class="num">' +
@@ -16115,7 +16404,7 @@ function gmvRenderResults() {
   // Build the table.
   let html = '<div class="gmv-table-wrap"><table class="gmv-table">' +
     '<thead><tr>' +
-      '<th style="width:32px;"></th>' +
+      '<th style="width:42px;"></th>' +
       '<th>Seller / Client</th>' +
       '<th class="num">Delivered</th>' +
       '<th class="num">Target</th>' +
@@ -16134,7 +16423,11 @@ function gmvRenderResults() {
     const sp = pct(e.reached, e.target);
     const targetMet = e.target > 0 && e.reached >= e.target;
     html += '<tr class="gmv-row-seller' + (targetMet ? ' target-met' : '') + '">' +
-      '<td><button type="button" class="gmv-toggle-btn gmv-res-toggle" data-seller="' + escapeHtml(s) + '">' + (open ? '▾' : '▸') + '</button></td>' +
+      '<td><button type="button" class="gmv-toggle-btn gmv-res-toggle" data-seller="' + escapeHtml(s) + '" title="' + (open ? 'Collapse seller' : 'Show clients of this seller') + '" aria-label="Toggle clients">' +
+        (open
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>') +
+      '</button></td>' +
       '<td class="gmv-seller-cell">' +
         '<div class="gmv-seller-name">' + escapeHtml(s) + '</div>' +
         '<div class="gmv-seller-meta">' + e.clients.length + ' client' + (e.clients.length !== 1 ? 's' : '') + '</div>' +
