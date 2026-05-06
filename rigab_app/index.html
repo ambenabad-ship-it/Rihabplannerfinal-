@@ -13450,6 +13450,7 @@ function renderAuthChip() {
           }
           if (typeof gmvRenderAuthChip === 'function') gmvRenderAuthChip();
           if (typeof gmvRefreshSyncBtn === 'function') gmvRefreshSyncBtn();
+          if (typeof gmvApplyRoleUI === 'function') gmvApplyRoleUI();
           if (typeof gmvRenderAll === 'function') gmvRenderAll();
         } catch (_) {}
       } catch (e) {
@@ -17005,6 +17006,7 @@ function gmvRenderPageBar() {
 }
 
 function gmvRenderAll() {
+  try { gmvApplyRoleUI(); } catch (_) {}
   gmvRenderPeriodChip();
   gmvRenderDsStrip();
   gmvRenderPageBar();
