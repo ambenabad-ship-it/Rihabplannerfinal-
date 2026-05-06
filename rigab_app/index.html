@@ -1159,16 +1159,32 @@
   .login-screen {
     position: fixed; inset: 0; z-index: 9999;
     display: flex; align-items: center; justify-content: center;
-    background: radial-gradient(circle at 30% 20%, rgba(247, 98, 74, 0.08) 0%, transparent 55%),
-                radial-gradient(circle at 80% 70%, rgba(59, 128, 131, 0.06) 0%, transparent 60%),
-                #fafafa;
+    /* Brand gradient fallback layered UNDER the image, so if the image
+       fails to load the screen still looks intentional. */
+    background:
+      url('./Gemini_Generated_Image_wf2748wf2748wf27.png') center/cover no-repeat,
+      radial-gradient(circle at 30% 20%, rgba(247, 98, 74, 0.10) 0%, transparent 55%),
+      radial-gradient(circle at 80% 70%, rgba(59, 128, 131, 0.08) 0%, transparent 60%),
+      #0a0a0b;
     padding: 24px;
     overflow-y: auto;
   }
-  [data-theme="dark"] .login-screen {
-    background: radial-gradient(circle at 30% 20%, rgba(247, 98, 74, 0.10) 0%, transparent 55%),
-                radial-gradient(circle at 80% 70%, rgba(59, 128, 131, 0.08) 0%, transparent 60%),
-                #0a0a0b;
+  /* Dark overlay between the image and the card so any background art
+     never competes with the form. */
+  .login-screen::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(10, 10, 11, 0.55) 0%, rgba(10, 10, 11, 0.65) 100%);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 0;
+    pointer-events: none;
+  }
+  /* Card sits above the overlay. */
+  .login-card { position: relative; z-index: 1; }
+  /* Slight white-frosted lift in dark mode so the card pops over the image. */
+  [data-theme="dark"] .login-screen::before {
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.70) 100%);
   }
   .login-card {
     width: 100%; max-width: 420px;
@@ -1184,17 +1200,12 @@
     to   { opacity: 1; transform: translateY(0); }
   }
   .login-brand { text-align: center; margin-bottom: 28px; }
-  .login-logo {
-    width: 56px; height: 56px; margin: 0 auto 14px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-600) 100%);
-    color: #fff;
-    border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 8px 24px rgba(247, 98, 74, 0.32);
-  }
-  .login-title {
-    font-size: 22px; font-weight: 800; color: var(--text);
-    letter-spacing: -0.02em; margin: 0 0 4px;
+  .login-logo-img {
+    display: block;
+    max-width: 220px; width: 100%; height: auto;
+    margin: 0 auto 14px;
+    user-select: none;
+    -webkit-user-drag: none;
   }
   .login-subtitle {
     font-size: 13px; color: var(--text-soft); margin: 0;
@@ -3967,10 +3978,7 @@
 <div id="loginScreen" class="login-screen" style="display:none;">
   <div class="login-card">
     <div class="login-brand">
-      <div class="login-logo">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18l-2 6H5L3 3z"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/></svg>
-      </div>
-      <h1 class="login-title">Z.systems</h1>
+      <img class="login-logo-img" src="./0be7ba88-b9cc-44e5-9594-eae778fe9174.png" alt="Z.systems" draggable="false">
       <p class="login-subtitle">Sign in to continue</p>
     </div>
     <form class="login-form" id="loginForm" autocomplete="on">
