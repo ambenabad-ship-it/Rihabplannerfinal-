@@ -15614,7 +15614,6 @@ const GMV_LS_TVIEW   = 'rihab_gmv_tview_v1';
 const GMV_LS_CLIENTS = 'rihab_gmv_clients_v1';
 const GMV_LS_ORDERS  = 'rihab_gmv_orders_v1';
 const GMV_LS_NAMES   = 'rihab_gmv_names_v1';
-const GMV_LS_CATEGORIES = 'rihab_gmv_categories_v1';
 // Status values we recognise in the orders file. The headline GMV total
 // counts ONLY 'DELIVERED'; the rest are surfaced as separate KPIs so the
 // operator can see pipeline at a glance per seller and per client.
@@ -15748,15 +15747,13 @@ function gmvActivePeriodBucket() {
   if (!gmv.targets || typeof gmv.targets !== 'object') gmv.targets = {};
   const k = gmvActivePeriodKey();
   if (!gmv.targets[k] || typeof gmv.targets[k] !== 'object') {
-    gmv.targets[k] = { sellers: {}, clients: {}, stores: {}, storesBySeller: {}, storesByClient: {}, categories: {}, categoriesByStore: {} };
+    gmv.targets[k] = { sellers: {}, clients: {}, stores: {}, storesBySeller: {}, storesByClient: {} };
   }
   if (!gmv.targets[k].sellers) gmv.targets[k].sellers = {};
   if (!gmv.targets[k].clients) gmv.targets[k].clients = {};
   if (!gmv.targets[k].stores)  gmv.targets[k].stores  = {};
   if (!gmv.targets[k].storesBySeller) gmv.targets[k].storesBySeller = {};
   if (!gmv.targets[k].storesByClient) gmv.targets[k].storesByClient = {};
-  if (!gmv.targets[k].categories) gmv.targets[k].categories = {};
-  if (!gmv.targets[k].categoriesByStore) gmv.targets[k].categoriesByStore = {};
   return gmv.targets[k];
 }
 // One-time migration: if gmv.targets has the OLD flat shape
@@ -15852,7 +15849,6 @@ const gmv = {
   expandedSellerClients: {}, // sellerName -> bool, toggle the "clients" subsection
   clientsByName: {}, // normalizedName -> canonical phone (built from clients file)
   clientsByRetailerId: {}, // retailerId -> canonical phone
-  productCategories: {}, // productCode -> { description, category }
   activePage: 'performance', // 'performance' | 'targets'
   targetsView: 'seller'    // 'seller' | 'store' (Targets page sub-tab)
 };
@@ -15945,8 +15941,7 @@ async function gmvPushOrdersToSupabase() {
       date: (o.date && o.date.toISOString) ? o.date.toISOString() : o.date,
       amount: o.amount,
       status: o.status,
-      store: o.store || '',
-      productCode: o.productCode || ''
+      store: o.store || ''
     }));
     const okO = await sbWriteKey('gmv_orders', ordersForCloud);
     const okN = await sbWriteKey('gmv_names', gmv.namesByPhone || {});
@@ -15955,29 +15950,6 @@ async function gmvPushOrdersToSupabase() {
     console.warn('gmv push orders to supabase failed:', e);
     return false;
   }
-}
-
-async function gmvPushCategoriesToSupabase() {
-  if (!sbUser || typeof sbWriteKey !== 'function') return false;
-  try {
-    return await sbWriteKey('gmv_categories', gmv.productCategories || {});
-  } catch (e) {
-    console.warn('gmv push categories to supabase failed:', e);
-    return false;
-  }
-}
-
-// Pull product categories from Supabase when local cache is empty.
-async function gmvPullCategoriesFromSupabaseIfNeeded() {
-  if (gmv.productCategories && Object.keys(gmv.productCategories).length) return;
-  if (!sbUser || typeof sbReadKey !== 'function') return;
-  try {
-    const cloudCats = await sbReadKey('gmv_categories');
-    if (cloudCats && typeof cloudCats === 'object') {
-      gmv.productCategories = cloudCats;
-      try { saveJSON(GMV_LS_CATEGORIES, cloudCats); } catch (_) {}
-    }
-  } catch (e) { console.warn('gmv pull categories failed:', e); }
 }
 
 // Pull orders + names from Supabase when local cache is empty. Mirrors
@@ -15989,7 +15961,6 @@ async function gmvSyncAllToCloud() {
   const tasks = [];
   if (gmv.clients && Object.keys(gmv.clients).length) tasks.push(gmvPushClientsToSupabase());
   if ((gmv.orders && gmv.orders.length) || (gmv.namesByPhone && Object.keys(gmv.namesByPhone).length)) tasks.push(gmvPushOrdersToSupabase());
-  if (gmv.productCategories && Object.keys(gmv.productCategories).length) tasks.push(gmvPushCategoriesToSupabase());
   if (gmv.targets && Object.keys(gmv.targets).length) tasks.push(sbWriteKey('gmv_targets', gmv.targets));
   if (gmv.dateFrom || gmv.dateTo) tasks.push(sbWriteKey('gmv_range', { dateFrom: gmv.dateFrom || '', dateTo: gmv.dateTo || '' }));
   try {
@@ -16013,8 +15984,7 @@ async function gmvPullOrdersFromSupabaseIfNeeded() {
         date: o.date ? new Date(o.date) : null,
         amount: typeof o.amount === 'number' ? o.amount : parseFloat(o.amount) || 0,
         status: gmvNormStatus(o.status || ''),
-        store: o.store || '',
-        productCode: o.productCode || ''
+        store: o.store || ''
       })).filter(o => o.phone && o.date && o.status && GMV_STATUSES.indexOf(o.status) >= 0);
       try { saveJSON(GMV_LS_ORDERS, cloudOrders); } catch (_) {}
     }
@@ -16085,8 +16055,6 @@ async function gmvInit() {
     }
     const savedNames = loadJSON(GMV_LS_NAMES);
     if (savedNames && typeof savedNames === 'object') gmv.namesByPhone = savedNames;
-    const savedCats = loadJSON(GMV_LS_CATEGORIES);
-    if (savedCats && typeof savedCats === 'object') gmv.productCategories = savedCats;
     const savedOrders = loadJSON(GMV_LS_ORDERS);
     if (Array.isArray(savedOrders)) {
       gmv.orders = savedOrders.map(o => ({
@@ -16094,8 +16062,7 @@ async function gmvInit() {
         date: o.date ? new Date(o.date) : null,
         amount: typeof o.amount === 'number' ? o.amount : parseFloat(o.amount) || 0,
         status: gmvNormStatus(o.status || ''),
-        store: o.store || '',
-        productCode: o.productCode || ''
+        store: o.store || ''
       })).filter(o => o.phone && o.date && o.status && GMV_STATUSES.indexOf(o.status) >= 0);
     }
     // Re-render the file summaries so the user knows the data persisted.
@@ -16110,7 +16077,6 @@ async function gmvInit() {
   } catch (e) { console.error('gmv restore failed:', e); }
   document.getElementById('gmvClientsFile')?.addEventListener('change', gmvOnUploadClients);
   document.getElementById('gmvOrdersFile')?.addEventListener('change', gmvOnUploadOrders);
-  document.getElementById('gmvCategoriesFile')?.addEventListener('change', gmvOnUploadCategories);
 
   // Wire the period button + popover.
   const pBtn = document.getElementById('gmvPeriodBtn');
@@ -16124,7 +16090,6 @@ async function gmvInit() {
   // everything down from the user's private rows.
   await gmvPullClientsFromSupabaseIfNeeded();
   await gmvPullOrdersFromSupabaseIfNeeded();
-  await gmvPullCategoriesFromSupabaseIfNeeded();
   await gmvPullRangeFromSupabaseIfNeeded();
   // Single render entry point.
   gmvRenderAll();
@@ -16315,45 +16280,6 @@ async function gmvOnUploadClients(e) {
   } finally { try { e.target.value = ''; } catch (_) {} }
 }
 
-async function gmvOnUploadCategories(e) {
-  const f = e.target.files && e.target.files[0]; if (!f) return;
-  try {
-    const rows = await readXlsx(f);
-    if (!rows.length) throw new Error('Empty file.');
-    const cCode = findCol(rows[0], ['Code','code','partnerCode','PartnerCode','product_code','ProductCode']);
-    const cDesc = findCol(rows[0], ['Description','description','productName','ProductName','product_name','Name']);
-    const cCat  = findCol(rows[0], ['Category','category','Categorie','Catégorie']);
-    if (!cCode) throw new Error('Missing Code column.');
-    if (!cCat)  throw new Error('Missing Category column.');
-    let added = 0, skipped = 0;
-    const map = {};
-    rows.forEach(r => {
-      const code = String(r[cCode] || '').trim();
-      if (!code) { skipped++; return; }
-      const desc = cDesc ? String(r[cDesc] || '').trim() : '';
-      const cat  = String(r[cCat] || '').trim() || '(uncategorized)';
-      map[code] = { description: desc, category: cat };
-      added++;
-    });
-    gmv.productCategories = map;
-    try { saveJSON(GMV_LS_CATEGORIES, gmv.productCategories); } catch (_) {}
-    let synced = false;
-    if (sbUser) synced = await gmvPushCategoriesToSupabase();
-    const distinctCats = new Set(Object.values(map).map(v => v.category));
-    const syncSuffix = sbUser
-      ? (synced ? ' <span style="color:var(--success); font-weight:600;">\u2713 Synced to your account</span>'
-                : ' <span style="color:var(--warning); font-weight:600;">\u26A0 Local only \u2014 sync to Supabase failed</span>')
-      : ' <span style="color:var(--text-soft);">\u2014 Local only (sign in to sync across devices)</span>';
-    gmvSetSummary('gmvCategoriesSummary',
-      'Loaded <b>' + added + '</b> product(s) across <b>' + distinctCats.size + '</b> categor' + (distinctCats.size === 1 ? 'y' : 'ies') + '.' +
-      (skipped ? ' Skipped <b>' + skipped + '</b> with empty Code.' : '') +
-      syncSuffix);
-    gmvRenderAll();
-  } catch (err) {
-    alert('Categories file error: ' + (err && err.message ? err.message : err));
-  } finally { try { e.target.value = ''; } catch (_) {} }
-}
-
 async function gmvOnUploadOrders(e) {
   const f = e.target.files && e.target.files[0]; if (!f) return;
   try {
@@ -16370,7 +16296,6 @@ async function gmvOnUploadOrders(e) {
     const cChannel = findCol(rows[0], ['Channel']);
     const cRetailer = findCol(rows[0], ['retailerId','RetailerId','retailer_id','Retailer Id','RetailerID']);
     const cStoreName = findCol(rows[0], ['storeName','StoreName','store_name','Store name','Store Name']);
-    const cPartnerCode = findCol(rows[0], ['partnerCode','PartnerCode','partner_code','Code']);
     if (!cPhone && !cRetailer && !cName) {
       throw new Error('Need at least one matching column: phone, retailerId, or partner/client name.');
     }
@@ -16421,8 +16346,7 @@ async function gmvOnUploadOrders(e) {
       const st = gmvNormStatus(r[cStatus]);
       if (!st || GMV_STATUSES.indexOf(st) < 0) { skippedStatus++; return; }
       const storeRaw = cStoreName ? String(r[cStoreName] || '').trim() : '';
-      const productCode = cPartnerCode ? String(r[cPartnerCode] || '').trim() : '';
-      out.push({ phone: np, date: dt, amount: amt, status: st, store: storeRaw, productCode: productCode });
+      out.push({ phone: np, date: dt, amount: amt, status: st, store: storeRaw });
       if (cName) {
         const nm = String(r[cName] || '').trim();
         if (nm) { namesMap[np] = nm; namesFound++; }
@@ -16437,7 +16361,7 @@ async function gmvOnUploadOrders(e) {
     Object.assign(gmv.namesByPhone, namesMap);
     try {
       // Date can't be JSON.stringify'd usefully — store as ISO strings.
-      const ordersForStore = out.map(o => ({ phone: o.phone, date: o.date.toISOString(), amount: o.amount, status: o.status, store: o.store || '', productCode: o.productCode || '' }));
+      const ordersForStore = out.map(o => ({ phone: o.phone, date: o.date.toISOString(), amount: o.amount, status: o.status, store: o.store || '' }));
       saveJSON(GMV_LS_ORDERS, ordersForStore);
       // Save the MERGED map so the cache grows monotonically.
       saveJSON(GMV_LS_NAMES, gmv.namesByPhone);
@@ -16490,7 +16414,6 @@ function gmvComputeReached() {
   const byClientByStatus = {};   // phone -> { status: amount }
   const bySellerByStatus = {};   // seller -> { status: amount }
   const byStoreByStatus  = {};   // storeName -> { status: amount }
-  const byCategoryByStatus = {}; // category -> { status: amount }
   const totalByStatus    = {};   // status -> amount
   GMV_STATUSES.forEach(s => { totalByStatus[s] = 0; });
   const fromMs = gmv.dateFrom ? new Date(gmv.dateFrom + 'T00:00:00').getTime() : -Infinity;
@@ -16511,10 +16434,6 @@ function gmvComputeReached() {
     const store = o.store || '(no store)';
     if (!byStoreByStatus[store]) byStoreByStatus[store] = {};
     byStoreByStatus[store][st] = (byStoreByStatus[store][st] || 0) + o.amount;
-    const _catEntry = (gmv.productCategories || {})[o.productCode || ''];
-    const cat = (_catEntry && _catEntry.category) ? _catEntry.category : '(uncategorized)';
-    if (!byCategoryByStatus[cat]) byCategoryByStatus[cat] = {};
-    byCategoryByStatus[cat][st] = (byCategoryByStatus[cat][st] || 0) + o.amount;
     totalByStatus[st] = (totalByStatus[st] || 0) + o.amount;
   });
   // Backwards-compatible delivered-only roll-ups so the existing UI math
@@ -16528,7 +16447,7 @@ function gmvComputeReached() {
   Object.entries(byStoreByStatus).forEach(([s, m]) => { byStore[s] = m['DELIVERED'] || 0; });
   return {
     byClient, bySeller, byStore,
-    byClientByStatus, bySellerByStatus, byStoreByStatus, byCategoryByStatus, totalByStatus,
+    byClientByStatus, bySellerByStatus, byStoreByStatus, totalByStatus,
     total: totalByStatus['DELIVERED'] || 0
   };
 }
@@ -16956,18 +16875,8 @@ const GMV_TARGETS_SCOPES = [
   { id: 'stores',        label: 'Stores'            },
   { id: 'clients',       label: 'Clients'           },
   { id: 'seller-store',  label: 'Sellers × Stores' },
-  { id: 'client-store',  label: 'Clients × Stores' },
-  { id: 'categories',    label: 'Categories'         },
-  { id: 'store-category',label: 'Stores × Categories' }
+  { id: 'client-store',  label: 'Clients × Stores' }
 ];
-
-function gmvAllCategories() {
-  const set = new Set();
-  Object.values(gmv.productCategories || {}).forEach(v => {
-    if (v && v.category) set.add(v.category);
-  });
-  return [...set].sort((a, b) => a.localeCompare(b));
-}
 
 function gmvUniqueSellers() {
   const set = new Set();
@@ -17003,27 +16912,6 @@ function gmvFlatRows(scope) {
       });
     });
     return out;
-  }
-  if (scope === 'categories') {
-    const cats = gmvAllCategories();
-    return cats.map(c => ({ kind: 'category', category: c, name: c, target: (bucket.categories && bucket.categories[c]) || 0 }));
-  }
-  if (scope === 'store-category') {
-    // Only (store, category) pairs that actually appear in orders.
-    const seen = {};
-    (gmv.orders || []).forEach(o => {
-      if (!o.store) return;
-      const ent = (gmv.productCategories || {})[o.productCode || ''];
-      const cat = ent && ent.category ? ent.category : null;
-      if (!cat) return;
-      const k = o.store + '|' + cat;
-      if (!seen[k]) seen[k] = { store: o.store, category: cat };
-    });
-    return Object.values(seen).map(r => ({
-      kind: 'store-category', store: r.store, category: r.category,
-      name: r.store + ' \u00d7 ' + r.category,
-      target: ((bucket.categoriesByStore && bucket.categoriesByStore[r.store]) || {})[r.category] || 0
-    })).sort((a, b) => a.name.localeCompare(b.name));
   }
   if (scope === 'client-store') {
     // Build (client, store) cells from orders so we only show the pairs
@@ -17096,23 +16984,6 @@ function gmvFlatCapForRow(row, scope) {
       { parent: storeT,  siblingsSumIncludingSelf: storeAcrossSellers, label: 'store' }
     ], row.target || 0);
   }
-  if (scope === 'categories') {
-    const globalT = (typeof bucket.global === 'number') ? bucket.global : 0;
-    const sum = Object.values(bucket.categories || {}).reduce((n, v) => n + (v || 0), 0);
-    return gmvBudgetCap(globalT, sum, row.target || 0);
-  }
-  if (scope === 'store-category') {
-    const storeT = (bucket.stores && bucket.stores[row.store]) || 0;
-    const catT   = (bucket.categories && bucket.categories[row.category]) || 0;
-    const storeCatsAll = Object.values((bucket.categoriesByStore && bucket.categoriesByStore[row.store]) || {}).reduce((n, v) => n + (v || 0), 0);
-    const catAcrossStores = Object.keys(bucket.categoriesByStore || {}).reduce((n, sN) => {
-      return n + ((bucket.categoriesByStore[sN] || {})[row.category] || 0);
-    }, 0);
-    // Store target is required; Category target is OPTIONAL — only adds a cap when set.
-    const constraints = [{ parent: storeT, siblingsSumIncludingSelf: storeCatsAll, label: 'store' }];
-    if (catT > 0) constraints.push({ parent: catT, siblingsSumIncludingSelf: catAcrossStores, label: 'category' });
-    return gmvBudgetCapMulti(constraints, row.target || 0);
-  }
   if (scope === 'client-store') {
     const cliT = (bucket.clients && bucket.clients[row.phone]) || 0;
     const sellerStoreT = ((bucket.storesBySeller && bucket.storesBySeller[row.seller]) || {})[row.store] || 0;
@@ -17143,15 +17014,6 @@ function gmvFlatSaveRow(row, scope, value) {
   if (scope === 'client-store') {
     if (!b.storesByClient[row.phone]) b.storesByClient[row.phone] = {};
     b.storesByClient[row.phone][row.store] = v;
-  }
-  if (scope === 'categories') {
-    if (!b.categories) b.categories = {};
-    b.categories[row.category] = v;
-  }
-  if (scope === 'store-category') {
-    if (!b.categoriesByStore) b.categoriesByStore = {};
-    if (!b.categoriesByStore[row.store]) b.categoriesByStore[row.store] = {};
-    b.categoriesByStore[row.store][row.category] = v;
   }
 }
 
@@ -17255,7 +17117,7 @@ function gmvRenderFlatTargets(wrap, htmlPrefix) {
     '</button>';
   };
   const showSellersChip  = (scope === 'sellers' || scope === 'clients' || scope === 'seller-store' || scope === 'client-store');
-  const showStoresChip   = (scope === 'stores'  || scope === 'seller-store' || scope === 'client-store' || scope === 'store-category');
+  const showStoresChip   = (scope === 'stores'  || scope === 'seller-store' || scope === 'client-store');
   const showClientsChip  = (scope === 'clients' || scope === 'client-store');
   const hasAnyFilter = (filters.sellers && filters.sellers.length) || (filters.stores && filters.stores.length) || (filters.clients && filters.clients.length) || (filters.search && filters.search.trim());
 
@@ -17295,8 +17157,6 @@ function gmvRenderFlatTargets(wrap, htmlPrefix) {
   else if (scope === 'clients')      table += '<th>Client</th>';
   else if (scope === 'seller-store') table += '<th>Seller</th><th>Store</th>';
   else if (scope === 'client-store') table += '<th>Client</th><th>Store</th>';
-  else if (scope === 'categories')   table += '<th>Category</th>';
-  else if (scope === 'store-category') table += '<th>Store</th><th>Category</th>';
   table += '<th class="num" style="width:160px;">Target</th></tr></thead><tbody>';
 
   visible.forEach((r, idx) => {
@@ -17307,8 +17167,6 @@ function gmvRenderFlatTargets(wrap, htmlPrefix) {
     else if (scope === 'clients')      table += '<td><div class="gmv-seller-name">' + escapeHtml(r.name) + '</div><div class="gmv-seller-meta">' + escapeHtml(r.seller || '(no seller)') + ' · ' + escapeHtml(r.phone) + '</div></td>';
     else if (scope === 'seller-store') table += '<td><div class="gmv-seller-name">' + escapeHtml(r.seller) + '</div></td><td>' + escapeHtml(r.store) + '</td>';
     else if (scope === 'client-store') table += '<td><div class="gmv-seller-name">' + escapeHtml(gmvDisplayName(r.phone)) + '</div><div class="gmv-seller-meta">' + escapeHtml(r.seller || '') + ' · ' + escapeHtml(r.phone) + '</div></td><td>' + escapeHtml(r.store) + '</td>';
-    else if (scope === 'categories')   table += '<td><div class="gmv-seller-name">' + escapeHtml(r.name) + '</div></td>';
-    else if (scope === 'store-category') table += '<td><div class="gmv-seller-name">' + escapeHtml(r.store) + '</div></td><td>' + escapeHtml(r.category) + '</td>';
     const _disabled = cap.disabled ? ' disabled title="Parent target is not set"' : '';
     table += '<td class="num" style="vertical-align:top;">' +
       '<input type="number" class="gmv-num-input gmv-flat-target" data-row-idx="' + idx + '" value="' + (r.target > 0 ? r.target : '') + '" min="0" max="' + cap.maxAllowed + '" step="any" placeholder="0" style="width:120px;"' + _disabled + '>' +
@@ -17395,7 +17253,7 @@ function gmvWireFlatTargetsHandlers(wrap) {
       const lbl = gmvActivePeriodLabel();
       if (!confirm('Clear ALL targets for "' + lbl + '"?\n\nThis wipes:\n  \u2022 Global target\n  \u2022 All seller targets\n  \u2022 All store targets\n  \u2022 All client targets\n  \u2022 All seller \u00d7 store cells\n  \u2022 All client \u00d7 store cells\n\nFor this period only. Other periods are not affected.')) return;
       const k = gmvActivePeriodKey();
-      gmv.targets[k] = { sellers: {}, clients: {}, stores: {}, storesBySeller: {}, storesByClient: {}, categories: {}, categoriesByStore: {}, global: 0 };
+      gmv.targets[k] = { sellers: {}, clients: {}, stores: {}, storesBySeller: {}, storesByClient: {}, global: 0 };
       try { saveJSON(GMV_LS_TARGETS, gmv.targets); } catch (_) {}
       gmvShowSaveStatus('saving');
       try { await gmvSaveTargets(); } catch (_) {}
@@ -18178,49 +18036,8 @@ function gmvRenderResults() {
     } else {
       window.__gmvByStoreFragment = '';
     }
-    // ----- Performance by Category (Performance page only) -----
-    const byCategoryByStatus = result.byCategoryByStatus || {};
-    const cats = Object.keys(byCategoryByStatus);
-    if (cats.length) {
-      const niceStatusC = st => st.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-      cats.sort((a, b) => ((byCategoryByStatus[b]['DELIVERED'] || 0) - (byCategoryByStatus[a]['DELIVERED'] || 0)) || a.localeCompare(b));
-      const numCellC = (v) => '<td class="num' + (v > 0 ? '' : ' muted-num') + '" title="' + gmvFmtFull(v) + ' MAD">' + (v > 0 ? gmvFmtCompact(v) : '0') + '</td>';
-      let catHtml = '';
-      catHtml += '<div style="margin-top:18px;"><div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); margin-bottom:8px;">GMV by Category</div>';
-      catHtml += '<div class="gmv-table-wrap"><table class="gmv-table"><thead><tr>' +
-        '<th>Category</th>' +
-        '<th class="num">Delivered</th>';
-      GMV_STATUSES.filter(s => s !== 'DELIVERED').forEach(s => {
-        const lbl = s === 'PENDING' ? niceStatusC(s) + ' <sup style="color:var(--text-soft); font-weight:600; font-size:9px;" title="All-time backlog \u2014 ignores the active period">all</sup>' : niceStatusC(s);
-        catHtml += '<th class="num" title="' + s + '">' + lbl + '</th>';
-      });
-      catHtml += '</tr></thead><tbody>';
-      cats.forEach(ct => {
-        const m = byCategoryByStatus[ct] || {};
-        const delivered = m['DELIVERED'] || 0;
-        catHtml += '<tr class="gmv-row-seller">' +
-          '<td><div class="gmv-seller-name">' + escapeHtml(ct) + '</div></td>' +
-          '<td class="num" title="' + gmvFmtFull(delivered) + ' MAD">' + gmvFmtCompact(delivered) + '</td>';
-        GMV_STATUSES.filter(s => s !== 'DELIVERED').forEach(s => {
-          catHtml += numCellC(m[s] || 0);
-        });
-        catHtml += '</tr>';
-      });
-      const _totalDeliveredC = (result.totalByStatus && result.totalByStatus['DELIVERED']) || 0;
-      catHtml += '</tbody><tfoot><tr>' +
-        '<td>Grand total</td>' +
-        '<td class="num" title="' + gmvFmtFull(_totalDeliveredC) + ' MAD">' + gmvFmtCompact(_totalDeliveredC) + '</td>';
-      GMV_STATUSES.filter(s => s !== 'DELIVERED').forEach(s => {
-        catHtml += numCellC((result.totalByStatus && result.totalByStatus[s]) || 0);
-      });
-      catHtml += '</tr></tfoot></table></div></div>';
-      window.__gmvByCategoryFragment = catHtml;
-    } else {
-      window.__gmvByCategoryFragment = '';
-    }
   } else {
     window.__gmvByStoreFragment = '';
-    window.__gmvByCategoryFragment = '';
   }
   html += '</tbody><tfoot><tr>' +
     '<td></td>' +
@@ -18239,7 +18056,6 @@ function gmvRenderResults() {
   }
   html += '</tr></tfoot></table></div>';
   if (window.__gmvByStoreFragment) html += window.__gmvByStoreFragment;
-  if (window.__gmvByCategoryFragment) html += window.__gmvByCategoryFragment;
 
   wrap.innerHTML = html;
 
@@ -18573,11 +18389,6 @@ function gmvRenderTargets() {
           <span>Orders</span>
           <span class="ds-count" id="gmvDsOrdersCount">not loaded</span>
         </span>
-        <span class="ds-pill" id="gmvDsCategoriesPill">
-          <span class="ds-check">○</span>
-          <span>Categories</span>
-          <span class="ds-count" id="gmvDsCategoriesCount">not loaded</span>
-        </span>
         <span class="ds-spacer"></span>
         <span class="ds-toggle">
           <span class="ds-caret">▶</span>
@@ -18626,20 +18437,6 @@ function gmvRenderTargets() {
             <input type="file" id="gmvOrdersFile" accept=".xlsx,.xls,.csv">
           </label>
           <div id="gmvOrdersSummary" class="gmv-summary" style="display:none;"></div>
-        </div>
-        <div class="gmv-ds-card">
-          <div class="ds-card-title">3 · Product Categories</div>
-          <label class="file-drop">
-            <div class="file-drop-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            </div>
-            <div class="file-drop-text">
-              <div class="file-drop-title">Drop product categories file</div>
-              <div class="file-drop-hint">code · description · category (columns: Code / Description / Category)</div>
-            </div>
-            <input type="file" id="gmvCategoriesFile" accept=".xlsx,.xls,.csv">
-          </label>
-          <div id="gmvCategoriesSummary" class="gmv-summary" style="display:none;"></div>
         </div>
       </div>
     </details>
