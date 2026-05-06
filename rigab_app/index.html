@@ -17426,6 +17426,256 @@ function gmvWireFlatTargetsHandlers(wrap) {
 }
 
 
+// ----- Performance flat view: rollup + render + wiring -----
+const GMV_PERF_DIMS = [
+  { id: 'seller',   label: 'Seller',   col: 'Seller'   },
+  { id: 'store',    label: 'Store',    col: 'Store'    },
+  { id: 'client',   label: 'Client',   col: 'Client'   },
+  { id: 'category', label: 'Category', col: 'Category' }
+];
+
+function gmvPerfValueFor(dim, o) {
+  if (dim === 'seller')   return (gmv.clients[o.phone] && gmv.clients[o.phone].seller) || '(no seller)';
+  if (dim === 'store')    return o.store || '(no store)';
+  if (dim === 'client')   return o.phone;
+  if (dim === 'category') { const e = (gmv.productCategories || {})[o.productCode || '']; return (e && e.category) || '(uncategorized)'; }
+  return '';
+}
+
+function gmvPerfRenderDim(dim, value) {
+  if (dim === 'client') return gmvDisplayName(value);
+  return value;
+}
+
+function gmvComputePerf(dims, filters) {
+  const fromMs = gmv.dateFrom ? new Date(gmv.dateFrom + 'T00:00:00').getTime() : -Infinity;
+  const toMs   = gmv.dateTo   ? new Date(gmv.dateTo   + 'T23:59:59').getTime() :  Infinity;
+  const sellersSet = new Set((filters && filters.sellers) || []);
+  const storesSet  = new Set((filters && filters.stores)  || []);
+  const clientsSet = new Set((filters && filters.clients) || []);
+  const catsSet    = new Set((filters && filters.categories) || []);
+  const rollup = {};
+  (gmv.orders || []).forEach(o => {
+    if (!o.phone || !gmv.clients[o.phone]) return;
+    if (!o.status || GMV_STATUSES.indexOf(o.status) < 0) return;
+    if (o.status !== 'PENDING') {
+      const t = o.date ? o.date.getTime() : 0;
+      if (t < fromMs || t > toMs) return;
+    }
+    const seller = gmv.clients[o.phone].seller || '(no seller)';
+    const store  = o.store || '(no store)';
+    const ent = (gmv.productCategories || {})[o.productCode || ''];
+    const category = (ent && ent.category) ? ent.category : '(uncategorized)';
+    if (sellersSet.size && !sellersSet.has(seller))   return;
+    if (storesSet.size  && !storesSet.has(store))     return;
+    if (clientsSet.size && !clientsSet.has(o.phone))  return;
+    if (catsSet.size    && !catsSet.has(category))    return;
+    const vals = dims.map(d => gmvPerfValueFor(d, o));
+    const key = vals.join('\u0001');
+    if (!rollup[key]) rollup[key] = { dims: dims.slice(), vals: vals, status: {} };
+    rollup[key].status[o.status] = (rollup[key].status[o.status] || 0) + o.amount;
+  });
+  return rollup;
+}
+
+function gmvRenderFlatPerformance(wrap) {
+  if (!gmv.perfFilters) gmv.perfFilters = { sellers: [], stores: [], clients: [], categories: [], search: '' };
+  if (!gmv.perfDims) {
+    try {
+      const stored = loadJSON('rihab_gmv_perfdims_v1');
+      gmv.perfDims = (Array.isArray(stored) && stored.length) ? stored : ['seller'];
+    } catch (_) { gmv.perfDims = ['seller']; }
+  }
+  if (!gmv.perfLimit) gmv.perfLimit = 50;
+  const dims = gmv.perfDims;
+  const filters = gmv.perfFilters;
+  const rollup = gmvComputePerf(dims, filters);
+  let rows = Object.values(rollup);
+  const q = (filters.search || '').trim().toLowerCase();
+  if (q) rows = rows.filter(r => r.vals.some((v, i) => (gmvPerfRenderDim(r.dims[i], v) || '').toLowerCase().includes(q)));
+  rows.sort((a, b) => ((b.status['DELIVERED']||0) - (a.status['DELIVERED']||0)) || a.vals.join().localeCompare(b.vals.join()));
+  const dimToggle = (d) => {
+    const active = dims.indexOf(d.id) >= 0;
+    return '<button type="button" data-perf-dim="' + d.id + '" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:' + (active?'var(--accent, #0f172a)':'transparent') + '; color:' + (active?'#fff':'inherit') + '; cursor:pointer; font-size:12px; font-weight:600;">' + (active?'\u2713 ':'+ ') + d.label + '</button>';
+  };
+  const dimsBar = '<div style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; align-items:center;"><span style="font-size:11px; color:var(--text-soft); font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">Group by:</span>' + GMV_PERF_DIMS.map(dimToggle).join('') + (dims.length === 0 ? '<span style="color:var(--danger); font-size:12px;">pick at least one</span>' : '') + '</div>';
+  const chip = (kind, label) => {
+    const n = (filters[kind] || []).length;
+    return '<button type="button" class="gmv-flt-chip' + (n ? ' has-selection' : '') + '" data-perf-flt-kind="' + kind + '">' +
+      '<span>' + label + '</span>' +
+      (n ? '<span class="chip-count">' + n + '</span>' : '<span style="color:var(--text-soft);font-size:11px;">All</span>') +
+    '</button>';
+  };
+  const hasAny = (filters.sellers||[]).length || (filters.stores||[]).length || (filters.clients||[]).length || (filters.categories||[]).length || (filters.search && filters.search.trim());
+  let html = dimsBar + '<div class="gmv-flt-bar">' +
+    '<input type="text" class="gmv-flt-search" id="gmvPerfSearch" placeholder="Search..." value="' + escapeHtml(filters.search || '') + '">' +
+    chip('sellers', 'Sellers') + chip('stores', 'Stores') + chip('clients', 'Clients') + chip('categories', 'Categories') +
+    (hasAny ? '<button type="button" class="gmv-flt-clear" id="gmvPerfClear">\u2715 Clear filters</button>' : '') +
+    '<span class="gmv-flt-count">' + rows.length + ' rows</span>' +
+  '</div>';
+  if (!dims.length) {
+    html += '<div class="gmv-empty"><div class="gmv-empty-icon">\u26A0</div>Pick at least one dimension above.</div>';
+    wrap.innerHTML = html; gmvWireFlatPerfHandlers(wrap); return;
+  }
+  if (!rows.length) {
+    html += '<div class="gmv-empty"><div class="gmv-empty-icon">\u26A0</div>No data matches your filters.</div>';
+    wrap.innerHTML = html; gmvWireFlatPerfHandlers(wrap); return;
+  }
+  const limit = gmv.perfLimit || 50;
+  const visible = rows.slice(0, limit);
+  const hidden = Math.max(0, rows.length - visible.length);
+  const bucket = gmvActivePeriodBucket();
+  // Target lookup only for known shapes; else 0.
+  const targetForRow = (vals) => {
+    const sig = dims.slice().sort().join(',');
+    const get = (id) => vals[dims.indexOf(id)];
+    if (sig === 'seller')   return bucket.sellers[get('seller')] || 0;
+    if (sig === 'store')    return bucket.stores[get('store')] || 0;
+    if (sig === 'client')   return bucket.clients[get('client')] || 0;
+    if (sig === 'category') return (bucket.categories || {})[get('category')] || 0;
+    if (sig === 'seller,store')   return ((bucket.storesBySeller || {})[get('seller')] || {})[get('store')] || 0;
+    if (sig === 'client,store')   return ((bucket.storesByClient || {})[get('client')] || {})[get('store')] || 0;
+    if (sig === 'category,store') return ((bucket.categoriesByStore || {})[get('store')] || {})[get('category')] || 0;
+    return 0;
+  };
+  let table = '<div class="gmv-table-wrap"><table class="gmv-table"><thead><tr>';
+  dims.forEach(d => {
+    const def = GMV_PERF_DIMS.find(x => x.id === d);
+    table += '<th>' + (def ? def.col : d) + '</th>';
+  });
+  table += '<th class="num">Delivered</th><th class="num">Target</th><th>Progress</th><th class="num" style="width:54px;">%</th>';
+  GMV_STATUSES.filter(s => s !== 'DELIVERED').forEach(s => {
+    const lbl = s.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    table += '<th class="num" title="' + s + '">' + lbl + '</th>';
+  });
+  table += '</tr></thead><tbody>';
+  visible.forEach(r => {
+    const delivered = r.status['DELIVERED'] || 0;
+    const target = targetForRow(r.vals);
+    let bulletHtml, pctTxt;
+    if (target > 0) {
+      const scaleMax = target / 0.75;
+      const fillPct = Math.max(0, Math.min(100, (delivered / scaleMax) * 100));
+      const ok = delivered >= target;
+      bulletHtml = '<div class="gmv-bullet" title="' + gmvFmtFull(delivered) + ' / ' + gmvFmtFull(target) + ' MAD"><div class="gmv-bullet-fill ' + (ok ? 'ok' : 'partial') + '" style="width:' + fillPct + '%;"></div><div class="gmv-bullet-tick" style="left:75%;"></div></div>';
+      pctTxt = Math.round((delivered / target) * 100) + '%';
+    } else {
+      bulletHtml = '<span style="font-size:11px; color:var(--text-soft);">no target</span>';
+      pctTxt = '<span class="muted-num">0%</span>';
+    }
+    table += '<tr class="gmv-row-seller">';
+    r.vals.forEach((v, i) => {
+      const rendered = gmvPerfRenderDim(r.dims[i], v);
+      const meta = r.dims[i] === 'client' ? '<div class="gmv-seller-meta">' + escapeHtml(v) + '</div>' : '';
+      table += '<td><div class="gmv-seller-name">' + escapeHtml(rendered) + '</div>' + meta + '</td>';
+    });
+    table += '<td class="num" title="' + gmvFmtFull(delivered) + ' MAD">' + gmvFmtCompact(delivered) + '</td>';
+    table += '<td class="num' + (target > 0 ? '' : ' muted-num') + '">' + (target > 0 ? gmvFmtCompact(target) : '\u2014') + '</td>';
+    table += '<td>' + bulletHtml + '</td>';
+    table += '<td class="num">' + pctTxt + '</td>';
+    GMV_STATUSES.filter(s => s !== 'DELIVERED').forEach(s => {
+      const v = r.status[s] || 0;
+      table += '<td class="num' + (v > 0 ? '' : ' muted-num') + '" title="' + gmvFmtFull(v) + ' MAD">' + (v > 0 ? gmvFmtCompact(v) : '0') + '</td>';
+    });
+    table += '</tr>';
+  });
+  const colCount = dims.length + 4 + GMV_STATUSES.length - 1;
+  table += '</tbody>';
+  if (hidden > 0) {
+    table += '<tfoot><tr><td colspan="' + colCount + '"><button type="button" class="gmv-showmore-btn" id="gmvPerfShowMore">Show more <span class="gmv-showmore-count">+' + Math.min(50, hidden) + ' (' + hidden + ' hidden)</span></button></td></tr></tfoot>';
+  }
+  table += '</table></div>';
+  html += table;
+  wrap.innerHTML = html;
+  gmvWireFlatPerfHandlers(wrap);
+}
+
+function gmvWireFlatPerfHandlers(wrap) {
+  wrap.querySelectorAll('button[data-perf-dim]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.perfDim;
+      if (!Array.isArray(gmv.perfDims)) gmv.perfDims = [];
+      const i = gmv.perfDims.indexOf(id);
+      if (i >= 0) gmv.perfDims.splice(i, 1);
+      else gmv.perfDims.push(id);
+      gmv.perfLimit = 50;
+      try { saveJSON('rihab_gmv_perfdims_v1', gmv.perfDims); } catch (_) {}
+      gmvRenderResults();
+    });
+  });
+  const srch = wrap.querySelector('#gmvPerfSearch');
+  if (srch) {
+    let t = null;
+    srch.addEventListener('input', () => {
+      gmv.perfFilters.search = srch.value || '';
+      const caret = srch.selectionStart;
+      clearTimeout(t);
+      t = setTimeout(() => {
+        gmvRenderResults();
+        const next = document.getElementById('gmvPerfSearch');
+        if (next) { next.focus(); try { next.setSelectionRange(caret, caret); } catch(_){} }
+      }, 100);
+    });
+  }
+  wrap.querySelectorAll('button[data-perf-flt-kind]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      gmvOpenPerfFltPopover(btn, btn.dataset.perfFltKind);
+    });
+  });
+  const clr = wrap.querySelector('#gmvPerfClear');
+  if (clr) clr.addEventListener('click', () => {
+    gmv.perfFilters = { sellers: [], stores: [], clients: [], categories: [], search: '' };
+    gmvRenderResults();
+  });
+  const more = wrap.querySelector('#gmvPerfShowMore');
+  if (more) more.addEventListener('click', () => {
+    gmv.perfLimit = (gmv.perfLimit || 50) + 50;
+    gmvRenderResults();
+  });
+}
+
+function gmvOpenPerfFltPopover(chip, kind) {
+  gmvCloseFltPopover();
+  const filters = gmv.perfFilters;
+  const selected = new Set(filters[kind] || []);
+  let options = [];
+  if (kind === 'sellers') options = gmvUniqueSellers();
+  else if (kind === 'stores')  options = gmvAllStores();
+  else if (kind === 'categories') options = gmvAllCategories();
+  else if (kind === 'clients') options = Object.keys(gmv.clients || {}).sort((a,b)=> gmvDisplayName(a).localeCompare(gmvDisplayName(b)));
+  const labelOf = (k, v) => k === 'clients' ? gmvDisplayName(v) : v;
+  const pop = document.createElement('div');
+  pop.className = 'gmv-flt-popover open';
+  pop.innerHTML = '<div class="gmv-flt-popover-head">' + escapeHtml(kind) + '</div>' +
+    options.map(o => '<label class="gmv-flt-opt"><input type="checkbox" value="' + escapeHtml(o) + '"' + (selected.has(o) ? ' checked' : '') + '> <span>' + escapeHtml(labelOf(kind, o)) + '</span></label>').join('') +
+    '<div class="gmv-flt-popover-foot"><button type="button" class="gmv-flt-popover-close">Apply</button></div>';
+  document.body.appendChild(pop);
+  const r = chip.getBoundingClientRect();
+  pop.style.position = 'fixed'; pop.style.left = r.left + 'px'; pop.style.top = (r.bottom + 4) + 'px'; pop.style.zIndex = '99';
+  _gmvFltOpen = pop;
+  pop.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const v = cb.value;
+      const arr = filters[kind] || (filters[kind] = []);
+      if (cb.checked) { if (!arr.includes(v)) arr.push(v); }
+      else { const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); }
+      gmvRenderResults();
+    });
+  });
+  const closeBtn = pop.querySelector('.gmv-flt-popover-close');
+  if (closeBtn) closeBtn.addEventListener('click', () => gmvCloseFltPopover());
+  setTimeout(() => {
+    const handler = (ev) => {
+      if (!pop.contains(ev.target) && !chip.contains(ev.target)) {
+        gmvCloseFltPopover();
+        document.removeEventListener('mousedown', handler, true);
+      }
+    };
+    document.addEventListener('mousedown', handler, true);
+  }, 0);
+}
+
 function gmvRenderResults() {
   const wrap = document.getElementById('gmvResultsWrap');
   if (!wrap) return;
@@ -17451,6 +17701,8 @@ function gmvRenderResults() {
   if (page === 'performance') {
     gmvRenderHero(result);
     gmvRenderMiniStrip(result);
+    gmvRenderFlatPerformance(wrap);
+    return;
   }
 
   const byClient = result.byClient, bySeller = result.bySeller, total = result.total;
@@ -18238,10 +18490,30 @@ function gmvRenderResults() {
     });
   }
   html += '</tr></tfoot></table></div>';
-  if (window.__gmvByStoreFragment) html += window.__gmvByStoreFragment;
-  if (window.__gmvByCategoryFragment) html += window.__gmvByCategoryFragment;
-
-  wrap.innerHTML = html;
+  if (page === 'performance') {
+    if (!gmv.perfView) {
+      try { gmv.perfView = loadJSON('rihab_gmv_perfview_v1') || 'seller'; } catch (_) { gmv.perfView = 'seller'; }
+    }
+    const view = gmv.perfView;
+    const tabBtn = (id, label) => '<button type="button" data-perf-view="' + id + '" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border); background:' + (view===id?'var(--accent, #0f172a)':'transparent') + '; color:' + (view===id?'#fff':'inherit') + '; font-weight:600; cursor:pointer; font-size:13px;">' + label + '</button>';
+    const tabs = '<div style="display:flex; gap:8px; margin:0 0 16px; flex-wrap:wrap;">' + tabBtn('seller','By Seller') + tabBtn('store','By Store') + tabBtn('category','By Category') + '</div>';
+    const sec = (id, body) => '<div data-perf-sec="' + id + '"' + (view===id?'':' style="display:none;"') + '>' + body + '</div>';
+    const sellerBody = html;
+    const storeBody  = window.__gmvByStoreFragment    || '<div class="gmv-empty">No store data \u2014 upload orders with storeName.</div>';
+    const catBody    = window.__gmvByCategoryFragment || '<div class="gmv-empty">No category data \u2014 upload product categories file.</div>';
+    wrap.innerHTML = tabs + sec('seller', sellerBody) + sec('store', storeBody) + sec('category', catBody);
+    wrap.querySelectorAll('button[data-perf-view]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        gmv.perfView = btn.dataset.perfView;
+        try { saveJSON('rihab_gmv_perfview_v1', gmv.perfView); } catch (_) {}
+        gmvRenderResults();
+      });
+    });
+  } else {
+    if (window.__gmvByStoreFragment) html += window.__gmvByStoreFragment;
+    if (window.__gmvByCategoryFragment) html += window.__gmvByCategoryFragment;
+    wrap.innerHTML = html;
+  }
 
   // Wire per-seller client search inputs (preserve focus + caret position
   // across re-renders so the user can type without interruption).
