@@ -12964,6 +12964,28 @@ function renderAuthChip() {
           if (Array.isArray(cloud)) { planningHistory = cloud; savePlanningHistory(); }
           renderHistoryPage();
         } catch (_) {}
+        // Also re-pull GMV clients/targets if local is empty so the GMV view
+        // populates without forcing a page reload.
+        try {
+          // Pull anything that's missing locally.
+          if (typeof gmvPullClientsFromSupabaseIfNeeded === 'function') {
+            await gmvPullClientsFromSupabaseIfNeeded();
+          }
+          if (typeof gmvPullOrdersFromSupabaseIfNeeded === 'function') {
+            await gmvPullOrdersFromSupabaseIfNeeded();
+          }
+          if (typeof gmvPullRangeFromSupabaseIfNeeded === 'function') {
+            await gmvPullRangeFromSupabaseIfNeeded();
+          }
+          // Also push anything local that isn't yet in the cloud — so an
+          // upload done before sign-in still reaches the account.
+          if (typeof gmvSyncAllToCloud === 'function') {
+            await gmvSyncAllToCloud();
+          }
+          if (typeof gmvRenderAuthChip === 'function') gmvRenderAuthChip();
+          if (typeof gmvRefreshSyncBtn === 'function') gmvRefreshSyncBtn();
+          if (typeof gmvRenderAll === 'function') gmvRenderAll();
+        } catch (_) {}
       } catch (e) {
         msg.textContent = e.message || 'Sign-in failed.';
       }
@@ -15158,6 +15180,91 @@ async function gmvPushClientsToSupabase() {
   }
 }
 
+// Push orders + names (paired data) to Supabase. Orders' Date is ISO-
+// stringified before upload (same shape used in localStorage).
+async function gmvPushOrdersToSupabase() {
+  if (!sbUser || typeof sbWriteKey !== 'function') return false;
+  try {
+    const ordersForCloud = (gmv.orders || []).map(o => ({
+      phone: o.phone,
+      date: (o.date && o.date.toISOString) ? o.date.toISOString() : o.date,
+      amount: o.amount,
+      status: o.status
+    }));
+    const okO = await sbWriteKey('gmv_orders', ordersForCloud);
+    const okN = await sbWriteKey('gmv_names', gmv.namesByPhone || {});
+    return okO && okN;
+  } catch (e) {
+    console.warn('gmv push orders to supabase failed:', e);
+    return false;
+  }
+}
+
+// Pull orders + names from Supabase when local cache is empty. Mirrors
+// gmvPullClientsFromSupabaseIfNeeded.
+// Push everything local to Supabase. Idempotent — safe to call repeatedly.
+// No-op when not signed in.
+async function gmvSyncAllToCloud() {
+  if (!sbUser || typeof sbWriteKey !== 'function') return false;
+  const tasks = [];
+  if (gmv.clients && Object.keys(gmv.clients).length) tasks.push(gmvPushClientsToSupabase());
+  if ((gmv.orders && gmv.orders.length) || (gmv.namesByPhone && Object.keys(gmv.namesByPhone).length)) tasks.push(gmvPushOrdersToSupabase());
+  if (gmv.targets && Object.keys(gmv.targets).length) tasks.push(sbWriteKey('gmv_targets', gmv.targets));
+  if (gmv.dateFrom || gmv.dateTo) tasks.push(sbWriteKey('gmv_range', { dateFrom: gmv.dateFrom || '', dateTo: gmv.dateTo || '' }));
+  try {
+    await Promise.all(tasks);
+    gmvShowSaveStatus('saved');
+    return true;
+  } catch (e) {
+    console.warn('gmvSyncAllToCloud failed:', e);
+    return false;
+  }
+}
+
+async function gmvPullOrdersFromSupabaseIfNeeded() {
+  if (gmv.orders && gmv.orders.length > 0) return;
+  if (!sbUser || typeof sbReadKey !== 'function') return;
+  try {
+    const cloudOrders = await sbReadKey('gmv_orders');
+    if (Array.isArray(cloudOrders) && cloudOrders.length) {
+      gmv.orders = cloudOrders.map(o => ({
+        phone: o.phone,
+        date: o.date ? new Date(o.date) : null,
+        amount: typeof o.amount === 'number' ? o.amount : parseFloat(o.amount) || 0,
+        status: gmvNormStatus(o.status || '')
+      })).filter(o => o.phone && o.date && o.status && GMV_STATUSES.indexOf(o.status) >= 0);
+      try { saveJSON(GMV_LS_ORDERS, cloudOrders); } catch (_) {}
+    }
+    const cloudNames = await sbReadKey('gmv_names');
+    if (cloudNames && typeof cloudNames === 'object') {
+      gmv.namesByPhone = cloudNames;
+      try { saveJSON(GMV_LS_NAMES, gmv.namesByPhone); } catch (_) {}
+    }
+    if (gmv.orders.length || Object.keys(gmv.namesByPhone || {}).length) {
+      const sel = document.getElementById('gmvOrdersSummary');
+      if (sel) gmvSetSummary('gmvOrdersSummary',
+        'Synced <b>' + gmv.orders.length + '</b> order(s) and <b>' + Object.keys(gmv.namesByPhone || {}).length + '</b> client name(s) from your Supabase account.'
+      );
+    }
+  } catch (e) {
+    console.warn('gmv pull orders from supabase failed:', e);
+  }
+}
+
+// Pull date range from Supabase when not already set locally.
+async function gmvPullRangeFromSupabaseIfNeeded() {
+  if (gmv.dateFrom || gmv.dateTo) return;
+  if (!sbUser || typeof sbReadKey !== 'function') return;
+  try {
+    const cloud = await sbReadKey('gmv_range');
+    if (cloud && typeof cloud === 'object') {
+      gmv.dateFrom = cloud.dateFrom || '';
+      gmv.dateTo   = cloud.dateTo   || '';
+      try { saveJSON(GMV_LS_RANGE, { dateFrom: gmv.dateFrom, dateTo: gmv.dateTo }); } catch (_) {}
+    }
+  } catch (e) { console.warn('gmv pull range failed:', e); }
+}
+
 async function gmvInit() {
   if (gmvInited) return;
   gmvInited = true;
@@ -15219,12 +15326,133 @@ async function gmvInit() {
     if (pop && pop.classList.contains('open')) gmvClosePeriodPopover();
     else gmvOpenPeriodPopover();
   });
-  // If signed in to Supabase and we don't have local clients, pull
-  // them down from the user's private gmv_clients row.
+  // If signed in to Supabase and we don't have local data, pull
+  // everything down from the user's private rows.
   await gmvPullClientsFromSupabaseIfNeeded();
+  await gmvPullOrdersFromSupabaseIfNeeded();
+  await gmvPullRangeFromSupabaseIfNeeded();
   // Single render entry point.
   gmvRenderAll();
   gmvRenderAuthChip();
+  gmvRefreshSyncBtn();
+
+  // Wire the manual "Pull from my account" button — force-pulls even if
+  // local has data. Used in private/incognito sessions where the post-
+  // sign-in auto-pull missed.
+  const pullBtn = document.getElementById('gmvPullClientsBtn');
+  if (pullBtn) {
+    pullBtn.addEventListener('click', async () => {
+      const status = document.getElementById('gmvSyncClientsStatus');
+      if (!sbUser) {
+        if (status) status.innerHTML = '<span style="color:var(--danger);">Sign in first.</span>';
+        return;
+      }
+      if (status) status.textContent = 'Pulling…';
+      try {
+        // Force-pull all GMV data from Supabase, replacing local cache.
+        const [cloudClients, cloudOrders, cloudNames, cloudTargets] = await Promise.all([
+          sbReadKey('gmv_clients'),
+          sbReadKey('gmv_orders'),
+          sbReadKey('gmv_names'),
+          sbReadKey('gmv_targets'),
+        ]);
+        let nC = 0, nO = 0, nN = 0;
+        if (cloudClients && typeof cloudClients === 'object') {
+          gmv.clients = cloudClients;
+          gmvRebuildClientsByName();
+          try { saveJSON(GMV_LS_CLIENTS, gmv.clients); } catch (_) {}
+          nC = Object.keys(cloudClients).length;
+        }
+        if (Array.isArray(cloudOrders)) {
+          gmv.orders = cloudOrders.map(o => ({
+            phone: o.phone,
+            date: o.date ? new Date(o.date) : null,
+            amount: typeof o.amount === 'number' ? o.amount : parseFloat(o.amount) || 0,
+            status: gmvNormStatus(o.status || '')
+          })).filter(o => o.phone && o.date && o.status && GMV_STATUSES.indexOf(o.status) >= 0);
+          try { saveJSON(GMV_LS_ORDERS, cloudOrders); } catch (_) {}
+          nO = gmv.orders.length;
+        }
+        if (cloudNames && typeof cloudNames === 'object') {
+          gmv.namesByPhone = cloudNames;
+          try { saveJSON(GMV_LS_NAMES, cloudNames); } catch (_) {}
+          nN = Object.keys(cloudNames).length;
+        }
+        if (cloudTargets && typeof cloudTargets === 'object') {
+          gmv.targets = cloudTargets;
+          gmvMigrateLegacyTargets();
+          try { saveJSON(GMV_LS_TARGETS, gmv.targets); } catch (_) {}
+        }
+        if (nC === 0 && nO === 0) {
+          if (status) status.innerHTML = '<span style="color:var(--danger);">Nothing found in your account.</span>';
+        } else {
+          if (status) status.innerHTML = '<span style="color:var(--success);">\u2713 Pulled ' + nC + ' client(s), ' + nO + ' order(s), ' + nN + ' name(s).</span>';
+        }
+        gmvRenderAll();
+        gmvRefreshSyncBtn();
+      } catch (e) {
+        if (status) status.innerHTML = '<span style="color:var(--danger);">Pull failed: ' + (e.message || e) + '</span>';
+      }
+    });
+  }
+  // Wire the manual "Sync everything to my account" button.
+  const syncBtn = document.getElementById('gmvSyncClientsBtn');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', async () => {
+      const status = document.getElementById('gmvSyncClientsStatus');
+      if (!sbUser) {
+        if (status) status.innerHTML = '<span style="color:var(--danger);">Sign in first.</span>';
+        return;
+      }
+      const hasLocal = (gmv.clients && Object.keys(gmv.clients).length)
+                    || (gmv.orders && gmv.orders.length)
+                    || (gmv.targets && Object.keys(gmv.targets).length);
+      if (!hasLocal) {
+        if (status) status.innerHTML = '<span style="color:var(--danger);">Nothing local to sync.</span>';
+        return;
+      }
+      if (status) status.textContent = 'Syncing…';
+      const okC = await gmvPushClientsToSupabase();
+      const okO = await gmvPushOrdersToSupabase();
+      const okT = await gmvSaveTargets();
+      const failed = [];
+      if (!okC) failed.push('clients');
+      if (!okO) failed.push('orders/names');
+      if (status) {
+        status.innerHTML = (failed.length === 0)
+          ? '<span style="color:var(--success);">\u2713 Synced ' + Object.keys(gmv.clients || {}).length + ' client(s), ' + (gmv.orders || []).length + ' order(s), and targets to your account.</span>'
+          : '<span style="color:var(--warning);">\u26A0 Partial sync \u2014 failed: ' + failed.join(', ') + '</span>';
+      }
+    });
+  }
+}
+
+// Show / hide + label the sync button based on auth + local data state.
+function gmvRefreshSyncBtn() {
+  const row = document.getElementById('gmvClientsSyncRow');
+  const det = document.getElementById('gmvClientsSyncRowDetails');
+  const btn = document.getElementById('gmvSyncClientsBtn');
+  const pull = document.getElementById('gmvPullClientsBtn');
+  if (!row || !btn) return;
+  const hasLocal = !!(gmv.clients && Object.keys(gmv.clients).length);
+  // Hide the entire advanced section when not signed in.
+  if (det) det.style.display = sbUser ? '' : 'none';
+  if (!sbUser) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  // Sync button: only meaningful when there's something local to push.
+  if (hasLocal) {
+    btn.style.display = '';
+    btn.textContent = '';
+    btn.insertAdjacentHTML('afterbegin',
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><polyline points="21 3 21 8 16 8"/><polyline points="3 21 3 16 8 16"/></svg>'
+    );
+    const oCnt = (gmv.orders || []).length;
+    const cCnt = Object.keys(gmv.clients).length;
+    btn.appendChild(document.createTextNode(' Sync all (' + cCnt + ' clients, ' + oCnt + ' orders) to my account'));
+  } else {
+    btn.style.display = 'none';
+  }
+  if (pull) pull.style.display = '';
 }
 
 function gmvRenderAuthChip() {
@@ -15366,10 +15594,11 @@ async function gmvOnUploadOrders(e) {
       // Save the MERGED map so the cache grows monotonically.
       saveJSON(GMV_LS_NAMES, gmv.namesByPhone);
     } catch (e) {
-      // Most likely a quota error on a very large orders file. Surface it
-      // so the user knows the data is in memory but not on disk.
       console.error('gmv persist orders failed:', e);
     }
+    // Mirror to Supabase so other devices/operators auto-receive it.
+    let cloudOk = false;
+    if (sbUser) cloudOk = await gmvPushOrdersToSupabase();
     gmvSetSummary('gmvOrdersSummary',
       'Loaded <b>' + out.length + '</b> wholesale order(s) for clients in your DB.' +
       (cName
@@ -15379,7 +15608,12 @@ async function gmvOnUploadOrders(e) {
       (skippedStatus ? ' <b>' + skippedStatus + '</b> skipped (unrecognised Status).' : '') +
       (nameMatches ? ' <b>' + nameMatches + '</b> matched by name (phone differed).' : '') +
       (unmatched ? ' <b>' + unmatched + '</b> dropped (no phone or name match — saved storage).' : '') +
-      (badDate ? ' <b>' + badDate + '</b> skipped (unparseable date).' : ''));
+      (badDate ? ' <b>' + badDate + '</b> skipped (unparseable date).' : '') +
+      (sbUser
+        ? (cloudOk
+            ? ' <span style="color:var(--success); font-weight:600;">\u2713 Synced to your account</span>'
+            : ' <span style="color:var(--warning); font-weight:600;">\u26A0 Local only \u2014 sync to Supabase failed</span>')
+        : ' <span style="color:var(--text-soft);">\u2014 Local only (sign in to sync across devices)</span>'));
     gmvRenderAll();
   } catch (err) {
     alert('Orders file error: ' + (err && err.message ? err.message : err));
@@ -15674,6 +15908,7 @@ function gmvOpenPeriodPopover() {
       gmv.dateFrom = r2.from || '';
       gmv.dateTo   = r2.to   || '';
       try { saveJSON(GMV_LS_RANGE, { dateFrom: gmv.dateFrom, dateTo: gmv.dateTo }); } catch (_) {}
+      if (sbUser && typeof sbWriteKey === 'function') sbWriteKey('gmv_range', { dateFrom: gmv.dateFrom, dateTo: gmv.dateTo }).catch(()=>{});
       gmvClosePeriodPopover();
       gmvRenderAll();
     });
@@ -15685,6 +15920,7 @@ function gmvOpenPeriodPopover() {
       gmv.dateFrom = (f && f.value) || '';
       gmv.dateTo   = (t && t.value) || '';
       try { saveJSON(GMV_LS_RANGE, { dateFrom: gmv.dateFrom, dateTo: gmv.dateTo }); } catch (_) {}
+      if (sbUser && typeof sbWriteKey === 'function') sbWriteKey('gmv_range', { dateFrom: gmv.dateFrom, dateTo: gmv.dateTo }).catch(()=>{});
       gmvRenderAll();
     });
   });
@@ -16178,6 +16414,20 @@ function gmvRenderTargets() {
             </div>
             <input type="file" id="gmvClientsFile" accept=".xlsx,.xls,.csv">
           </label>
+          <details id="gmvClientsSyncRowDetails" style="margin-top:8px; font-size:11px;">
+            <summary style="cursor:pointer; color:var(--text-soft); font-weight:600; user-select:none;">Sync controls (advanced — normally not needed)</summary>
+            <div id="gmvClientsSyncRow" style="margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary" id="gmvSyncClientsBtn" style="font-size:12px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><polyline points="21 3 21 8 16 8"/><polyline points="3 21 3 16 8 16"/></svg>
+                Force re-sync all
+              </button>
+              <button type="button" class="btn" id="gmvPullClientsBtn" style="font-size:12px;" title="Force-pull all data from your Supabase account (replaces local cache).">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Force pull from cloud
+              </button>
+              <span id="gmvSyncClientsStatus" style="font-size:12px; color:var(--text-soft);"></span>
+            </div>
+          </details>
           <div id="gmvClientsSummary" class="gmv-summary" style="display:none;"></div>
         </div>
         <div class="gmv-ds-card">
