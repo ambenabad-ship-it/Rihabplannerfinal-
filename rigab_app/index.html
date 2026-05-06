@@ -16518,7 +16518,7 @@ async function gmvOnUploadOrders(e) {
     const cChannel = findCol(rows[0], ['Channel']);
     const cRetailer = findCol(rows[0], ['retailerId','RetailerId','retailer_id','Retailer Id','RetailerID']);
     const cStoreName = findCol(rows[0], ['storeName','StoreName','store_name','Store name','Store Name']);
-    const cPartnerCode = findCol(rows[0], ['partnerCode','PartnerCode','partner_code','Code']);
+    const cPartnerCode = findCol(rows[0], ['partnerCode','PartnerCode','partner_code','Code','code','productCode','ProductCode','product_code']);
     if (!cPhone && !cRetailer && !cName) {
       throw new Error('Need at least one matching column: phone, retailerId, or partner/client name.');
     }
@@ -16595,8 +16595,27 @@ async function gmvOnUploadOrders(e) {
     // Mirror to Supabase so other devices/operators auto-receive it.
     let cloudOk = false;
     if (sbUser) cloudOk = await gmvPushOrdersToSupabase();
+    // Diagnostic: how many orders carry a productCode, and how many of
+    // those match a known category. Helps the operator spot column-name
+    // / format mismatches before they discover them in the Performance
+    // page as a sea of "(uncategorized)".
+    const withCode = out.filter(o => o.productCode).length;
+    let matchedToCat = 0;
+    if (gmv.productCategories && Object.keys(gmv.productCategories).length) {
+      matchedToCat = out.filter(o => o.productCode && gmv.productCategories[o.productCode]).length;
+    }
+    const codeDiag = cPartnerCode
+      ? ' <b>' + withCode + '</b> of <b>' + out.length + '</b> have a product code'
+        + (gmv.productCategories && Object.keys(gmv.productCategories).length
+            ? '; <b>' + matchedToCat + '</b> match a category'
+              + (withCode > 0 && matchedToCat === 0
+                  ? ' <span style="color:var(--danger);">— codes don’t match the categories file (check format / leading zeros).</span>'
+                  : '.')
+            : ' (upload Categories file to map them).')
+      : ' <span style="color:var(--warning);">No product-code column detected in this file (looked for: partnerCode, PartnerCode, partner_code, Code, code, productCode, ProductCode, product_code).</span>';
     gmvSetSummary('gmvOrdersSummary',
       'Loaded <b>' + out.length + '</b> wholesale order(s) for clients in your DB.' +
+      codeDiag +
       (cName
         ? ' Captured <b>' + Object.keys(namesMap).length + '</b> name(s) from this file (total cached: <b>' + Object.keys(gmv.namesByPhone).length + '</b>).'
         : ' (No client-name column detected — relying on the cached names from previous uploads.)') +
