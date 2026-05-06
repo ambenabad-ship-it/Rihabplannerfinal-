@@ -16968,16 +16968,22 @@ function gmvClosePeriodPopover() {
 function gmvRenderDsStrip() {
   const cliPill = document.getElementById('gmvDsClientsPill');
   const ordPill = document.getElementById('gmvDsOrdersPill');
+  const catPill = document.getElementById('gmvDsCategoriesPill');
   const cliCount = document.getElementById('gmvDsClientsCount');
   const ordCount = document.getElementById('gmvDsOrdersCount');
+  const catCount = document.getElementById('gmvDsCategoriesCount');
   const nC = Object.keys(gmv.clients || {}).length;
   const nO = (gmv.orders || []).length;
+  const nP = Object.keys(gmv.productCategories || {}).length;
   if (cliPill) cliPill.classList.toggle('ok', nC > 0);
   if (ordPill) ordPill.classList.toggle('ok', nO > 0);
+  if (catPill) catPill.classList.toggle('ok', nP > 0);
   if (cliPill) cliPill.querySelector('.ds-check').textContent = nC > 0 ? '✓' : '○';
   if (ordPill) ordPill.querySelector('.ds-check').textContent = nO > 0 ? '✓' : '○';
+  if (catPill) catPill.querySelector('.ds-check').textContent = nP > 0 ? '✓' : '○';
   if (cliCount) cliCount.textContent = nC > 0 ? (nC.toLocaleString() + ' loaded') : 'not loaded';
   if (ordCount) ordCount.textContent = nO > 0 ? (nO.toLocaleString() + ' loaded') : 'not loaded';
+  if (catCount) catCount.textContent = nP > 0 ? (nP.toLocaleString() + ' loaded') : 'not loaded';
   // Auto-toggle: open when nothing is loaded, close once both have data
   // — but only the first time we cross either threshold; respect manual
   // toggling after that via gmv._dsManuallyToggled.
