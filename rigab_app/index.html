@@ -15087,6 +15087,26 @@ try {
   window.sbReadKey      = sbReadKey;
   window.sbWriteKey     = sbWriteKey;
   window.escapeHtml     = escapeHtml;
+  // Auth helpers (used by the auth-gate login screen).
+  window.sbSignIn       = sbSignIn;
+  window.sbSignOut      = sbSignOut;
+  window.sbSignUp       = sbSignUp;
+  window.sbInitSession  = sbInitSession;
+  window.renderAuthChip = renderAuthChip;
+  // History helpers (used to refresh history after sign-in).
+  window.savePlanningHistory = (typeof savePlanningHistory !== 'undefined') ? savePlanningHistory : null;
+  window.renderHistoryPage   = (typeof renderHistoryPage !== 'undefined') ? renderHistoryPage : null;
+  // Live getter/setter for planningHistory so the gate can update it.
+  Object.defineProperty(window, 'planningHistory', {
+    configurable: true,
+    get: () => (typeof planningHistory !== 'undefined' ? planningHistory : null),
+    set: (v) => { if (typeof planningHistory !== 'undefined') planningHistory = v; }
+  });
+  // Live getter for sb (the Supabase client) so the gate can detect config.
+  Object.defineProperty(window, 'sb', {
+    configurable: true,
+    get: () => (typeof sb !== 'undefined' ? sb : null)
+  });
   Object.defineProperty(window, 'sbUser', { configurable: true, get: () => sbUser });
 } catch (e) { console.error('feature-helper export failed:', e); }
 
