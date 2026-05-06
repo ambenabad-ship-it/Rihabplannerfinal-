@@ -15586,11 +15586,13 @@ try {
         localStorage.removeItem(GMV_LS_ORDERS);
         localStorage.removeItem(GMV_LS_NAMES);
         localStorage.removeItem(GMV_LS_TARGETS);
+        localStorage.removeItem(GMV_LS_CATEGORIES);
       } catch (_) {}
       gmv.clients = {};
       gmv.orders = [];
       gmv.namesByPhone = {};
       gmv.targets = {};
+      gmv.productCategories = {};
       if (typeof gmvRenderAll === 'function') gmvRenderAll();
     };
   };
@@ -16061,9 +16063,21 @@ async function gmvPushOrdersToSupabase() {
 async function gmvPushCategoriesToSupabase() {
   if (!sbUser || typeof sbWriteKey !== 'function') return false;
   try {
-    return await sbWriteKey('gmv_categories', gmv.productCategories || {});
+    // Direct upsert so we can surface the precise error to the user;
+    // sbWriteKey only logs to console, which is invisible end-user-side.
+    if (!sb) return false;
+    const row = { user_id: sbUser.id, key: 'gmv_categories', value: gmv.productCategories || {} };
+    const { error } = await sb.from('user_data').upsert(row, { onConflict: 'user_id,key' });
+    if (error) {
+      console.warn('gmv push categories to supabase failed:', error);
+      window.__gmvCategoriesPushError = (error && error.message) ? error.message : String(error);
+      return false;
+    }
+    window.__gmvCategoriesPushError = null;
+    return true;
   } catch (e) {
     console.warn('gmv push categories to supabase failed:', e);
+    window.__gmvCategoriesPushError = (e && e.message) ? e.message : String(e);
     return false;
   }
 }
@@ -16074,9 +16088,22 @@ async function gmvPullCategoriesFromSupabaseIfNeeded() {
   if (!sbUser || typeof sbReadKey !== 'function') return;
   try {
     const cloudCats = await gmvReadShared('gmv_categories');
-    if (cloudCats && typeof cloudCats === 'object') {
+    if (cloudCats && typeof cloudCats === 'object' && Object.keys(cloudCats).length) {
       gmv.productCategories = cloudCats;
       try { saveJSON(GMV_LS_CATEGORIES, cloudCats); } catch (_) {}
+      const distinctCats = new Set(Object.values(cloudCats).map(v => v && v.category));
+      gmvSetSummary('gmvCategoriesSummary',
+        'Synced <b>' + Object.keys(cloudCats).length + '</b> product(s) across <b>' + distinctCats.size + '</b> categor' + (distinctCats.size === 1 ? 'y' : 'ies') + ' from ' + (gmvIsCreator() ? 'your Supabase account' : 'the creator’s account') + '.');
+    } else if (!gmvIsCreator()) {
+      // Viewer-side diagnostic: empty/null result from cloud means either
+      // the creator hasn’t uploaded yet, or RLS is blocking the read
+      // (which would also fire __gmvSharedReadError). Surface a hint so
+      // the viewer doesn’t silently see no categories.
+      const hasErr = !!window.__gmvSharedReadError;
+      gmvSetSummary('gmvCategoriesSummary',
+        hasErr
+          ? '<span style="color:var(--danger);">No categories visible — see the red banner above.</span>'
+          : '<span style="color:var(--text-soft);">No categories yet. The creator needs to upload a Categories file.</span>');
     }
   } catch (e) { console.warn('gmv pull categories failed:', e); }
 }
@@ -16207,6 +16234,11 @@ async function gmvInit() {
     if (gmv.orders.length) {
       gmvSetSummary('gmvOrdersSummary',
         'Restored <b>' + gmv.orders.length + '</b> order(s) and <b>' + Object.keys(gmv.namesByPhone).length + '</b> client name(s) from a previous upload.');
+    }
+    if (gmv.productCategories && Object.keys(gmv.productCategories).length) {
+      const distinctCats = new Set(Object.values(gmv.productCategories).map(v => v && v.category));
+      gmvSetSummary('gmvCategoriesSummary',
+        'Restored <b>' + Object.keys(gmv.productCategories).length + '</b> product(s) across <b>' + distinctCats.size + '</b> categor' + (distinctCats.size === 1 ? 'y' : 'ies') + ' from a previous upload.');
     }
   } catch (e) { console.error('gmv restore failed:', e); }
   document.getElementById('gmvClientsFile')?.addEventListener('change', gmvOnUploadClients);
@@ -16453,9 +16485,10 @@ async function gmvOnUploadCategories(e) {
     let synced = false;
     if (sbUser) synced = await gmvPushCategoriesToSupabase();
     const distinctCats = new Set(Object.values(map).map(v => v.category));
+    const pushErr = window.__gmvCategoriesPushError;
     const syncSuffix = sbUser
       ? (synced ? ' <span style="color:var(--success); font-weight:600;">\u2713 Synced to your account</span>'
-                : ' <span style="color:var(--warning); font-weight:600;">\u26A0 Local only \u2014 sync to Supabase failed</span>')
+                : ' <span style="color:var(--danger); font-weight:600;">\u26A0 Sync failed: ' + (pushErr || 'unknown error') + ' \u2014 check Supabase RLS / network</span>')
       : ' <span style="color:var(--text-soft);">\u2014 Local only (sign in to sync across devices)</span>';
     gmvSetSummary('gmvCategoriesSummary',
       'Loaded <b>' + added + '</b> product(s) across <b>' + distinctCats.size + '</b> categor' + (distinctCats.size === 1 ? 'y' : 'ies') + '.' +
