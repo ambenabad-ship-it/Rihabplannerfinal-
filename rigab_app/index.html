@@ -15625,7 +15625,18 @@ async function sbReadKeyAs(userId, key) {
   if (!sb || !userId) return null;
   const { data, error } = await sb.from('user_data')
     .select('value').eq('user_id', userId).eq('key', key).maybeSingle();
-  if (error) { console.warn('sbReadKeyAs', error); return null; }
+  if (error) {
+    console.warn('sbReadKeyAs', error);
+    try {
+      window.__gmvSharedReadError = {
+        key: key,
+        message: (error && error.message) ? error.message : String(error),
+        when: Date.now()
+      };
+      if (typeof gmvApplyRoleUI === 'function') gmvApplyRoleUI();
+    } catch (_) {}
+    return null;
+  }
   return data ? data.value : null;
 }
 
@@ -15676,6 +15687,25 @@ function gmvApplyRoleUI() {
   } else if (badge) {
     badge.remove();
   }
+  // Surface shared-read failures (typically a missing/incorrect
+  // Supabase RLS policy) so viewers know why nothing renders.
+  try {
+    const errInfo = window.__gmvSharedReadError;
+    let errBanner = document.getElementById('gmvSharedReadErrorBanner');
+    if (!isCreator && sbUser && errInfo) {
+      if (!errBanner) {
+        errBanner = document.createElement('div');
+        errBanner.id = 'gmvSharedReadErrorBanner';
+        errBanner.style.cssText = 'margin:0 0 12px; padding:10px 14px; border-radius:6px; background:#fee2e2; color:#7f1d1d; font-size:12px; border:1px solid #fecaca;';
+        const host = document.getElementById('gmvWrap') || document.querySelector('.gmv-wrap') || document.body;
+        if (host && host.firstChild) host.insertBefore(errBanner, host.firstChild);
+        else if (host) host.appendChild(errBanner);
+      }
+      errBanner.innerHTML = '<b>Cannot read shared data</b> — key <code>' + errInfo.key + '</code>: ' + errInfo.message + '. Likely the Supabase RLS policy that lets viewers read the creator’s row is missing or scoped wrong. Ask the creator to re-apply the policy from HANDOFF.md.';
+    } else if (errBanner) {
+      errBanner.remove();
+    }
+  } catch (_) {}
 }
 
 const GMV_LS_TARGETS = 'rihab_gmv_targets_v1';
@@ -15978,7 +16008,7 @@ async function gmvPullClientsFromSupabaseIfNeeded() {
   if (gmv.clients && Object.keys(gmv.clients).length > 0) return;
   if (!sbUser || typeof sbReadKey !== 'function') return;
   try {
-    const cloud = await sbReadKey('gmv_clients');
+    const cloud = await gmvReadShared('gmv_clients');
     if (!cloud || typeof cloud !== 'object') return;
     const phones = Object.keys(cloud);
     if (!phones.length) return;
@@ -16217,10 +16247,12 @@ async function gmvInit() {
       if (status) status.textContent = 'Pulling…';
       try {
         // Force-pull all GMV data from Supabase, replacing local cache.
-        const [cloudClients, cloudOrders, cloudNames, cloudTargets] = await Promise.all([
-          sbReadKey('gmv_clients'),
-          sbReadKey('gmv_orders'),
-          sbReadKey('gmv_names'),
+        // Viewers read from creator via gmvReadShared; targets stay per-user.
+        const [cloudClients, cloudOrders, cloudNames, cloudCategories, cloudTargets] = await Promise.all([
+          gmvReadShared('gmv_clients'),
+          gmvReadShared('gmv_orders'),
+          gmvReadShared('gmv_names'),
+          gmvReadShared('gmv_categories'),
           sbReadKey('gmv_targets'),
         ]);
         let nC = 0, nO = 0, nN = 0;
@@ -16236,7 +16268,8 @@ async function gmvInit() {
             date: o.date ? new Date(o.date) : null,
             amount: typeof o.amount === 'number' ? o.amount : parseFloat(o.amount) || 0,
             status: gmvNormStatus(o.status || ''),
-            store: o.store || ''
+            store: o.store || '',
+            productCode: o.productCode || ''
           })).filter(o => o.phone && o.date && o.status && GMV_STATUSES.indexOf(o.status) >= 0);
           try { saveJSON(GMV_LS_ORDERS, cloudOrders); } catch (_) {}
           nO = gmv.orders.length;
@@ -16250,6 +16283,10 @@ async function gmvInit() {
           gmv.targets = cloudTargets;
           gmvMigrateLegacyTargets();
           try { saveJSON(GMV_LS_TARGETS, gmv.targets); } catch (_) {}
+        }
+        if (cloudCategories && typeof cloudCategories === 'object') {
+          gmv.productCategories = cloudCategories;
+          try { saveJSON(GMV_LS_CATEGORIES, cloudCategories); } catch (_) {}
         }
         if (nC === 0 && nO === 0) {
           if (status) status.innerHTML = '<span style="color:var(--danger);">Nothing found in your account.</span>';
