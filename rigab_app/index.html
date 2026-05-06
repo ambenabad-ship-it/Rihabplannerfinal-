@@ -16007,7 +16007,7 @@ function gmvRebuildClientsByName() {
 // is empty. Runs on init. No-op when not signed in or when local data
 // already exists (manual upload always wins).
 async function gmvPullClientsFromSupabaseIfNeeded() {
-  if (gmv.clients && Object.keys(gmv.clients).length > 0) return;
+  if (gmv.clients && Object.keys(gmv.clients).length > 0 && gmvIsCreator()) return;
   if (!sbUser || typeof sbReadKey !== 'function') return;
   try {
     const cloud = await gmvReadShared('gmv_clients');
@@ -16084,7 +16084,7 @@ async function gmvPushCategoriesToSupabase() {
 
 // Pull product categories from Supabase when local cache is empty.
 async function gmvPullCategoriesFromSupabaseIfNeeded() {
-  if (gmv.productCategories && Object.keys(gmv.productCategories).length) return;
+  if (gmv.productCategories && Object.keys(gmv.productCategories).length && gmvIsCreator()) return;
   if (!sbUser || typeof sbReadKey !== 'function') return;
   try {
     const cloudCats = await gmvReadShared('gmv_categories');
@@ -16131,7 +16131,8 @@ async function gmvSyncAllToCloud() {
 }
 
 async function gmvPullOrdersFromSupabaseIfNeeded() {
-  if (gmv.orders && gmv.orders.length > 0) return;
+  // Viewers always pull fresh — creator owns the data, local cache is stale.
+  if (gmv.orders && gmv.orders.length > 0 && gmvIsCreator()) return;
   if (!sbUser || typeof sbReadKey !== 'function') return;
   try {
     const cloudOrders = await gmvReadShared('gmv_orders');
