@@ -19432,6 +19432,7 @@ const FF_I18N = {
     lbl_seller: 'Vendeur :', lbl_search: 'Recherche :', lbl_threshold: 'Seuil clients à fort GMV (AMA, MAD) :',
     ph_search: 'Code commande, téléphone, nom…', opt_all_sellers: 'Tous les vendeurs',
     btn_run: 'Lancer le calcul', btn_test: 'Tester', btn_verify: 'Vérifier avec un fichier', btn_export: '⇓ Exporter vers Excel',
+    btn_export_full: '⇓ Rapport complet', ttl_export_full: "Exporter un rapport complet : toutes les commandes par client + clients à fort GMV.",
     ttl_test: "Vérifie la cohérence des résultats par rapport aux fichiers d'entrée.",
     ttl_verify: "Re-sélectionne le fichier des commandes — on re-parse et on compare aux données chargées.",
     ttl_strategy: 'Réservé au créateur — choisir la répartition du stock.',
@@ -19448,7 +19449,7 @@ const FF_I18N = {
     th_qty: 'Qté', th_line_amt: 'Montant ligne',
     th_stock_initial: 'Stock initial', th_stock_after: 'Stock après',
     th_ama_gmv: 'GMV AMA', th_orders: 'Commandes',
-    badge_full: '100%', badge_partial: '≥80%', badge_wait: 'En attente',
+    badge_full: '100%', badge_partial: '≥80%', badge_wait: 'En attente', badge_excluded: 'Hors allocation',
     empty_orders: 'Aucune commande à afficher.',
     empty_top: 'Aucun client au-dessus de {x} de GMV-AMA.',
     empty_top_no_ama: ' (Téléverser le fichier produits AMA d\'abord.)',
@@ -19485,6 +19486,7 @@ const FF_I18N = {
     lbl_seller: 'Seller:', lbl_search: 'Search:', lbl_threshold: 'High GMV (AMA) threshold (MAD):',
     ph_search: 'Order code, phone, name…', opt_all_sellers: 'All sellers',
     btn_run: 'Run allocator', btn_test: 'Test', btn_verify: 'Verify with file', btn_export: '⇓ Export to Excel',
+    btn_export_full: '⇓ Full report', ttl_export_full: 'Export a full report: every order grouped by client + High-GMV clients sheet.',
     ttl_test: 'Sanity-check: verify the allocator output matches the input files.',
     ttl_verify: "Pick the orders file again — we re-parse and compare with what's loaded.",
     ttl_strategy: 'Creator-only — choose how stock is distributed.',
@@ -19501,7 +19503,7 @@ const FF_I18N = {
     th_qty: 'Qty', th_line_amt: 'Line amount',
     th_stock_initial: 'Stock (initial)', th_stock_after: 'Stock (after)',
     th_ama_gmv: 'AMA-GMV', th_orders: 'Orders',
-    badge_full: '100%', badge_partial: '≥80%', badge_wait: 'Waiting',
+    badge_full: '100%', badge_partial: '≥80%', badge_wait: 'Waiting', badge_excluded: 'Excluded',
     empty_orders: 'No orders to show.',
     empty_top: 'No clients above {x} AMA-GMV.',
     empty_top_no_ama: ' (Upload the AMA products file first.)',
@@ -19733,9 +19735,10 @@ function fulfillRunAllocator() {
     return { code, lines, totalQty, totalAmt, phone, seller, name, needPer };
   });
 
-  // Identify top-GMV clients — they get a DEDICATED stock pool so their
-  // orders never compete with the rest. Result: more main-stock available
-  // for everyone else → more 100% / ≥80% across the regular orders.
+  // Identify top-GMV (AMA) clients — they are EXCLUDED from stock
+  // allocation entirely. Their orders only show up in the High GMV
+  // Clients tab as informational; the main stock is fully available
+  // for everyone else.
   const ama = fulfill.amaProducts || new Set();
   const topPhones = new Set();
   if (ama.size) {
@@ -19748,32 +19751,42 @@ function fulfillRunAllocator() {
       if (gmv >= (fulfill.topThreshold || 0)) topPhones.add(phone);
     });
   }
-  // Two working pools.
+  // Split orders: top-client orders are set aside (no allocation),
+  // regular orders go through the allocator.
+  const topOrderObjs = [];
+  const regularObjs = [];
+  orderObjs.forEach(o => {
+    if (topPhones.has(o.phone)) {
+      o.fulfillPct = 0;
+      o.deliverableTotal = 0;
+      o._excluded = true;
+      o.lines.forEach(l => { l.deliverable = 0; });
+      topOrderObjs.push(o);
+    } else {
+      regularObjs.push(o);
+    }
+  });
+  // From here on, the allocator only sees regular orders.
+  orderObjs.length = 0;
+  regularObjs.forEach(o => orderObjs.push(o));
+  // Single working stock pool — everything goes to non-top orders.
   const stock = Object.assign({}, fulfill.stock);
-  const topStock = Object.assign({}, fulfill.topClientsStock || {});
-  // Per-order: which pool to use.
-  orderObjs.forEach(o => { o._pool = topPhones.has(o.phone) ? 'top' : 'main'; });
 
   const fullList = [];
   const partialList = [];
   const waitingList = [];
 
-  // Helper to pick the working stock pool for an order.
-  const poolFor = ord => ord._pool === 'top' ? topStock : stock;
-
   if (fulfill.allocStrategy === 'max100') {
-    // Strategy: max number of 100% orders. Reserves stock for orders
-    // that can be FULLY filled (file order); leftover stock is then
-    // distributed greedily to the rest by potential% DESC.
+    // Strategy: max 100% orders. File order, full-or-nothing pass first;
+    // leftovers are filled greedily by potential% DESC.
     const _firstSeen = {};
     fulfill.orders.forEach((l, i) => { if (!(l.orderCode in _firstSeen)) _firstSeen[l.orderCode] = i; });
     orderObjs.sort((a, b) => (_firstSeen[a.code] || 0) - (_firstSeen[b.code] || 0));
     const remaining = [];
     orderObjs.forEach(ord => {
-      const pool = poolFor(ord);
-      const canFull = Object.entries(ord.needPer).every(([code, q]) => (pool[code] || 0) >= q);
+      const canFull = Object.entries(ord.needPer).every(([code, q]) => (stock[code] || 0) >= q);
       if (canFull) {
-        Object.entries(ord.needPer).forEach(([code, q]) => { pool[code] = (pool[code] || 0) - q; });
+        Object.entries(ord.needPer).forEach(([code, q]) => { stock[code] = (stock[code] || 0) - q; });
         ord.fulfillPct = 100;
         ord.deliverableTotal = ord.totalQty;
         ord.lines.forEach(l => { l.deliverable = l.qty; });
@@ -19792,34 +19805,32 @@ function fulfillRunAllocator() {
       });
       return d / ord.totalQty * 100;
     }
-    remaining.forEach(o => { o._potential = potentialPct(o, poolFor(o)); });
+    remaining.forEach(o => { o._potential = potentialPct(o, stock); });
     remaining.sort((a, b) => b._potential - a._potential);
     remaining.forEach(ord => {
-      const pool = poolFor(ord);
       let deliv = 0; const used = {};
       ord.lines.forEach(l => {
-        const have = (pool[l.productCode] || 0) - (used[l.productCode] || 0);
+        const have = (stock[l.productCode] || 0) - (used[l.productCode] || 0);
         const give = Math.min(l.qty, Math.max(0, have));
         used[l.productCode] = (used[l.productCode] || 0) + give;
         l.deliverable = give; deliv += give;
       });
-      Object.entries(used).forEach(([code, q]) => { pool[code] = (pool[code] || 0) - q; });
+      Object.entries(used).forEach(([code, q]) => { stock[code] = (stock[code] || 0) - q; });
       ord.fulfillPct = deliv / ord.totalQty * 100;
       ord.deliverableTotal = deliv;
       if (ord.fulfillPct >= 80) partialList.push(ord);
       else waitingList.push(ord);
     });
   } else {
-    // Strategy: DP-style — line-by-line in file order, no reservation.
-    // Each order's lines are allocated against ITS pool (top vs main).
-    const orderPoolByCode = {};
-    orderObjs.forEach(o => { orderPoolByCode[o.code] = o._pool; });
+    // Strategy: DP-style — line-by-line, file order. Skip lines whose
+    // order belongs to a top client (they're excluded from allocation).
+    const regularCodes = new Set(orderObjs.map(o => o.code));
     fulfill.orders.forEach(l => {
-      const pool = (orderPoolByCode[l.orderCode] === 'top') ? topStock : stock;
-      const have = Math.max(0, pool[l.productCode] || 0);
+      if (!regularCodes.has(l.orderCode)) return; // top-client order — skip
+      const have = Math.max(0, stock[l.productCode] || 0);
       const give = Math.min(l.qty, have);
       l.deliverable = give;
-      pool[l.productCode] = have - give;
+      stock[l.productCode] = have - give;
     });
     orderObjs.forEach(ord => {
       const deliv = ord.lines.reduce((s, l) => s + (l.deliverable || 0), 0);
@@ -19837,8 +19848,8 @@ function fulfillRunAllocator() {
   waitingList.sort((a, b) => b.fulfillPct - a.fulfillPct);
 
   fulfill.allocations = { full: fullList, partial: partialList, waiting: waitingList };
+  fulfill.topOrders = topOrderObjs;     // excluded from allocation, shown in High GMV tab
   fulfill.remainingStock = stock;
-  fulfill.remainingTopStock = topStock;
   // Diagnostic — surfaces totals so we can compare against Delivery Planner.
   try {
     const sum = list => list.reduce((s,o)=>s+(o.totalAmt||0),0);
@@ -20042,9 +20053,13 @@ function fulfillRenderTopClients(hostId) {
     return;
   }
   if (!fulfill.expandedTopClients) fulfill.expandedTopClients = {};
+  // Top-client orders live in fulfill.topOrders (excluded from allocations).
+  // Fallback to allocations buckets for older data so legacy state still
+  // renders correctly during the first load after this change.
   const allOrders = {};
+  (fulfill.topOrders || []).forEach(o => { allOrders[o.code] = o; });
   fulfill.allocations.full.concat(fulfill.allocations.partial, fulfill.allocations.waiting)
-    .forEach(o => { allOrders[o.code] = o; });
+    .forEach(o => { if (!allOrders[o.code]) allOrders[o.code] = o; });
 
   const rows = list.map(c => {
     const expandedClient = !!fulfill.expandedTopClients[c.phone];
@@ -20061,9 +20076,12 @@ function fulfillRenderTopClients(hostId) {
       const orderRows = c.orders.map(oRef => {
         const ord = allOrders[oRef.code];
         if (!ord) return '';
-        const stat = oRef.status;
-        const statCls = stat === 'full' ? 'full' : stat === 'partial' ? 'partial' : 'wait';
-        const statLabel = stat === 'full' ? ffT('badge_full') : stat === 'partial' ? ffT('badge_partial') : ffT('badge_wait');
+        const stat = ord && ord._excluded ? 'excluded' : oRef.status;
+        const statCls = stat === 'full' ? 'full' : stat === 'partial' ? 'partial' : stat === 'excluded' ? '' : 'wait';
+        const statLabel = stat === 'full' ? ffT('badge_full')
+                       : stat === 'partial' ? ffT('badge_partial')
+                       : stat === 'excluded' ? ffT('badge_excluded')
+                       : ffT('badge_wait');
         const ordExpanded = !!fulfill.expandedOrders[ord.code];
         const decC = fulfill.decisions && fulfill.decisions[ord.code];
         const decClsRow = decC && decC.status === 'confirmed' ? 'dec-confirmed'
@@ -20551,6 +20569,222 @@ function fulfillShowTestReport() {
     </div>`;
 }
 
+// Full-report export: 1 file, 3 sheets.
+//   Sheet 1 — every order, grouped by client, with status (100% / 80-99% / Waiting)
+//   Sheet 2 — High-GMV (AMA) clients summary + their orders inline
+//   Sheet 3 — Decisions log (all decisions ever made by anyone, latest first)
+// Decisions are pulled fresh from Supabase right before export so the file
+// reflects the latest state from all users (creator, sellers, viewers).
+// Respects current seller/search filters on Sheets 1 & 2; Sheet 3 is full.
+async function fulfillExportFullReport() {
+  if (typeof XLSX === 'undefined') { alert('XLSX library not available.'); return; }
+  const a = fulfill.allocations || { full: [], partial: [], waiting: [] };
+  if (!a.full.length && !a.partial.length && !a.waiting.length) {
+    alert('Nothing to export — run the allocator first.');
+    return;
+  }
+  // Refresh decisions from Supabase so the export contains the latest
+  // state from EVERY user. Failing silently here is OK — we'll just use
+  // whatever is in memory.
+  try {
+    if (typeof fulfillLoadDecisions === 'function') await fulfillLoadDecisions();
+  } catch (_) {}
+  const today = new Date().toISOString().slice(0, 10);
+  const sellerLock = (typeof gmvSellerName === 'function') ? gmvSellerName() : '';
+  const sellerSuffix = sellerLock ? ('_' + sellerLock.replace(/\W+/g, '_')) : '';
+
+  // Status label per bucket (localized).
+  const STATUS_LABEL = {
+    full:     ffT('badge_full'),
+    partial:  ffT('badge_partial'),
+    wait:     ffT('badge_wait'),
+    excluded: ffT('badge_excluded'),
+  };
+  const STATUS_RANK = { full: 0, partial: 1, wait: 2, excluded: 3 };
+
+  // Tag every order with its bucket key.
+  const allOrders = [];
+  a.full.forEach(o => allOrders.push({ ord: o, bucket: 'full' }));
+  a.partial.forEach(o => allOrders.push({ ord: o, bucket: 'partial' }));
+  a.waiting.forEach(o => allOrders.push({ ord: o, bucket: 'wait' }));
+  (fulfill.topOrders || []).forEach(o => allOrders.push({ ord: o, bucket: 'excluded' }));
+
+  // Apply seller / search filter (so a viewer's filtered view is what gets exported).
+  const filteredOrders = allOrders.filter(({ ord }) => {
+    if (fulfill.sellerFilter && ord.seller !== fulfill.sellerFilter) return false;
+    if (fulfill.search) {
+      const q = fulfill.search.toLowerCase();
+      const hay = (ord.code + ' ' + (ord.name || '') + ' ' + (ord.phone || '')).toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+
+  // Sort: client name (alpha), then status (100% → 80% → waiting), then order code.
+  filteredOrders.sort((x, y) => {
+    const nx = (x.ord.name || '').toLowerCase();
+    const ny = (y.ord.name || '').toLowerCase();
+    if (nx !== ny) return nx < ny ? -1 : 1;
+    if (STATUS_RANK[x.bucket] !== STATUS_RANK[y.bucket]) return STATUS_RANK[x.bucket] - STATUS_RANK[y.bucket];
+    return x.ord.code < y.ord.code ? -1 : 1;
+  });
+
+  const round2 = n => Math.round((n || 0) * 100) / 100;
+
+  // === Sheet 1: All orders by client ===
+  const sheet1Rows = filteredOrders.map(({ ord, bucket }) => {
+    const dec = (fulfill.decisions || {})[ord.code] || {};
+    const ratio = ord.totalQty ? (ord.deliverableTotal || 0) / ord.totalQty : 0;
+    return {
+      'Client': ord.name || '(no name)',
+      'Phone': ord.phone || '',
+      'Seller': ord.seller || '',
+      'Status': STATUS_LABEL[bucket],
+      'Order code': ord.code,
+      'Ordered units': ord.totalQty || 0,
+      'Deliverable units': ord.deliverableTotal || 0,
+      'Fill %': round2(ord.fulfillPct || 0),
+      'Total amount (MAD)': round2(ord.totalAmt || 0),
+      'Deliverable amount (MAD)': round2((ord.totalAmt || 0) * ratio),
+      'Decision': dec.status || '',
+      'Decision delivery date': dec.delivery_date || '',
+      'Decision note': dec.note || '',
+      'Decided by': dec.decided_by_seller || dec.decided_by_email || '',
+      'Decided at': dec.decided_at ? new Date(dec.decided_at).toISOString().slice(0, 19).replace('T', ' ') : '',
+    };
+  });
+
+  // === Sheet 2: High-GMV clients (AMA) ===
+  let topList = (typeof fulfillTopClients === 'function') ? fulfillTopClients() : [];
+  if (fulfill.sellerFilter) topList = topList.filter(c => c.seller === fulfill.sellerFilter);
+  if (fulfill.search) {
+    const q = fulfill.search.toLowerCase();
+    topList = topList.filter(c => (c.name + ' ' + c.phone).toLowerCase().includes(q));
+  }
+  // Build status index for quick lookup.
+  const bucketByCode = {};
+  a.full.forEach(o => bucketByCode[o.code] = 'full');
+  a.partial.forEach(o => bucketByCode[o.code] = 'partial');
+  a.waiting.forEach(o => bucketByCode[o.code] = 'wait');
+  (fulfill.topOrders || []).forEach(o => bucketByCode[o.code] = 'excluded');
+  const ordByCode = {};
+  allOrders.forEach(({ ord }) => { ordByCode[ord.code] = ord; });
+
+  // Per-client summary + counts.
+  const sheet2Summary = topList.map(c => {
+    let nExcl = 0, amtExcl = 0;
+    c.orders.forEach(oRef => {
+      const ord = ordByCode[oRef.code];
+      if (!ord) return;
+      nExcl++;
+      amtExcl += ord.totalAmt || 0;
+    });
+    return {
+      'Client': c.name,
+      'Phone': c.phone || '',
+      'Seller': c.seller,
+      'AMA-GMV (MAD)': round2(c.gmv),
+      'Orders total': c.orders.length,
+      'Status': ffT('badge_excluded'),
+      'Total amount (MAD)': round2(amtExcl),
+    };
+  });
+
+  // Per-client order detail (flat).
+  const sheet2Detail = [];
+  topList.forEach(c => {
+    const ords = c.orders.map(oRef => ordByCode[oRef.code]).filter(Boolean);
+    ords.sort((x, y) => {
+      const rx = STATUS_RANK[bucketByCode[x.code]] || 9;
+      const ry = STATUS_RANK[bucketByCode[y.code]] || 9;
+      if (rx !== ry) return rx - ry;
+      return x.code < y.code ? -1 : 1;
+    });
+    ords.forEach(ord => {
+      const bucket = bucketByCode[ord.code] || 'wait';
+      const dec = (fulfill.decisions || {})[ord.code] || {};
+      const ratio = ord.totalQty ? (ord.deliverableTotal || 0) / ord.totalQty : 0;
+      sheet2Detail.push({
+        'Client': c.name,
+        'Phone': c.phone || '',
+        'Seller': c.seller,
+        'AMA-GMV total (MAD)': round2(c.gmv),
+        'Status': STATUS_LABEL[bucket],
+        'Order code': ord.code,
+        'Ordered units': ord.totalQty || 0,
+        'Deliverable units': ord.deliverableTotal || 0,
+        'Fill %': round2(ord.fulfillPct || 0),
+        'Total amount (MAD)': round2(ord.totalAmt || 0),
+        'Deliverable amount (MAD)': round2((ord.totalAmt || 0) * ratio),
+        'Decision': dec.status || '',
+        'Decision delivery date': dec.delivery_date || '',
+        'Decision note': dec.note || '',
+      });
+    });
+  });
+
+  // Build the workbook.
+  const wb = XLSX.utils.book_new();
+  const setColWidths = (ws, widths) => { ws['!cols'] = widths.map(w => ({ wch: w })); };
+  // Sheet 1
+  if (sheet1Rows.length) {
+    const ws = XLSX.utils.json_to_sheet(sheet1Rows);
+    setColWidths(ws, [28, 14, 22, 12, 18, 12, 14, 8, 16, 18, 12, 18, 38, 22, 18]);
+    if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
+    XLSX.utils.book_append_sheet(wb, ws, 'Orders by client');
+  }
+  // Sheet 2 — summary on top, detail below (separated by a blank row).
+  const ws2Header = XLSX.utils.json_to_sheet(sheet2Summary.length ? sheet2Summary : [{ note: 'No High-GMV clients in scope.' }]);
+  if (sheet2Summary.length) setColWidths(ws2Header, [26, 14, 22, 16, 12, 8, 8, 10, 18, 18, 18, 22]);
+  if (sheet2Summary.length && ws2Header['!ref']) ws2Header['!autofilter'] = { ref: ws2Header['!ref'] };
+  // Append a blank row + a "Details" sub-section.
+  if (sheet2Detail.length) {
+    XLSX.utils.sheet_add_aoa(ws2Header, [[], ['— Detailed orders per High-GMV client —']], { origin: -1 });
+    XLSX.utils.sheet_add_json(ws2Header, sheet2Detail, { origin: -1, skipHeader: false });
+  }
+  XLSX.utils.book_append_sheet(wb, ws2Header, 'High GMV clients');
+
+  // === Sheet 3: Decisions log — every confirm/cancel ever made, by anyone.
+  // Pulled from the shared `order_decisions` table in Supabase, so this is
+  // a single source of truth across the creator, sellers, and viewers.
+  const decisionsLog = Object.values(fulfill.decisions || {})
+    .filter(d => d && d.order_code)
+    .sort((x, y) => {
+      const ax = x.decided_at ? new Date(x.decided_at).getTime() : 0;
+      const ay = y.decided_at ? new Date(y.decided_at).getTime() : 0;
+      return ay - ax; // latest first
+    })
+    .map(d => {
+      const ord = ordByCode[d.order_code];
+      const bucket = bucketByCode[d.order_code] || '';
+      return {
+        'Order code': d.order_code,
+        'Client': ord ? (ord.name || '(no name)') : '',
+        'Phone': ord ? (ord.phone || '') : '',
+        'Seller': ord ? (ord.seller || '') : '',
+        'Allocator status': bucket ? STATUS_LABEL[bucket] : '',
+        'Decision': d.status || '',
+        'Delivery date': d.delivery_date || '',
+        'Note / reason': d.note || '',
+        'Decided by (seller)': d.decided_by_seller || '',
+        'Decided by (email)': d.decided_by_email || '',
+        'Decided at (UTC)': d.decided_at ? new Date(d.decided_at).toISOString().slice(0, 19).replace('T', ' ') : '',
+        'Order amount (MAD)': ord ? round2(ord.totalAmt || 0) : '',
+      };
+    });
+  if (decisionsLog.length) {
+    const ws3 = XLSX.utils.json_to_sheet(decisionsLog);
+    setColWidths(ws3, [18, 28, 14, 22, 16, 14, 14, 40, 22, 30, 20, 16]);
+    if (ws3['!ref']) ws3['!autofilter'] = { ref: ws3['!ref'] };
+    XLSX.utils.book_append_sheet(wb, ws3, 'Decisions log');
+  } else {
+    const ws3 = XLSX.utils.json_to_sheet([{ note: 'No decisions recorded yet.' }]);
+    XLSX.utils.book_append_sheet(wb, ws3, 'Decisions log');
+  }
+
+  XLSX.writeFile(wb, `OF_full_report${sellerSuffix}_${today}.xlsx`);
+}
+
 // Export the currently-filtered orders/clients in a tab to an .xlsx file.
 function fulfillExportTab(tab) {
   if (typeof XLSX === 'undefined') { alert('XLSX library not available.'); return; }
@@ -20917,6 +21151,8 @@ async function fulfillInit() {
   document.querySelectorAll('button[data-ffexport]').forEach(btn => {
     btn.addEventListener('click', () => fulfillExportTab(btn.dataset.ffexport));
   });
+  const fullBtn = document.getElementById('ffExportFullBtn');
+  if (fullBtn) fullBtn.addEventListener('click', fulfillExportFullReport);
   const verifyInput = document.getElementById('ffVerifyOrdersFile');
   if (verifyInput) verifyInput.addEventListener('change', e => {
     const f = e.target.files && e.target.files[0];
@@ -21193,9 +21429,15 @@ async function fulfillInit() {
       <h1 id="ffTitle">Exécution des commandes</h1>
       <div class="ff-tagline" id="ffTagline">Distribue le stock pour maximiser les commandes 100% complètes. Le stock restant est ensuite réparti pour pousser les remplissages partiels au plus haut.</div>
     </div>
-    <div class="ff-lang-toggle" role="group" aria-label="Language" style="display:inline-flex; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; flex-shrink:0;">
-      <button type="button" class="ff-lang-btn" data-fflang="fr">FR</button>
-      <button type="button" class="ff-lang-btn" data-fflang="en">EN</button>
+    <div style="display:flex; gap:10px; align-items:center; flex-shrink:0; flex-wrap:wrap;">
+      <button type="button" id="ffExportFullBtn" data-fft="btn_export_full" data-fft-attr="title" data-fft-title="ttl_export_full" style="padding:8px 14px; background:#0f172a; color:#fff; border:0; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        ⇓ Rapport complet
+      </button>
+      <div class="ff-lang-toggle" role="group" aria-label="Language" style="display:inline-flex; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden;">
+        <button type="button" class="ff-lang-btn" data-fflang="fr">FR</button>
+        <button type="button" class="ff-lang-btn" data-fflang="en">EN</button>
+      </div>
     </div>
   </div>
 
