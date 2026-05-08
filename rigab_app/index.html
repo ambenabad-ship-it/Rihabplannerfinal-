@@ -16284,7 +16284,7 @@ async function gmvInit() {
   } catch (_) {}
   try {
     const savedPage = loadJSON(GMV_LS_PAGE);
-    if (savedPage === 'targets' || savedPage === 'performance') gmv.activePage = savedPage;
+    if (['targets','performance','clients','engagement'].includes(savedPage)) gmv.activePage = savedPage;
     const savedView = loadJSON(GMV_LS_TVIEW);
     if (savedView === 'seller' || savedView === 'store') gmv.targetsView = savedView;
   } catch (_) {}
@@ -17940,11 +17940,21 @@ function gmvRenderResults() {
   const wrap = document.getElementById('gmvResultsWrap');
   if (!wrap) return;
   const page = gmv.activePage || 'performance';
-  // Hide hero + mini-strip on the Targets page; both belong to Performance.
+  // Hide hero + mini-strip on Targets and Clients pages; they belong to Performance only.
   const heroEl = document.getElementById('gmvHero');
   const miniEl = document.getElementById('gmvMiniStrip');
   if (heroEl) heroEl.style.display = (page === 'performance') ? '' : 'none';
   if (miniEl) miniEl.style.display = (page === 'performance') ? '' : 'none';
+  // "My clients" page is fully self-contained — render and return.
+  if (page === 'clients') {
+    if (typeof gmvRenderClientsPool === 'function') gmvRenderClientsPool(wrap);
+    return;
+  }
+  // "Engagement" page — focus products, client paliers, scoreboard.
+  if (page === 'engagement') {
+    if (typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
+    return;
+  }
   const nClients = Object.keys(gmv.clients).length;
   const nOrders  = (gmv.orders || []).length;
   if (!nClients || !nOrders) {
@@ -19042,6 +19052,671 @@ function gmvRenderResults() {
   });
 }
 
+// =========================================================================
+// Engagement workspace — focus products + client paliers + scoreboard.
+// Sellers commit, app tracks progress against orders data.
+// =========================================================================
+
+const gmvEngagement = {
+  focusProducts: {},   // code -> { family, min, name }
+  paliers: [],         // [{ palier, threshold, prize1, prize2, prize3 }]
+  commitments: {},     // sellerName -> { period, focus: { code: targetQty }, paliers: { phone: palierNum } }
+  activeSubtab: 'focus',
+  loaded: false,
+};
+
+function gmvCurrentPeriodKey() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+async function gmvLoadEngagement() {
+  if (typeof sb === 'undefined' || !sb) return;
+  try {
+    // Focus products + paliers from creator's user_data row (shared via RLS).
+    const [fp, pa, ce] = await Promise.all([
+      typeof gmvReadShared === 'function' ? gmvReadShared('engage_focus') : null,
+      typeof gmvReadShared === 'function' ? gmvReadShared('engage_paliers') : null,
+      sb.from('seller_engagements').select('*'),
+    ]);
+    if (fp && typeof fp === 'object') gmvEngagement.focusProducts = fp;
+    if (Array.isArray(pa)) gmvEngagement.paliers = pa;
+    if (ce && Array.isArray(ce.data)) {
+      const map = {};
+      ce.data.forEach(r => { map[r.seller] = r; });
+      gmvEngagement.commitments = map;
+    }
+    gmvEngagement.loaded = true;
+  } catch (e) { console.warn('engagement load failed:', e); }
+}
+
+async function gmvSaveEngagementCommitment(seller, period, patch) {
+  if (typeof sb === 'undefined' || !sb || !sbUser) throw new Error('Not signed in.');
+  const existing = gmvEngagement.commitments[seller] || {};
+  const row = {
+    seller, period,
+    focus: patch.focus || existing.focus || {},
+    paliers: patch.paliers || existing.paliers || {},
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await sb.from('seller_engagements').upsert(row, { onConflict: 'seller,period' });
+  if (error) throw new Error(error.message || String(error));
+  gmvEngagement.commitments[seller] = row;
+}
+
+// Compute qty sold per (seller, productCode) from gmv.orders for the
+// current period's calendar month.
+function gmvComputeSoldPerSellerProduct() {
+  const out = {}; // seller -> code -> qty
+  const period = gmvCurrentPeriodKey();
+  (gmv.orders || []).forEach(o => {
+    if (!o || !o.productCode) return;
+    const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
+    if (!d || isNaN(d.getTime())) return;
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (key !== period) return;
+    const cl = (gmv.clients || {})[o.phone] || {};
+    const seller = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '(unassigned)';
+    if (!out[seller]) out[seller] = {};
+    out[seller][o.productCode] = (out[seller][o.productCode] || 0) + (o.amount ? 1 : 0); // qty fallback below
+  });
+  return out;
+}
+
+// Compute current CA per phone for the period.
+function gmvComputeCaPerClient() {
+  const out = {};
+  const period = gmvCurrentPeriodKey();
+  (gmv.orders || []).forEach(o => {
+    if (!o) return;
+    const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
+    if (!d || isNaN(d.getTime())) return;
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (key !== period) return;
+    out[o.phone] = (out[o.phone] || 0) + (o.amount || 0);
+  });
+  return out;
+}
+
+function gmvAchievedPalier(ca) {
+  let best = null;
+  (gmvEngagement.paliers || []).forEach(p => {
+    if ((ca || 0) >= (p.threshold || 0) && (!best || p.palier > best.palier)) best = p;
+  });
+  return best;
+}
+
+// ---- Upload parsers (creator only) ----
+async function gmvOnUploadFocus(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty focus products file.');
+  const cCode = findCol(rows[0], ['Code','code','Product code','partnerCode','PartnerCode']);
+  const cMin  = findCol(rows[0], ['Min','min','Minimum','minimum','Min qty','MinQty']);
+  const cFam  = findCol(rows[0], ['Family','family','Famille','famille']);
+  const cName = findCol(rows[0], ['Product name','productName','Name','Description','Produit']);
+  if (!cCode || !cMin) throw new Error('Need Code + Min columns.');
+  const out = {};
+  rows.forEach(r => {
+    const code = String(r[cCode] || '').trim();
+    if (!code) return;
+    out[code] = {
+      min: parseFloat(r[cMin]) || 0,
+      family: cFam ? String(r[cFam] || '').trim() : '',
+      name: cName ? String(r[cName] || '').trim() : '',
+    };
+  });
+  gmvEngagement.focusProducts = out;
+  if (typeof sbWriteKey === 'function') await sbWriteKey('engage_focus', out);
+}
+
+async function gmvOnUploadPaliers(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty paliers file.');
+  const cP = findCol(rows[0], ['Palier','palier','Tier','tier','Level']);
+  const cT = findCol(rows[0], ['Threshold','threshold','CA','ca','Seuil']);
+  const c1 = findCol(rows[0], ['Prize 1','prize 1','prize1','Cadeau 1','cadeau1']);
+  const c2 = findCol(rows[0], ['Prize 2','prize 2','prize2','Cadeau 2','cadeau2']);
+  const c3 = findCol(rows[0], ['Prize 3','prize 3','prize3','Cadeau 3','cadeau3']);
+  if (!cP || !cT) throw new Error('Need Palier + Threshold columns.');
+  const out = [];
+  rows.forEach(r => {
+    const p = parseInt(r[cP]) || 0;
+    if (!p) return;
+    out.push({
+      palier: p,
+      threshold: parseFloat(r[cT]) || 0,
+      prize1: c1 ? String(r[c1] || '').trim() : '',
+      prize2: c2 ? String(r[c2] || '').trim() : '',
+      prize3: c3 ? String(r[c3] || '').trim() : '',
+    });
+  });
+  out.sort((a, b) => a.palier - b.palier);
+  gmvEngagement.paliers = out;
+  if (typeof sbWriteKey === 'function') await sbWriteKey('engage_paliers', out);
+}
+
+function gmvEscapeHtmlEng(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+// ---- Renderers ----
+async function gmvRenderEngagement(wrap) {
+  if (!gmvEngagement.loaded) {
+    wrap.innerHTML = '<div style="padding:24px; color:#64748b; font-size:13px;">Loading engagement…</div>';
+    await gmvLoadEngagement();
+    if (gmvClientAssignments && !gmvClientAssignments.loaded && typeof gmvLoadClientAssignments === 'function') {
+      await gmvLoadClientAssignments();
+    }
+  }
+  const isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
+  const mySeller = (typeof gmvSellerName === 'function') ? gmvSellerName() : '';
+  const sub = gmvEngagement.activeSubtab || 'focus';
+  // Subtab buttons.
+  const tabBtn = (key, label) => `<button type="button" data-engtab="${key}" style="padding:8px 14px; border:0; background:${sub === key ? '#0f172a' : 'transparent'}; color:${sub === key ? '#fff' : '#475569'}; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">${label}</button>`;
+  // Creator-only upload bar.
+  const uploadsHtml = isCreator ? `
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin:0 0 14px; padding:10px 12px; background:#fef3c7; border:1px solid #fde68a; border-radius:8px;">
+      <span style="font-size:12px; color:#92400e; align-self:center;"><b>Creator setup:</b></span>
+      <label class="btn" style="font-size:12px; cursor:pointer;">Upload focus products
+        <input type="file" id="engFocusUpload" accept=".xlsx,.xls,.csv" style="display:none;">
+      </label>
+      <label class="btn" style="font-size:12px; cursor:pointer;">Upload paliers
+        <input type="file" id="engPaliersUpload" accept=".xlsx,.xls,.csv" style="display:none;">
+      </label>
+      <span style="font-size:11px; color:#78350f; align-self:center;">
+        ${Object.keys(gmvEngagement.focusProducts).length} SKU(s) · ${gmvEngagement.paliers.length} palier(s)
+      </span>
+    </div>` : '';
+
+  wrap.innerHTML = `
+    <div style="margin:0 0 14px;">
+      <h2 style="margin:0 0 4px; font-size:18px; font-weight:700;">Engagement</h2>
+      <div style="font-size:12px; color:#64748b;">Period <b>${gmvCurrentPeriodKey()}</b>${mySeller ? ` · Seller <b>${gmvEscapeHtmlEng(mySeller)}</b>` : ''}</div>
+    </div>
+    ${uploadsHtml}
+    <div style="display:inline-flex; gap:4px; margin:0 0 12px; padding:4px; background:#f1f5f9; border-radius:8px;">
+      ${tabBtn('focus', 'My focus products')}
+      ${tabBtn('paliers', 'My client paliers')}
+      ${tabBtn('scoreboard', 'Scoreboard')}
+    </div>
+    <div id="engPanel"></div>`;
+  // Wire subtab switcher.
+  wrap.querySelectorAll('[data-engtab]').forEach(b => {
+    b.addEventListener('click', () => {
+      gmvEngagement.activeSubtab = b.dataset.engtab;
+      gmvRenderEngagement(wrap);
+    });
+  });
+  // Wire creator uploads.
+  const fU = document.getElementById('engFocusUpload');
+  if (fU) fU.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { await gmvOnUploadFocus(f); gmvRenderEngagement(wrap); }
+    catch (err) { alert('Focus upload error: ' + (err.message || err)); }
+    try { e.target.value = ''; } catch (_) {}
+  });
+  const pU = document.getElementById('engPaliersUpload');
+  if (pU) pU.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { await gmvOnUploadPaliers(f); gmvRenderEngagement(wrap); }
+    catch (err) { alert('Paliers upload error: ' + (err.message || err)); }
+    try { e.target.value = ''; } catch (_) {}
+  });
+  // Render the active subtab.
+  const panel = document.getElementById('engPanel');
+  if (sub === 'focus') gmvRenderEngagementFocus(panel, mySeller, isCreator);
+  else if (sub === 'paliers') gmvRenderEngagementPaliers(panel, mySeller, isCreator);
+  else gmvRenderEngagementScoreboard(panel, mySeller, isCreator);
+}
+
+function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
+  if (!panel) return;
+  const codes = Object.keys(gmvEngagement.focusProducts);
+  if (!codes.length) {
+    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">No focus products defined yet. ' + (isCreator ? 'Upload a focus products file above.' : 'Ask the creator to upload the focus products file.') + '</div>';
+    return;
+  }
+  if (!mySeller && !isCreator) {
+    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">Sign in as a seller to commit and track focus products.</div>';
+    return;
+  }
+  const period = gmvCurrentPeriodKey();
+  const seller = mySeller || ((isCreator && (Object.keys(gmvEngagement.commitments)[0] || '')) || '(creator)');
+  const commitment = (gmvEngagement.commitments[seller] || {}).focus || {};
+  // Compute sold qty per product for this seller this period (from orders + client assignments).
+  const soldByProd = {};
+  const period_ = period;
+  (gmv.orders || []).forEach(o => {
+    if (!o || !o.productCode) return;
+    const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
+    if (!d || isNaN(d.getTime())) return;
+    if ((d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')) !== period_) return;
+    const cl = (gmv.clients || {})[o.phone] || {};
+    const assignedSeller = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '';
+    if (assignedSeller !== seller) return;
+    if (!gmvEngagement.focusProducts[o.productCode]) return;
+    soldByProd[o.productCode] = (soldByProd[o.productCode] || 0) + 1; // counted lines if no qty field
+  });
+  // If we have qty in line items it's already on each line; for GMV-side `gmv.orders` we don't have qty. Use amount-based proxy: count of lines.
+  const families = {};
+  codes.forEach(c => {
+    const f = gmvEngagement.focusProducts[c].family || '(other)';
+    if (!families[f]) families[f] = [];
+    families[f].push(c);
+  });
+  let n = 0, hit = 0;
+  let html = '';
+  Object.entries(families).forEach(([fam, list]) => {
+    html += `<h3 style="margin:18px 0 6px; font-size:13px; color:#475569; text-transform:uppercase; letter-spacing:.04em;">${gmvEscapeHtmlEng(fam)} — ${list.length} référence(s)</h3>`;
+    html += `<table style="width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; margin-bottom:8px;">
+      <thead><tr style="background:#f8fafc;">
+        <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Code</th>
+        <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Nom</th>
+        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Min ref.</th>
+        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Mon engagement</th>
+        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Vendu (lignes)</th>
+        <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Statut</th>
+      </tr></thead><tbody>`;
+    list.forEach(code => {
+      const meta = gmvEngagement.focusProducts[code];
+      const target = commitment[code] || meta.min || 0;
+      const sold = soldByProd[code] || 0;
+      const pct = target > 0 ? Math.min(100, sold / target * 100) : 0;
+      let statusBadge;
+      if (sold >= target && target > 0) { statusBadge = '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">🎯 Atteint</span>'; hit++; }
+      else if (pct >= 50) { statusBadge = '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">⚠ En cours</span>'; }
+      else { statusBadge = '<span style="background:#fee2e2; color:#7f1d1d; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">En retard</span>'; }
+      n++;
+      html += `<tr style="border-top:1px solid #f1f5f9;">
+        <td style="padding:6px 10px; font-family:monospace; font-size:12px;">${gmvEscapeHtmlEng(code)}</td>
+        <td style="padding:6px 10px;">${gmvEscapeHtmlEng(meta.name || '')}</td>
+        <td style="padding:6px 10px; text-align:right; color:#64748b;">${(meta.min || 0).toLocaleString()}</td>
+        <td style="padding:6px 10px; text-align:right;"><input type="number" data-eng-focus="${gmvEscapeHtmlEng(code)}" value="${target}" min="0" style="width:90px; padding:3px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; text-align:right;" ${(!mySeller && !isCreator) ? 'disabled' : ''}></td>
+        <td style="padding:6px 10px; text-align:right; font-weight:600;">${sold}</td>
+        <td style="padding:6px 10px;">${statusBadge}</td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+  });
+  panel.innerHTML = `
+    <div style="display:flex; gap:18px; align-items:baseline; margin:0 0 8px;">
+      <span style="font-size:13px;"><b>${hit}</b> / ${n} produit(s) atteint(s) ce mois</span>
+      <span style="font-size:11px; color:#64748b;">Min. requis : 5 produits / mois — 10 sur Mai-Juin</span>
+      <button type="button" id="engSaveFocus" class="btn btn-primary" style="margin-left:auto; font-size:12px;">Save my engagement</button>
+    </div>
+    ${html}`;
+  const saveBtn = document.getElementById('engSaveFocus');
+  if (saveBtn) saveBtn.addEventListener('click', async () => {
+    const focus = {};
+    panel.querySelectorAll('[data-eng-focus]').forEach(i => {
+      const v = parseFloat(i.value); if (isFinite(v) && v > 0) focus[i.dataset.engFocus] = v;
+    });
+    try { await gmvSaveEngagementCommitment(seller, period, { focus }); alert('Saved.'); }
+    catch (e) { alert('Save failed: ' + (e.message || e)); }
+  });
+}
+
+function gmvRenderEngagementPaliers(panel, mySeller, isCreator) {
+  if (!panel) return;
+  if (!gmvEngagement.paliers.length) {
+    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">No paliers defined yet. ' + (isCreator ? 'Upload a paliers file above.' : 'Ask the creator to upload the paliers file.') + '</div>';
+    return;
+  }
+  if (!mySeller && !isCreator) {
+    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">Sign in as a seller to commit and track paliers.</div>';
+    return;
+  }
+  const period = gmvCurrentPeriodKey();
+  const seller = mySeller || '(creator)';
+  const commitment = (gmvEngagement.commitments[seller] || {}).paliers || {};
+  // Find this seller's claimed clients.
+  const myPhones = new Set();
+  Object.entries(gmvClientAssignments.byPhone || {}).forEach(([phone, a]) => {
+    if (a.seller === seller) myPhones.add(phone);
+  });
+  if (!myPhones.size) {
+    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">No claimed clients yet. Go to "My clients" tab to claim some.</div>';
+    return;
+  }
+  const ca = gmvComputeCaPerClient();
+  const palierOpts = ['<option value="0">— No target —</option>'].concat(
+    gmvEngagement.paliers.map(p => `<option value="${p.palier}">Palier ${p.palier} (${(p.threshold || 0).toLocaleString()} MAD)</option>`)
+  ).join('');
+  let html = `<table style="width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+    <thead><tr style="background:#f8fafc;">
+      <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Client</th>
+      <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Phone</th>
+      <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Palier ciblé</th>
+      <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">CA actuel</th>
+      <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Palier atteint</th>
+      <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Récompense (atteint)</th>
+    </tr></thead><tbody>`;
+  Array.from(myPhones).forEach(phone => {
+    const cl = (gmv.clients || {})[phone] || {};
+    const target = commitment[phone] || 0;
+    const cur = ca[phone] || 0;
+    const ach = gmvAchievedPalier(cur);
+    const targetP = (gmvEngagement.paliers || []).find(p => p.palier === parseInt(target));
+    const hitTarget = ach && targetP && ach.palier >= targetP.palier;
+    const rowBg = hitTarget ? 'background:#f0fdf4;' : '';
+    html += `<tr style="${rowBg} border-top:1px solid #f1f5f9;">
+      <td style="padding:6px 10px; font-weight:600;">${gmvEscapeHtmlEng(cl.name || '(no name)')}</td>
+      <td style="padding:6px 10px; font-family:monospace; font-size:12px; color:#475569;">${gmvEscapeHtmlEng(phone)}</td>
+      <td style="padding:6px 10px;">
+        <select data-eng-palier="${gmvEscapeHtmlEng(phone)}" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
+          ${palierOpts.replace('value="' + target + '"', 'value="' + target + '" selected')}
+        </select>
+      </td>
+      <td style="padding:6px 10px; text-align:right; font-weight:600;">${Math.round(cur).toLocaleString()} MAD</td>
+      <td style="padding:6px 10px;">${ach ? `<span style="background:#dbeafe; color:#1e40af; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">Palier ${ach.palier}</span>` : '<span style="color:#94a3b8; font-size:11px;">aucun</span>'}</td>
+      <td style="padding:6px 10px; font-size:11px; color:#64748b;">${ach ? gmvEscapeHtmlEng(ach.prize1 || '') : '—'}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  panel.innerHTML = `
+    <div style="display:flex; gap:8px; margin:0 0 10px;">
+      <span style="font-size:13px;"><b>${myPhones.size}</b> claimed client(s)</span>
+      <button type="button" id="engSavePaliers" class="btn btn-primary" style="margin-left:auto; font-size:12px;">Save my engagement</button>
+    </div>${html}`;
+  const saveBtn = document.getElementById('engSavePaliers');
+  if (saveBtn) saveBtn.addEventListener('click', async () => {
+    const paliers = {};
+    panel.querySelectorAll('[data-eng-palier]').forEach(s => {
+      const v = parseInt(s.value); if (v > 0) paliers[s.dataset.engPalier] = v;
+    });
+    try { await gmvSaveEngagementCommitment(seller, period, { paliers }); alert('Saved.'); }
+    catch (e) { alert('Save failed: ' + (e.message || e)); }
+  });
+}
+
+function gmvRenderEngagementScoreboard(panel, mySeller, isCreator) {
+  if (!panel) return;
+  // Compute per-seller stats.
+  const period = gmvCurrentPeriodKey();
+  const allSellers = new Set(Object.values(gmv.clients || {}).map(c => c && c.seller).filter(Boolean));
+  Object.values(gmvClientAssignments.byPhone || {}).forEach(a => { if (a.seller) allSellers.add(a.seller); });
+  const ca = gmvComputeCaPerClient();
+  const stats = Array.from(allSellers).map(seller => {
+    const commitment = gmvEngagement.commitments[seller] || {};
+    const focus = commitment.focus || {};
+    const paliersTgt = commitment.paliers || {};
+    let focusHit = 0;
+    Object.keys(focus).forEach(code => {
+      // Recompute sold for this seller/code.
+      let sold = 0;
+      (gmv.orders || []).forEach(o => {
+        if (!o || o.productCode !== code) return;
+        const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
+        if (!d) return;
+        if ((d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')) !== period) return;
+        const cl = (gmv.clients || {})[o.phone] || {};
+        const assigned = (gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller;
+        if (assigned !== seller) return;
+        sold += 1;
+      });
+      if (sold >= focus[code]) focusHit++;
+    });
+    let palierHit = 0;
+    Object.entries(paliersTgt).forEach(([phone, target]) => {
+      const ach = gmvAchievedPalier(ca[phone] || 0);
+      if (ach && ach.palier >= parseInt(target)) palierHit++;
+    });
+    const focusTotal = Object.keys(focus).length;
+    const palierTotal = Object.keys(paliersTgt).length;
+    const focusScore = focusTotal ? focusHit / focusTotal : 0;
+    const palierScore = palierTotal ? palierHit / palierTotal : 0;
+    const blend = Math.round(((focusScore + palierScore) / 2) * 100);
+    return { seller, focusHit, focusTotal, palierHit, palierTotal, score: blend };
+  }).sort((a, b) => b.score - a.score);
+  const targetList = mySeller ? stats.filter(s => s.seller === mySeller) : stats;
+  panel.innerHTML = `
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:14px;">
+      <div style="padding:14px; background:#fff; border:1px solid #e2e8f0; border-radius:10px;">
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase;">Sellers</div>
+        <div style="font-size:24px; font-weight:700;">${stats.length}</div>
+      </div>
+      <div style="padding:14px; background:#fff; border:1px solid #e2e8f0; border-radius:10px;">
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase;">Focus SKUs</div>
+        <div style="font-size:24px; font-weight:700;">${Object.keys(gmvEngagement.focusProducts).length}</div>
+      </div>
+      <div style="padding:14px; background:#fff; border:1px solid #e2e8f0; border-radius:10px;">
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase;">Paliers</div>
+        <div style="font-size:24px; font-weight:700;">${gmvEngagement.paliers.length}</div>
+      </div>
+    </div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+      <thead><tr style="background:#f8fafc;">
+        <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">#</th>
+        <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Seller</th>
+        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Focus hit</th>
+        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Paliers hit</th>
+        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Score</th>
+      </tr></thead>
+      <tbody>
+        ${targetList.map((s, i) => `
+          <tr style="border-top:1px solid #f1f5f9; ${s.seller === mySeller ? 'background:#eff6ff;' : ''}">
+            <td style="padding:6px 10px; color:#94a3b8;">${i + 1}</td>
+            <td style="padding:6px 10px; font-weight:600;">${gmvEscapeHtmlEng(s.seller)}</td>
+            <td style="padding:6px 10px; text-align:right;">${s.focusHit} / ${s.focusTotal}</td>
+            <td style="padding:6px 10px; text-align:right;">${s.palierHit} / ${s.palierTotal}</td>
+            <td style="padding:6px 10px; text-align:right; font-weight:700; color:${s.score >= 75 ? '#166534' : s.score >= 40 ? '#92400e' : '#7f1d1d'};">${s.score}%</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// =========================================================================
+// Client assignment pool — sellers claim wholesale clients from a shared
+// pool. Each client can be claimed by exactly ONE seller. Stored in the
+// `client_assignments` Supabase table (read by all, written by all
+// authenticated users; UI enforces "sellers can only claim for themselves").
+// =========================================================================
+
+const gmvClientAssignments = {
+  byPhone: {},   // phone -> { seller, assigned_by_email, assigned_at }
+  loaded: false,
+  search: '',
+  showOnlyMine: false,
+};
+
+async function gmvLoadClientAssignments() {
+  if (typeof sb === 'undefined' || !sb) return;
+  try {
+    const { data, error } = await sb.from('client_assignments').select('*');
+    if (error) { console.warn('load client_assignments:', error.message); return; }
+    const map = {};
+    (data || []).forEach(r => { map[r.phone] = r; });
+    gmvClientAssignments.byPhone = map;
+    gmvClientAssignments.loaded = true;
+  } catch (e) { console.warn('load client_assignments failed:', e); }
+}
+
+async function gmvClaimClient(phone, sellerName) {
+  if (typeof sb === 'undefined' || !sb || !sbUser) throw new Error('Not signed in.');
+  const row = {
+    phone,
+    seller: sellerName,
+    assigned_by_email: sbUser.email || null,
+    assigned_at: new Date().toISOString(),
+  };
+  const { error } = await sb.from('client_assignments').upsert(row, { onConflict: 'phone' });
+  if (error) throw new Error(error.message || String(error));
+  gmvClientAssignments.byPhone[phone] = row;
+}
+
+async function gmvUnclaimClient(phone) {
+  if (typeof sb === 'undefined' || !sb || !sbUser) throw new Error('Not signed in.');
+  const { error } = await sb.from('client_assignments').delete().eq('phone', phone);
+  if (error) throw new Error(error.message || String(error));
+  delete gmvClientAssignments.byPhone[phone];
+}
+
+function gmvEscapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+async function gmvRenderClientsPool(wrap) {
+  if (!wrap) return;
+  // First call: load assignments async then re-render.
+  if (!gmvClientAssignments.loaded) {
+    wrap.innerHTML = '<div style="padding:24px; color:var(--text-soft); font-size:13px;">Loading client pool…</div>';
+    await gmvLoadClientAssignments();
+  }
+  const isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
+  const mySeller = (typeof gmvSellerName === 'function') ? gmvSellerName() : '';
+  const isSeller = !!mySeller;
+  // Build the pool from gmv.clients (all wholesale clients in scope).
+  const allClients = Object.entries(gmv.clients || {}).map(([phone, c]) => ({
+    phone,
+    name: (c && c.name) || '(no name)',
+    fileSeller: (c && c.seller) || '',
+  }));
+  if (!allClients.length) {
+    wrap.innerHTML = '<div class="gmv-empty">Upload the clients file first to see the pool.</div>';
+    return;
+  }
+  // Apply search + "only mine" filters.
+  let list = allClients.slice();
+  const q = (gmvClientAssignments.search || '').trim().toLowerCase();
+  if (q) {
+    list = list.filter(c => (c.name + ' ' + c.phone).toLowerCase().includes(q));
+  }
+  if (gmvClientAssignments.showOnlyMine && (mySeller || isCreator)) {
+    list = list.filter(c => {
+      const a = gmvClientAssignments.byPhone[c.phone];
+      return a && a.seller === (isCreator ? a.seller : mySeller);
+    });
+  }
+  // Sort: my-claimed first, then unassigned, then assigned-to-others; alpha within.
+  list.sort((x, y) => {
+    const ax = gmvClientAssignments.byPhone[x.phone];
+    const ay = gmvClientAssignments.byPhone[y.phone];
+    const rx = !ax ? 1 : (ax.seller === mySeller ? 0 : 2);
+    const ry = !ay ? 1 : (ay.seller === mySeller ? 0 : 2);
+    if (rx !== ry) return rx - ry;
+    return x.name.localeCompare(y.name);
+  });
+  // Counts.
+  const myCount = allClients.filter(c => {
+    const a = gmvClientAssignments.byPhone[c.phone];
+    return a && a.seller === mySeller;
+  }).length;
+  const claimedTotal = Object.keys(gmvClientAssignments.byPhone).length;
+  const unclaimed = allClients.length - claimedTotal;
+
+  wrap.innerHTML = `
+    <div style="margin:0 0 14px;">
+      <h2 style="margin:0 0 6px; font-size:18px; font-weight:700;">My clients</h2>
+      <div style="font-size:13px; color:var(--text-soft);">
+        Pool of all wholesale clients. Sellers claim their own — one client per seller.
+        ${isSeller ? `You're seller <b>${gmvEscapeHtml(mySeller)}</b>.` : (isCreator ? "You're the creator — you can override any assignment." : "Read-only view.")}
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; padding:10px 12px; background:#f8fafc; border-radius:8px;">
+      <input type="search" id="gmvClientsPoolSearch" placeholder="Search name or phone…" value="${gmvEscapeHtml(gmvClientAssignments.search)}" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; flex:1; min-width:200px;">
+      <label style="font-size:12px; color:var(--text-soft); display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="gmvClientsPoolMine" ${gmvClientAssignments.showOnlyMine ? 'checked' : ''}>
+        Show only mine
+      </label>
+      <span style="font-size:12px; color:var(--text-soft); margin-left:auto;">
+        <b>${myCount}</b> mine · <b>${unclaimed}</b> unclaimed · <b>${claimedTotal}</b> total claimed · <b>${allClients.length}</b> in pool
+      </span>
+    </div>
+    <div style="border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; background:#fff; max-height:640px; overflow-y:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead>
+          <tr style="background:#f1f5f9; position:sticky; top:0; z-index:1;">
+            <th style="text-align:left; padding:8px 12px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #e2e8f0;">Client</th>
+            <th style="text-align:left; padding:8px 12px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #e2e8f0;">Phone</th>
+            <th style="text-align:left; padding:8px 12px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #e2e8f0;">File seller</th>
+            <th style="text-align:left; padding:8px 12px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #e2e8f0;">Assigned to</th>
+            <th style="text-align:right; padding:8px 12px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #e2e8f0;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map(c => {
+            const a = gmvClientAssignments.byPhone[c.phone];
+            const claimedBy = a && a.seller;
+            const mine = claimedBy && claimedBy === mySeller;
+            const otherSeller = claimedBy && !mine;
+            let actionCell = '';
+            let rowBg = '';
+            if (mine) {
+              rowBg = 'background:#f0fdf4;';
+              actionCell = `<button type="button" data-gmv-unclaim="${gmvEscapeHtml(c.phone)}" style="padding:4px 10px; background:transparent; color:#dc2626; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer;">Release</button>`;
+            } else if (otherSeller) {
+              rowBg = 'background:#fafafa; color:#94a3b8;';
+              actionCell = isCreator
+                ? `<button type="button" data-gmv-unclaim="${gmvEscapeHtml(c.phone)}" style="padding:4px 10px; background:transparent; color:#dc2626; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer;">Force release</button>`
+                : `<span style="font-size:11px; color:#94a3b8; font-style:italic;">Assigned to ${gmvEscapeHtml(claimedBy)} — cannot claim</span>`;
+            } else {
+              // Unassigned.
+              if (isSeller) {
+                actionCell = `<button type="button" data-gmv-claim="${gmvEscapeHtml(c.phone)}" style="padding:4px 12px; background:#16a34a; color:#fff; border:0; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">+ Claim</button>`;
+              } else if (isCreator) {
+                actionCell = `<button type="button" data-gmv-creator-claim="${gmvEscapeHtml(c.phone)}" style="padding:4px 10px; background:transparent; color:#475569; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; cursor:pointer;">Assign…</button>`;
+              } else {
+                actionCell = `<span style="font-size:11px; color:#94a3b8;">—</span>`;
+              }
+            }
+            const assignedToCell = claimedBy
+              ? `<span style="display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; ${mine ? 'background:#dcfce7; color:#166534;' : 'background:#fef3c7; color:#92400e;'}">${gmvEscapeHtml(claimedBy)}</span>`
+              : `<span style="font-size:11px; color:#94a3b8; font-style:italic;">unassigned</span>`;
+            return `
+              <tr style="${rowBg} border-bottom:1px solid #f1f5f9;">
+                <td style="padding:6px 12px; font-weight:600;">${gmvEscapeHtml(c.name)}</td>
+                <td style="padding:6px 12px; font-family:monospace; font-size:12px; color:#475569;">${gmvEscapeHtml(c.phone)}</td>
+                <td style="padding:6px 12px; color:#64748b; font-size:12px;">${gmvEscapeHtml(c.fileSeller || '—')}</td>
+                <td style="padding:6px 12px;">${assignedToCell}</td>
+                <td style="padding:6px 12px; text-align:right;">${actionCell}</td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  // Wire interactions.
+  const searchInput = document.getElementById('gmvClientsPoolSearch');
+  if (searchInput) searchInput.addEventListener('input', () => {
+    gmvClientAssignments.search = searchInput.value;
+    gmvRenderClientsPool(wrap);
+  });
+  const mineBox = document.getElementById('gmvClientsPoolMine');
+  if (mineBox) mineBox.addEventListener('change', () => {
+    gmvClientAssignments.showOnlyMine = mineBox.checked;
+    gmvRenderClientsPool(wrap);
+  });
+  wrap.querySelectorAll('[data-gmv-claim]').forEach(b => {
+    b.addEventListener('click', async () => {
+      if (!mySeller) { alert('Only sellers can claim.'); return; }
+      try {
+        await gmvClaimClient(b.dataset.gmvClaim, mySeller);
+        gmvRenderClientsPool(wrap);
+      } catch (e) { alert('Claim failed: ' + (e && e.message ? e.message : e)); }
+    });
+  });
+  wrap.querySelectorAll('[data-gmv-unclaim]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const phone = b.dataset.gmvUnclaim;
+      if (!confirm('Release client ' + phone + '?')) return;
+      try {
+        await gmvUnclaimClient(phone);
+        gmvRenderClientsPool(wrap);
+      } catch (e) { alert('Release failed: ' + (e && e.message ? e.message : e)); }
+    });
+  });
+  wrap.querySelectorAll('[data-gmv-creator-claim]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const phone = b.dataset.gmvCreatorClaim;
+      const seller = (prompt('Assign to which seller? (must match the seller name in clients file)') || '').trim();
+      if (!seller) return;
+      try {
+        await gmvClaimClient(phone, seller);
+        gmvRenderClientsPool(wrap);
+      } catch (e) { alert('Assign failed: ' + (e && e.message ? e.message : e)); }
+    });
+  });
+}
+
 // Replace the old gmvRenderTargets with a no-op wrapper so existing call
 // sites still work (they all now route through gmvRenderResults).
 function gmvRenderTargets() {
@@ -19268,14 +19943,38 @@ function settingsTimeAgo(ts) {
   return days + 'd ago';
 }
 
+function settingsPopulateSellerDropdown() {
+  const sel = document.getElementById('stInviteSellerSelect');
+  const help = document.getElementById('stInviteSellerHelp');
+  if (!sel) return;
+  // Pull unique seller names from gmv.clients (the clients file).
+  const sellers = new Set();
+  try {
+    Object.values((typeof gmv !== 'undefined' && gmv && gmv.clients) || {}).forEach(c => {
+      if (c && c.seller) sellers.add(String(c.seller).trim());
+    });
+  } catch (_) {}
+  const sorted = Array.from(sellers).sort((a, b) => a.localeCompare(b));
+  if (sorted.length === 0) {
+    sel.innerHTML = '<option value="">No sellers loaded — open GMV Tracker and upload the clients file first.</option>';
+    sel.disabled = true;
+    if (help) help.textContent = 'No clients file loaded yet. Open GMV Tracker, upload the clients file, then come back.';
+    return;
+  }
+  sel.disabled = false;
+  sel.innerHTML = '<option value="">— Pick a seller —</option>' +
+    sorted.map(s => `<option value="${s.replace(/"/g, '&quot;')}">${s}</option>`).join('');
+  if (help) help.textContent = `${sorted.length} seller(s) detected from your clients file.`;
+}
+
 function settingsOpenInviteModal() {
   const m = document.getElementById('stInviteModal');
   if (m) m.classList.add('open');
-  // Reset form.
   const email = document.getElementById('stInviteEmail');
-  const seller = document.getElementById('stInviteSeller');
+  const sellerSel = document.getElementById('stInviteSellerSelect');
   if (email) { email.value = ''; setTimeout(() => email.focus(), 50); }
-  if (seller) seller.value = '';
+  if (sellerSel) sellerSel.value = '';
+  settingsPopulateSellerDropdown();
   settingsSelectRole('viewer');
   const err = document.getElementById('stInviteError');
   const ok = document.getElementById('stInviteSuccess');
@@ -19299,12 +19998,12 @@ function settingsSelectRole(role) {
 
 async function settingsSubmitInvite() {
   const emailInput = document.getElementById('stInviteEmail');
-  const sellerInput = document.getElementById('stInviteSeller');
+  const sellerSel = document.getElementById('stInviteSellerSelect');
   const errEl = document.getElementById('stInviteError');
   const okEl = document.getElementById('stInviteSuccess');
   const submitBtn = document.getElementById('stInviteSubmit');
   const email = (emailInput && emailInput.value || '').trim();
-  const seller = settings.selectedRole === 'seller' ? (sellerInput && sellerInput.value || '').trim() : '';
+  const seller = settings.selectedRole === 'seller' ? (sellerSel && sellerSel.value || '').trim() : '';
   if (errEl) errEl.classList.remove('show');
   if (okEl) okEl.classList.remove('show');
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -19375,8 +20074,8 @@ function settingsInit() {
   if (emailInput) emailInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); settingsSubmitInvite(); }
   });
-  const sellerInput = document.getElementById('stInviteSeller');
-  if (sellerInput) sellerInput.addEventListener('keydown', e => {
+  const sellerSel = document.getElementById('stInviteSellerSelect');
+  if (sellerSel) sellerSel.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); settingsSubmitInvite(); }
   });
   // Esc to close.
@@ -19675,6 +20374,10 @@ async function fulfillParseStock(file) {
     if (!code) return;
     out[code] = (out[code] || 0) + q;
   });
+  // Clamp negative stock values to 0 (mirrors Delivery Planner). Negative
+  // values are usually accounting placeholders for in-transit / reserved
+  // units; the allocator can't ship them, so we treat them as 0.
+  Object.keys(out).forEach(code => { if (out[code] < 0) out[code] = 0; });
   return out;
 }
 
@@ -19783,8 +20486,18 @@ function fulfillRunAllocator() {
   // From here on, the allocator only sees regular orders.
   orderObjs.length = 0;
   regularObjs.forEach(o => orderObjs.push(o));
+  // Sanitize the source stock object once: any negative value (usually an
+  // accounting placeholder for reserved / in-transit units) becomes 0,
+  // and any non-numeric becomes 0. This makes downstream tests and the
+  // remaining-stock display consistent.
+  if (fulfill.stock) {
+    Object.keys(fulfill.stock).forEach(code => {
+      const v = parseFloat(fulfill.stock[code]) || 0;
+      fulfill.stock[code] = v < 0 ? 0 : v;
+    });
+  }
   // Single working stock pool — everything goes to non-top orders.
-  const stock = Object.assign({}, fulfill.stock);
+  const stock = Object.assign({}, fulfill.stock || {});
 
   const fullList = [];
   const partialList = [];
@@ -20410,14 +21123,16 @@ function fulfillRunTests() {
   const tests = [];
   const T = (name, ok, detail) => tests.push({ name, ok: !!ok, detail: detail || '' });
   const a = fulfill.allocations || { full: [], partial: [], waiting: [] };
-  const allOrders = a.full.concat(a.partial, a.waiting);
+  const top = fulfill.topOrders || [];
+  const allOrders = a.full.concat(a.partial, a.waiting, top);
   const totalLines = fulfill.orders.length;
   const uniqueOrderCodes = new Set(fulfill.orders.map(l => l.orderCode)).size;
 
-  // 1. Order count: every input order is in exactly one bucket.
-  T('Every input order appears in exactly one bucket',
+  // 1. Order count: every input order is in exactly one place
+  // (allocator bucket or excluded high-GMV).
+  T('Every input order appears in exactly one bucket or excluded list',
     allOrders.length === uniqueOrderCodes,
-    `Input orders: ${uniqueOrderCodes} | In buckets: ${allOrders.length}`);
+    `Input orders: ${uniqueOrderCodes} | In allocator buckets: ${a.full.length + a.partial.length + a.waiting.length} | Excluded (top): ${top.length} | Total: ${allOrders.length}`);
 
   // 2. Bucket boundaries.
   let badFull = 0, badPartial = 0, badWait = 0;
@@ -20440,21 +21155,27 @@ function fulfillRunTests() {
   let stockMismatch = 0;
   let overUsed = 0;
   let mismatchExamples = [];
+  let overUsedExamples = [];
   allCodes.forEach(code => {
     const init = (fulfill.stock || {})[code] || 0;
     const used = allocatedPer[code] || 0;
     const rem = (fulfill.remainingStock || {})[code] || 0;
-    // initial = used + remaining
     if (Math.abs(init - used - rem) > 1e-6) {
       stockMismatch++;
       if (mismatchExamples.length < 3) mismatchExamples.push(`${code}: init=${init}, used=${used}, remaining=${rem}`);
     }
-    // can't allocate more than initial stock
-    if (used > init + 1e-6) overUsed++;
+    // True over-use: more allocated than the (clamped, non-negative) initial.
+    // Negative initial values are accounting placeholders → treated as 0.
+    const initEffective = Math.max(0, init);
+    if (used > initEffective + 1e-6) {
+      overUsed++;
+      if (overUsedExamples.length < 5) overUsedExamples.push(`${code}: init=${init}, used=${used}, excess=+${(used - initEffective).toFixed(0)}`);
+    }
   });
   T('Stock conservation: initial = allocated + remaining (per SKU)', stockMismatch === 0,
     stockMismatch ? `${stockMismatch} SKU(s) mismatched. e.g. ${mismatchExamples.join(' | ')}` : `All ${allCodes.size} SKU(s) balanced`);
-  T('No SKU over-used (allocated ≤ initial stock)', overUsed === 0, `${overUsed} SKU(s) over-used`);
+  T('No SKU over-used (allocated ≤ initial stock)', overUsed === 0,
+    overUsed ? `${overUsed} SKU(s) over-used. e.g. ${overUsedExamples.join(' | ')}` : '');
 
   // 5. Aggregated totals.
   const totalOrdered = fulfill.orders.reduce((s, l) => s + (l.qty || 0), 0);
@@ -21391,6 +22112,14 @@ async function fulfillInit() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
         Targets
       </button>
+      <button type="button" class="gmv-pagebtn" data-gpage="clients">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        My clients
+      </button>
+      <button type="button" class="gmv-pagebtn" data-gpage="engagement">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Engagement
+      </button>
     </div>
 
     <!-- Hero KPI -->
@@ -21752,9 +22481,11 @@ async function fulfillInit() {
       </div>
     </div>
     <div class="st-form-row st-conditional" id="stSellerNameRow">
-      <label for="stInviteSeller">Seller name</label>
-      <input type="text" id="stInviteSeller" placeholder="Exact name from your clients file (e.g., RIDA BENCHAOUI)">
-      <div class="st-help">Must match the seller name used in your uploaded clients file, character-for-character.</div>
+      <label for="stInviteSellerSelect">Seller name</label>
+      <select id="stInviteSellerSelect" style="width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; background:#fff; box-sizing:border-box; transition:.15s;">
+        <option value="">— Pick a seller from the clients file —</option>
+      </select>
+      <div class="st-help" id="stInviteSellerHelp">Sellers come from your uploaded clients file in GMV Tracker.</div>
     </div>
     <div class="st-form-actions">
       <button type="button" class="st-btn secondary" id="stInviteCancel">Cancel</button>
