@@ -4334,6 +4334,14 @@
       <svg class="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
       <span>GMV Tracker</span>
     </button>
+    <button type="button" class="as-feature" data-feature="fulfill" title="Allocate stock to maximize fully-fulfilled orders and partial fills">
+      <svg class="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      <span>Order Fulfillment</span>
+    </button>
+    <button type="button" class="as-feature as-feature-bottom" data-feature="settings" id="asFeatureSettings" style="display:none; margin-top:auto; border-top:1px solid var(--border-soft); border-radius:0; padding-top:14px; padding-bottom:14px;" title="Manage team and account settings">
+      <svg class="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </button>
   </aside>
 
   <main class="app-main" id="appMain">
@@ -12091,7 +12099,7 @@ function renderReviewDone(allocs, stats) {
     ${(() => {
       // Sub-Orders gate banner. Renders only while the gate is closed.
       const dl = !!reviewState.subOrdersDownloaded;
-      const ok = !!reviewState.subOrdersConfirmed;
+      const ok = !!reviewState.subOrdersConfirmed || (typeof gmvIsCreator === 'function' && gmvIsCreator());
       if (ok) return '';
       return `<div id="subOrdersGateBanner" style="padding:14px 16px; background:#fef3c7; border:1px solid #f59e0b; border-radius:10px; margin:6px 0 10px; color:#78350f; font-size:13px; line-height:1.6;">
         <b>Exports locked until Sub-Orders is processed.</b><br>
@@ -12119,23 +12127,24 @@ function renderReviewDone(allocs, stats) {
       // grey out the locked buttons via existing :disabled styling.
       return `<div style="display:flex; flex-wrap:wrap; gap:8px;">`;
     })()}
-      <button class="btn btn-primary btn-lg" id="exportConfirmedBtn"${!reviewState.subOrdersConfirmed ? ' disabled title="Locked — download Sub-Orders first, then confirm."' : ''}>
+      ${(() => { window.__subLocked = !reviewState.subOrdersConfirmed && !(typeof gmvIsCreator === 'function' && gmvIsCreator()); return ''; })()}
+      <button class="btn btn-primary btn-lg" id="exportConfirmedBtn"${window.__subLocked ? ' disabled title="Locked — download Sub-Orders first, then confirm."' : ''}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download confirmed deliveries (.xlsx)
       </button>
-      <button class="btn btn-danger btn-lg" id="exportCanceledBtn"${canceledAllocs.length === 0 || !reviewState.subOrdersConfirmed ? ' disabled' : ''}${!reviewState.subOrdersConfirmed ? ' title="Locked — download Sub-Orders first, then confirm."' : ''}>
+      <button class="btn btn-danger btn-lg" id="exportCanceledBtn"${canceledAllocs.length === 0 || window.__subLocked ? ' disabled' : ''}${window.__subLocked ? ' title="Locked — download Sub-Orders first, then confirm."' : ''}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         Download canceled orders (.xlsx)
       </button>
-      <button class="btn btn-warn btn-lg" id="exportReplannedBtn"${replannedAllocs.length === 0 || !reviewState.subOrdersConfirmed ? ' disabled' : ''} title="${!reviewState.subOrdersConfirmed ? 'Locked — download Sub-Orders first, then confirm.' : `Includes ${userReplannedAllocs.length} order(s) you replanned and ${autoReplannedAllocs.length} auto-replanned out-of-stock order(s) (rescheduled to today + 2 days).`}">
+      <button class="btn btn-warn btn-lg" id="exportReplannedBtn"${replannedAllocs.length === 0 || window.__subLocked ? ' disabled' : ''} title="${window.__subLocked ? 'Locked — download Sub-Orders first, then confirm.' : `Includes ${userReplannedAllocs.length} order(s) you replanned and ${autoReplannedAllocs.length} auto-replanned out-of-stock order(s) (rescheduled to today + 2 days).`}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Download replanned orders (.xlsx)${replannedAllocs.length ? ` · ${replannedAllocs.length}` : ''}
       </button>
-      <button class="btn btn-lg" id="exportDeliveryReportBtn"${!reviewState.subOrdersConfirmed ? ' disabled' : ''} title="${!reviewState.subOrdersConfirmed ? 'Locked — download Sub-Orders first, then confirm.' : 'Full delivery report — every order line still in scope (confirmed + pending + auto-replanned), with per-order and per-client deliverable rates and a Confirmed yes/no flag.'}">
+      <button class="btn btn-lg" id="exportDeliveryReportBtn"${window.__subLocked ? ' disabled' : ''} title="${window.__subLocked ? 'Locked — download Sub-Orders first, then confirm.' : 'Full delivery report — every order line still in scope (confirmed + pending + auto-replanned), with per-order and per-client deliverable rates and a Confirmed yes/no flag.'}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Download delivery report (.xlsx)
       </button>
-      <button class="btn btn-primary btn-lg" id="exportDispatchBtn"${confirmedAllocs.length === 0 || !reviewState.subOrdersConfirmed ? ' disabled' : ''} title="${!reviewState.subOrdersConfirmed ? 'Locked — download Sub-Orders first, then confirm.' : 'Same column layout as your uploaded orders file, restricted to confirmed orders only. Use this to feed downstream dispatch / shipping systems that expect the original file shape.'}">
+      <button class="btn btn-primary btn-lg" id="exportDispatchBtn"${confirmedAllocs.length === 0 || window.__subLocked ? ' disabled' : ''} title="${window.__subLocked ? 'Locked — download Sub-Orders first, then confirm.' : 'Same column layout as your uploaded orders file, restricted to confirmed orders only. Use this to feed downstream dispatch / shipping systems that expect the original file shape.'}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
         Download dispatch file (.xlsx)${confirmedAllocs.length ? ` · ${confirmedAllocs.length}` : ''}
       </button>
@@ -15445,9 +15454,38 @@ try {
     const close = () => shell.classList.remove('sidebar-open');
     tog.addEventListener('click', () => shell.classList.toggle('sidebar-open'));
     ov.addEventListener('click', close);
+    // Apply seller restriction — sellers only see Order Fulfillment.
+    // Also show the Settings entry only to the creator.
+    const applySellerSidebarLock = () => {
+      const isSeller = (typeof gmvIsSeller === 'function') && gmvIsSeller();
+      const isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
+      document.querySelectorAll('.as-feature').forEach(b => {
+        const f = b.dataset.feature || '';
+        if (f === 'settings') {
+          b.style.display = isCreator ? '' : 'none';
+        } else {
+          b.style.display = (isSeller && f !== 'fulfill') ? 'none' : '';
+        }
+      });
+      if (isSeller) {
+        const ff = document.querySelector('.as-feature[data-feature="fulfill"]');
+        if (ff && !ff.classList.contains('active')) ff.click();
+      }
+    };
+    // Run now and again whenever auth state changes (sb may resolve later).
+    applySellerSidebarLock();
+    if (typeof sb !== 'undefined' && sb && sb.auth) {
+      sb.auth.onAuthStateChange(() => { try { applySellerSidebarLock(); } catch (_) {} });
+    }
     document.querySelectorAll('.as-feature').forEach(btn => {
       btn.addEventListener('click', () => {
         if (btn.classList.contains('coming-soon')) return;
+        // Hard block: a seller clicking any non-fulfill feature gets bounced.
+        if ((typeof gmvIsSeller === 'function') && gmvIsSeller() && btn.dataset.feature !== 'fulfill') {
+          const ff = document.querySelector('.as-feature[data-feature="fulfill"]');
+          if (ff) ff.click();
+          return;
+        }
         document.querySelectorAll('.as-feature').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         close();
@@ -15455,10 +15493,20 @@ try {
         const feat = btn.dataset.feature || '';
         const planner = document.getElementById('featurePlanner');
         const gmv     = document.getElementById('featureGmvMaker');
+        const fulfillEl = document.getElementById('featureFulfill');
+        const settings = document.getElementById('featureSettings');
         if (planner) planner.style.display = feat === 'planner' ? '' : 'none';
         if (gmv)     gmv.style.display     = feat === 'gmv'     ? '' : 'none';
+        if (fulfillEl) fulfillEl.style.display = feat === 'fulfill' ? '' : 'none';
+        if (settings) settings.style.display = feat === 'settings' ? '' : 'none';
         if (feat === 'gmv' && typeof gmvInit === 'function') {
           try { gmvInit(); } catch (err) { console.error('gmv init failed:', err); }
+        }
+        if (feat === 'fulfill' && typeof fulfillInit === 'function') {
+          try { fulfillInit(); } catch (err) { console.error('fulfill init failed:', err); }
+        }
+        if (feat === 'settings' && typeof settingsInit === 'function') {
+          try { settingsInit(); } catch (err) { console.error('settings init failed:', err); }
         }
       });
     });
@@ -15656,6 +15704,13 @@ async function gmvReadShared(key) {
 function gmvIsCreator() {
   return !!(sbUser && sbUser.email && sbUser.email.toLowerCase() === GMV_CREATOR_EMAIL.toLowerCase());
 }
+// Returns the seller name (case-sensitive, must match the value in the
+// clients file) if the signed-in user was invited as a seller, else ''.
+function gmvSellerName() {
+  if (!sbUser || !sbUser.user_metadata) return '';
+  return String(sbUser.user_metadata.seller || '').trim();
+}
+function gmvIsSeller() { return !!gmvSellerName(); }
 // Hide the upload tiles + sync controls for viewers. Re-run on auth change.
 function gmvApplyRoleUI() {
   const isCreator = gmvIsCreator();
@@ -15689,6 +15744,10 @@ function gmvApplyRoleUI() {
   } else if (badge) {
     badge.remove();
   }
+  // Old in-place invite button — removed; invite UI now lives in
+  // Settings (sidebar). Clean up if it's still in the DOM.
+  const oldInvite = document.getElementById('gmvInviteUserBtn');
+  if (oldInvite) oldInvite.remove();
   // Surface shared-read failures (typically a missing/incorrect
   // Supabase RLS policy) so viewers know why nothing renders.
   try {
@@ -15708,6 +15767,37 @@ function gmvApplyRoleUI() {
       errBanner.remove();
     }
   } catch (_) {}
+}
+
+// Invite a new user via the invite-user Edge Function. The function
+// verifies the caller is the creator and uses the service-role key
+// (server-side only) to send the Supabase invite email.
+async function gmvInviteUserFlow() {
+  if (!sbUser) { alert('Sign in first.'); return; }
+  if (!gmvIsCreator()) { alert('Only the creator can invite users.'); return; }
+  const email = (prompt('Email address to invite:') || '').trim();
+  if (!email) return;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    alert('That doesn’t look like a valid email.');
+    return;
+  }
+  // Optional seller name — leave blank for a regular viewer.
+  const seller = (prompt('If this is a SELLER account, type the seller name (e.g. "RIDA BENCHAOUI"). Leave blank for a viewer with full access.') || '').trim();
+  const btn = document.getElementById('gmvInviteUserBtn');
+  const oldText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending invite…'; }
+  try {
+    const { data, error } = await sb.functions.invoke('invite-user', {
+      body: { email, seller }
+    });
+    if (error) throw new Error(error.message || String(error));
+    if (data && data.error) throw new Error(data.error);
+    alert('Invite sent to ' + email + (seller ? ' as seller "' + seller + '"' : '') + '. They’ll receive a Supabase email to set a password.');
+  } catch (e) {
+    alert('Invite failed: ' + (e && e.message ? e.message : e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = oldText || '+ Invite user'; }
+  }
 }
 
 const GMV_LS_TARGETS = 'rihab_gmv_targets_v1';
@@ -18960,6 +19050,1210 @@ function gmvRenderTargets() {
   gmvRenderResults();
 }
 
+// =========================================================================
+// Settings — account info + team management.
+// =========================================================================
+const settings = {
+  inited: false,
+  selectedRole: 'viewer',
+  recentInvites: (() => {
+    try { return JSON.parse(localStorage.getItem('rihab_recent_invites_v1') || '[]'); }
+    catch { return []; }
+  })(),
+};
+
+function settingsEscapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+function settingsAvatar(email) {
+  const initial = String(email || '?').charAt(0).toUpperCase();
+  return initial;
+}
+
+function settingsRenderAccount() {
+  const emailEl = document.getElementById('stAccountEmail');
+  const uidEl = document.getElementById('stAccountUid');
+  if (emailEl) emailEl.textContent = (typeof sbUser !== 'undefined' && sbUser && sbUser.email) ? sbUser.email : '(not signed in)';
+  if (uidEl) uidEl.textContent = (typeof sbUser !== 'undefined' && sbUser && sbUser.id) ? sbUser.id : '—';
+}
+
+function settingsRenderTeam() {
+  // Render the latest team members (from recentInvites for now since we
+  // can't list users without admin endpoint).
+  const list = document.getElementById('stInviteList');
+  const count = document.getElementById('stTeamCount');
+  if (!list) return;
+  const invites = settings.recentInvites || [];
+  if (count) count.textContent = invites.length ? `${invites.length} member${invites.length === 1 ? '' : 's'}` : '';
+  if (!invites.length) {
+    list.innerHTML = '<li class="invite-empty">No invites yet. Click "Invite member" to add your first teammate.</li>';
+    return;
+  }
+  list.innerHTML = invites.map(inv => {
+    const isSeller = !!inv.seller;
+    const tagCls = isSeller ? 'seller' : 'viewer';
+    const tagLabel = isSeller ? 'Seller' : 'Viewer';
+    return `
+      <li class="invite-item">
+        <div class="invite-avatar ${isSeller ? 'seller' : ''}">${settingsAvatar(inv.email)}</div>
+        <div class="invite-info">
+          <div class="invite-email">${settingsEscapeHtml(inv.email)}</div>
+          <div class="invite-meta">${isSeller ? 'Seller: ' + settingsEscapeHtml(inv.seller) : 'Full-access viewer'} · invited ${settingsTimeAgo(inv.when)}</div>
+        </div>
+        <span class="invite-tag ${tagCls}">${tagLabel}</span>
+      </li>`;
+  }).join('');
+}
+
+function settingsRenderRecent() {
+  const recent = document.getElementById('stRecentInvites');
+  if (!recent) return;
+  const invites = settings.recentInvites.slice(0, 20);
+  if (!invites.length) {
+    recent.innerHTML = '<li class="invite-empty">Nothing yet.</li>';
+    return;
+  }
+  recent.innerHTML = invites.map(inv => `
+    <li class="invite-item">
+      <div class="invite-avatar ${inv.seller ? 'seller' : ''}">${settingsAvatar(inv.email)}</div>
+      <div class="invite-info">
+        <div class="invite-email">${settingsEscapeHtml(inv.email)}</div>
+        <div class="invite-meta">${inv.seller ? 'Seller: ' + settingsEscapeHtml(inv.seller) : 'Viewer'} · ${settingsTimeAgo(inv.when)}</div>
+      </div>
+      <span class="invite-tag ${inv.seller ? 'seller' : 'viewer'}">${inv.seller ? 'Seller' : 'Viewer'}</span>
+    </li>`).join('');
+}
+
+function settingsTimeAgo(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  return days + 'd ago';
+}
+
+function settingsOpenInviteModal() {
+  const m = document.getElementById('stInviteModal');
+  if (m) m.classList.add('open');
+  // Reset form.
+  const email = document.getElementById('stInviteEmail');
+  const seller = document.getElementById('stInviteSeller');
+  if (email) { email.value = ''; setTimeout(() => email.focus(), 50); }
+  if (seller) seller.value = '';
+  settingsSelectRole('viewer');
+  const err = document.getElementById('stInviteError');
+  const ok = document.getElementById('stInviteSuccess');
+  if (err) err.classList.remove('show');
+  if (ok) ok.classList.remove('show');
+}
+
+function settingsCloseInviteModal() {
+  const m = document.getElementById('stInviteModal');
+  if (m) m.classList.remove('open');
+}
+
+function settingsSelectRole(role) {
+  settings.selectedRole = role;
+  document.querySelectorAll('#stInviteModal .st-role-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.role === role);
+  });
+  const cond = document.getElementById('stSellerNameRow');
+  if (cond) cond.classList.toggle('show', role === 'seller');
+}
+
+async function settingsSubmitInvite() {
+  const emailInput = document.getElementById('stInviteEmail');
+  const sellerInput = document.getElementById('stInviteSeller');
+  const errEl = document.getElementById('stInviteError');
+  const okEl = document.getElementById('stInviteSuccess');
+  const submitBtn = document.getElementById('stInviteSubmit');
+  const email = (emailInput && emailInput.value || '').trim();
+  const seller = settings.selectedRole === 'seller' ? (sellerInput && sellerInput.value || '').trim() : '';
+  if (errEl) errEl.classList.remove('show');
+  if (okEl) okEl.classList.remove('show');
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    if (errEl) { errEl.textContent = 'Please enter a valid email address.'; errEl.classList.add('show'); }
+    return;
+  }
+  if (settings.selectedRole === 'seller' && !seller) {
+    if (errEl) { errEl.textContent = 'Seller name is required for the Seller role.'; errEl.classList.add('show'); }
+    return;
+  }
+  if (typeof sb === 'undefined' || !sb) {
+    if (errEl) { errEl.textContent = 'Supabase not initialized.'; errEl.classList.add('show'); }
+    return;
+  }
+  if (typeof gmvIsCreator !== 'function' || !gmvIsCreator()) {
+    if (errEl) { errEl.textContent = 'Only the creator can invite.'; errEl.classList.add('show'); }
+    return;
+  }
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending invite…'; }
+  try {
+    const { data, error } = await sb.functions.invoke('invite-user', {
+      body: { email, seller }
+    });
+    if (error) throw new Error(error.message || String(error));
+    if (data && data.error) throw new Error(data.error);
+    // Save locally for "recent invites" list.
+    const invite = { email, seller: seller || '', when: Date.now() };
+    settings.recentInvites = [invite, ...settings.recentInvites].slice(0, 50);
+    try { localStorage.setItem('rihab_recent_invites_v1', JSON.stringify(settings.recentInvites)); } catch (_) {}
+    if (okEl) {
+      okEl.innerHTML = `<b>Invite sent.</b> ${settingsEscapeHtml(email)} will receive a Supabase email${seller ? ' as seller "' + settingsEscapeHtml(seller) + '"' : ''}.`;
+      okEl.classList.add('show');
+    }
+    settingsRenderTeam();
+    settingsRenderRecent();
+    setTimeout(() => settingsCloseInviteModal(), 1800);
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Invite failed: ' + (e && e.message ? e.message : e); errEl.classList.add('show'); }
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Send invite'; }
+  }
+}
+
+function settingsInit() {
+  if (settings.inited) {
+    settingsRenderAccount();
+    settingsRenderTeam();
+    settingsRenderRecent();
+    return;
+  }
+  settings.inited = true;
+  // Wire invite trigger.
+  const inviteBtn = document.getElementById('stInviteBtn');
+  if (inviteBtn) inviteBtn.addEventListener('click', settingsOpenInviteModal);
+  // Modal close + submit.
+  const cancelBtn = document.getElementById('stInviteCancel');
+  if (cancelBtn) cancelBtn.addEventListener('click', settingsCloseInviteModal);
+  const submitBtn = document.getElementById('stInviteSubmit');
+  if (submitBtn) submitBtn.addEventListener('click', settingsSubmitInvite);
+  const bg = document.getElementById('stInviteModal');
+  if (bg) bg.addEventListener('click', e => { if (e.target === bg) settingsCloseInviteModal(); });
+  // Role cards.
+  document.querySelectorAll('#stInviteModal .st-role-card').forEach(c => {
+    c.addEventListener('click', () => settingsSelectRole(c.dataset.role));
+  });
+  // Email Enter → submit.
+  const emailInput = document.getElementById('stInviteEmail');
+  if (emailInput) emailInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); settingsSubmitInvite(); }
+  });
+  const sellerInput = document.getElementById('stInviteSeller');
+  if (sellerInput) sellerInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); settingsSubmitInvite(); }
+  });
+  // Esc to close.
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') settingsCloseInviteModal();
+  });
+  settingsRenderAccount();
+  settingsRenderTeam();
+  settingsRenderRecent();
+}
+
+// =========================================================================
+// Order Fulfillment — distributes stock to maximize fully-completed orders,
+// then squeezes partials down to 80%. Self-contained module.
+// =========================================================================
+
+const fulfill = {
+  // Each entry is one ORDER LINE. Multiple lines with the same orderCode
+  // belong to the same logical order.
+  orders: [],          // [{orderCode, phone, productCode, qty, amount, status, date, name}]
+  clients: {},         // phone -> { name, seller }
+  stock: {},           // productCode -> qty
+  amaProducts: new Set(),
+  allocations: { full: [], partial: [], waiting: [] },
+  remainingStock: {},
+  topThreshold: 100000,
+  activeTab: 'full',
+  sellerFilter: '',
+  search: '',
+  expandedOrders: {},  // orderCode -> bool (line-detail toggle)
+  allocStrategy: (typeof localStorage !== 'undefined' && localStorage.getItem('rihab_ff_strategy_v1')) || 'dp', // 'dp' | 'max100'
+  inited: false,
+};
+
+function fulfillSetSummary(elId, html) {
+  const el = document.getElementById(elId);
+  if (el) el.innerHTML = html;
+}
+
+function fulfillFmtMad(n) {
+  if (!n && n !== 0) return '0';
+  return Math.round(n).toLocaleString('en-US') + ' MAD';
+}
+
+// ---- Parsers ------------------------------------------------------
+async function fulfillParseOrders(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty orders file.');
+  const cCode    = findCol(rows[0], ['Code','code','order_code','OrderCode','partnerReference','PartnerReference','order code','OrderID','order_id']);
+  const cPhone   = findCol(rows[0], ['Customer_PhoneNumber','Client phone number','phoneNumber','Phone number','Phone','phone']);
+  const cProd    = findCol(rows[0], ['partnerCode','PartnerCode','partner_code','productCode','ProductCode','product_code','Product code']);
+  const cProdName = findCol(rows[0], ['productName','ProductName','product_name','Product name','Product Name','Description','description','articleName','ArticleName']);
+  const cQty     = findCol(rows[0], ['Quantity','quantity','qty','Qty','ordered_quantity','OrderedQuantity']);
+  const cAmount  = findCol(rows[0], ['amountAfterDiscount','AmountAfterDiscount','Total','Price total','Total price','Amount','PriceTotal']);
+  const cName    = findCol(rows[0], ['Client name','ClientName','Customer_Name','Customer Name','Name','partnerName','PartnerName']);
+  const cStatus  = findCol(rows[0], ['Status','OrderStatus','status']);
+  const cDate    = findCol(rows[0], ['Order date','OrderDate','Date','date']);
+  const cChannel = findCol(rows[0], ['Channel']);
+  if (!cCode) throw new Error('Missing order code column (Code / partnerReference).');
+  if (!cProd) throw new Error('Missing product code column (partnerCode / Code).');
+  if (!cQty)  throw new Error('Missing quantity column.');
+  const out = [];
+  let skipped = 0;
+  rows.forEach(r => {
+    // Wholesale only — required, not optional. (Matches Delivery Planner.)
+    if (!cChannel) { skipped++; return; }
+    const ch = String(r[cChannel] || '').trim().toUpperCase();
+    if (ch !== 'Z_WHOLESALER') { skipped++; return; }
+    // Status whitelist — only orders that should still consume stock:
+    // PENDING, REPLANNED (any spelling), REPORTED / RESCHEDULED.
+    if (!cStatus) { skipped++; return; }
+    const stRaw = String(r[cStatus] || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+    const KEEP = ['PENDING','REPLANED','REPLANNED','REPORTED','RESCHEDULED'];
+    if (!KEEP.includes(stRaw)) { skipped++; return; }
+    const orderCode = String(r[cCode] || '').trim();
+    const productCode = String(r[cProd] || '').trim();
+    const qty = parseFloat(r[cQty]) || 0;
+    if (!orderCode || !productCode || !qty) { skipped++; return; }
+    out.push({
+      orderCode,
+      productCode,
+      productName: cProdName ? String(r[cProdName] || '').trim() : '',
+      qty,
+      amount: cAmount ? (parsePrice(r[cAmount]) || 0) : 0,
+      phone: cPhone ? normalizePhone(r[cPhone]) : '',
+      name: cName ? String(r[cName] || '').trim() : '',
+      status: cStatus ? String(r[cStatus] || '').trim() : '',
+      date: cDate ? parseDate(r[cDate]) : null,
+    });
+  });
+  return { lines: out, skipped };
+}
+
+async function fulfillParseClients(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty clients file.');
+  const cPhone  = findCol(rows[0], ['phoneNumber','Customer_PhoneNumber','Phone number','Phone','phone']);
+  const cSeller = findCol(rows[0], ['SalesRep_Name','Sales Rep','SellerName','Seller','seller','sellerName']);
+  const cName   = findCol(rows[0], ['Customer_Name','Customer Name','full_name','FullName','Name','name']);
+  if (!cPhone) throw new Error('Missing phone column.');
+  if (!cSeller) throw new Error('Missing seller column.');
+  const out = {};
+  rows.forEach(r => {
+    const p = normalizePhone(r[cPhone]);
+    if (!p) return;
+    out[p] = {
+      seller: String(r[cSeller] || '').trim(),
+      name:   cName ? String(r[cName] || '').trim() : ''
+    };
+  });
+  return out;
+}
+
+async function fulfillParseStock(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty stock file.');
+  const cCode = findCol(rows[0], ['partnerCode','PartnerCode','partner_code','Code','code','productCode','ProductCode','product_code']);
+  const cQty  = findCol(rows[0], ['quantity','Quantity','qty','Qty','stock','Stock','available','Available']);
+  if (!cCode) throw new Error('Missing product code column.');
+  if (!cQty)  throw new Error('Missing quantity column.');
+  const out = {};
+  rows.forEach(r => {
+    const code = String(r[cCode] || '').trim();
+    const q = parseFloat(r[cQty]) || 0;
+    if (!code) return;
+    out[code] = (out[code] || 0) + q;
+  });
+  return out;
+}
+
+async function fulfillParseAma(file) {
+  // Load the workbook and pick the sheet that has a PARTENAIRE column
+  // (or, failing that, a Product code column). This handles files where
+  // the first sheet is something else (stock dump, etc.).
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  let rows = null;
+  let pickedSheet = null;
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    if (!ws) continue;
+    const sheetRows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: true });
+    if (!sheetRows.length) continue;
+    const hasPart = findCol(sheetRows[0], ['PARTENAIRE','Partenaire','partenaire','Partner','partner']);
+    const hasCode = findCol(sheetRows[0], ['Product code','product code','product_code','productCode','ProductCode','Code','code','partnerCode','PartnerCode','Article','article','Reference','reference','Ref','ref','SKU','sku']);
+    if (hasPart && hasCode) { rows = sheetRows; pickedSheet = sheetName; break; }
+    if (!rows && hasCode) { rows = sheetRows; pickedSheet = sheetName; }
+  }
+  if (!rows || !rows.length) throw new Error('No AMA sheet found. Make sure one sheet has a Product code column (and ideally a PARTENAIRE column).');
+  console.log('[fulfillParseAma] using sheet:', pickedSheet, 'rows:', rows.length);
+  const cPart = findCol(rows[0], ['PARTENAIRE','Partenaire','partenaire','Partner','partner']);
+  let cCode = findCol(rows[0], ['Product code','product code','product_code','productCode','ProductCode','Code','code','partnerCode','PartnerCode','Article','article','Reference','reference','Ref','ref','SKU','sku']);
+  // Fuzzy fallback: any column whose name CONTAINS "code", "art", "ref", "sku" or "product".
+  if (!cCode) {
+    const keys = Object.keys(rows[0]);
+    cCode = keys.find(k => /(code|art|ref|sku|produit|product)/i.test(k));
+  }
+  // Last resort: if there's only one non-PARTENAIRE column, use it.
+  if (!cCode) {
+    const keys = Object.keys(rows[0]).filter(k => k !== cPart);
+    if (keys.length === 1) cCode = keys[0];
+  }
+  if (!cCode) {
+    const seen = Object.keys(rows[0]).map(k => `"${k}"`).join(', ') || '(no headers)';
+    throw new Error('Missing product code column. The file headers I saw were: ' + seen);
+  }
+  const set = new Set();
+  rows.forEach(r => {
+    if (cPart) {
+      const p = String(r[cPart] || '').trim().toUpperCase();
+      if (p && p !== 'AMA') return;
+    }
+    const code = String(r[cCode] || '').trim();
+    if (code) set.add(code);
+  });
+  return set;
+}
+
+// ---- Allocator ----------------------------------------------------
+function fulfillRunAllocator() {
+  if (!fulfill.orders.length) return;
+
+  // Group lines by orderCode.
+  const byCode = {};
+  fulfill.orders.forEach(l => {
+    if (!byCode[l.orderCode]) byCode[l.orderCode] = [];
+    byCode[l.orderCode].push(l);
+  });
+  const orderObjs = Object.entries(byCode).map(([code, lines]) => {
+    const totalQty = lines.reduce((s, l) => s + l.qty, 0);
+    const totalAmt = lines.reduce((s, l) => s + (l.amount || 0), 0);
+    const phone = lines[0].phone || '';
+    const cl = fulfill.clients[phone] || {};
+    const seller = cl.seller || '';
+    const name = cl.name || lines[0].name || '';
+    // Aggregate qty needed per product (in case a code repeats across lines).
+    const needPer = {};
+    lines.forEach(l => { needPer[l.productCode] = (needPer[l.productCode] || 0) + l.qty; });
+    return { code, lines, totalQty, totalAmt, phone, seller, name, needPer };
+  });
+
+  // Working stock copy.
+  const stock = Object.assign({}, fulfill.stock);
+
+  const fullList = [];
+  const partialList = [];
+  const waitingList = [];
+
+  if (fulfill.allocStrategy === 'max100') {
+    // Strategy: max number of 100% orders. Reserves stock for orders
+    // that can be FULLY filled (file order); leftover stock is then
+    // distributed greedily to the rest by potential% DESC.
+    const _firstSeen = {};
+    fulfill.orders.forEach((l, i) => { if (!(l.orderCode in _firstSeen)) _firstSeen[l.orderCode] = i; });
+    orderObjs.sort((a, b) => (_firstSeen[a.code] || 0) - (_firstSeen[b.code] || 0));
+    const remaining = [];
+    orderObjs.forEach(ord => {
+      const canFull = Object.entries(ord.needPer).every(([code, q]) => (stock[code] || 0) >= q);
+      if (canFull) {
+        Object.entries(ord.needPer).forEach(([code, q]) => { stock[code] = (stock[code] || 0) - q; });
+        ord.fulfillPct = 100;
+        ord.deliverableTotal = ord.totalQty;
+        ord.lines.forEach(l => { l.deliverable = l.qty; });
+        fullList.push(ord);
+      } else {
+        remaining.push(ord);
+      }
+    });
+    function potentialPct(ord, st) {
+      let d = 0; const tmp = {};
+      ord.lines.forEach(l => {
+        const have = (st[l.productCode] || 0) - (tmp[l.productCode] || 0);
+        const give = Math.min(l.qty, Math.max(0, have));
+        tmp[l.productCode] = (tmp[l.productCode] || 0) + give;
+        d += give;
+      });
+      return d / ord.totalQty * 100;
+    }
+    remaining.forEach(o => { o._potential = potentialPct(o, stock); });
+    remaining.sort((a, b) => b._potential - a._potential);
+    remaining.forEach(ord => {
+      let deliv = 0; const used = {};
+      ord.lines.forEach(l => {
+        const have = (stock[l.productCode] || 0) - (used[l.productCode] || 0);
+        const give = Math.min(l.qty, Math.max(0, have));
+        used[l.productCode] = (used[l.productCode] || 0) + give;
+        l.deliverable = give; deliv += give;
+      });
+      Object.entries(used).forEach(([code, q]) => { stock[code] = (stock[code] || 0) - q; });
+      ord.fulfillPct = deliv / ord.totalQty * 100;
+      ord.deliverableTotal = deliv;
+      if (ord.fulfillPct >= 80) partialList.push(ord);
+      else waitingList.push(ord);
+    });
+  } else {
+    // Strategy: DP-style — line-by-line in file order, no reservation.
+    // Maximizes total deliverable volume, matches Delivery Planner.
+    fulfill.orders.forEach(l => {
+      const have = Math.max(0, stock[l.productCode] || 0);
+      const give = Math.min(l.qty, have);
+      l.deliverable = give;
+      stock[l.productCode] = have - give;
+    });
+    orderObjs.forEach(ord => {
+      const deliv = ord.lines.reduce((s, l) => s + (l.deliverable || 0), 0);
+      ord.deliverableTotal = deliv;
+      ord.fulfillPct = ord.totalQty ? (deliv / ord.totalQty * 100) : 0;
+      if (ord.fulfillPct >= 100) fullList.push(ord);
+      else if (ord.fulfillPct >= 80) partialList.push(ord);
+      else waitingList.push(ord);
+    });
+  }
+
+  // Sort each list for display.
+  fullList.sort((a, b) => b.totalAmt - a.totalAmt);
+  partialList.sort((a, b) => b.fulfillPct - a.fulfillPct);
+  waitingList.sort((a, b) => b.fulfillPct - a.fulfillPct);
+
+  fulfill.allocations = { full: fullList, partial: partialList, waiting: waitingList };
+  fulfill.remainingStock = stock;
+  // Diagnostic — surfaces totals so we can compare against Delivery Planner.
+  try {
+    const sum = list => list.reduce((s,o)=>s+(o.totalAmt||0),0);
+    const sumDeliv = list => list.reduce((s,o)=>{
+      const r = o.totalQty ? (o.deliverableTotal||0)/o.totalQty : 0;
+      return s + (o.totalAmt||0) * r;
+    }, 0);
+    const totalOrders = orderObjs.length;
+    const totalLines = orderObjs.reduce((s,o)=>s+o.lines.length,0);
+    const totalDemandUnits = orderObjs.reduce((s,o)=>s+o.totalQty,0);
+    const totalDeliverableUnits = orderObjs.reduce((s,o)=>s+(o.deliverableTotal||0),0);
+    console.log('[OF allocator]',
+      '\n  orders processed:', totalOrders,
+      '\n  total lines:', totalLines,
+      '\n  total demand (units):', totalDemandUnits,
+      '\n  total allocated (units):', totalDeliverableUnits,
+      '\n  stock remaining (sum):', Object.values(stock).reduce((s,v)=>s+Math.max(0,v||0),0),
+      '\n  100% bucket:', fullList.length, 'orders, GMV', sum(fullList).toFixed(0),
+      '\n  ≥80% bucket:', partialList.length, 'orders, GMV', sum(partialList).toFixed(0), '(deliverable GMV', sumDeliv(partialList).toFixed(0), ')',
+      '\n  waiting:', waitingList.length, 'orders, GMV', sum(waitingList).toFixed(0), '(deliverable GMV', sumDeliv(waitingList).toFixed(0), ')',
+      '\n  100%+≥80% combined GMV:', (sum(fullList)+sum(partialList)).toFixed(0),
+      '\n  100%+≥80% combined deliverable GMV:', (sum(fullList)+sumDeliv(partialList)).toFixed(0)
+    );
+  } catch (_) {}
+}
+
+// ---- Filters / helpers --------------------------------------------
+function fulfillSellerOptions() {
+  const sellers = new Set();
+  Object.values(fulfill.clients).forEach(c => { if (c.seller) sellers.add(c.seller); });
+  return Array.from(sellers).sort();
+}
+
+function fulfillRefreshSellerFilter() {
+  const sel = document.getElementById('ffSellerFilter');
+  if (!sel) return;
+  const sellerLock = (typeof gmvSellerName === 'function') ? gmvSellerName() : '';
+  const cur = sel.value;
+  const sellers = fulfillSellerOptions();
+  if (sellerLock) {
+    // Sellers see only their own option, locked.
+    sel.innerHTML = `<option value="${sellerLock.replace(/"/g,'&quot;')}">${sellerLock}</option>`;
+    sel.value = sellerLock;
+    sel.disabled = true;
+    fulfill.sellerFilter = sellerLock;
+  } else {
+    sel.disabled = false;
+    sel.innerHTML = '<option value="">All sellers</option>' +
+      sellers.map(s => `<option value="${s.replace(/"/g,'&quot;')}">${s}</option>`).join('');
+    if (sellers.includes(cur)) sel.value = cur;
+  }
+}
+
+function fulfillFilterOrders(list) {
+  const seller = fulfill.sellerFilter;
+  const q = (fulfill.search || '').trim().toLowerCase();
+  return list.filter(ord => {
+    if (seller && ord.seller !== seller) return false;
+    if (q) {
+      const hay = (ord.code + ' ' + (ord.name || '') + ' ' + (ord.phone || '')).toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+}
+
+function fulfillEscapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+// ---- Renderers ----------------------------------------------------
+function fulfillPctClass(p) {
+  if (p >= 100) return 'full';
+  if (p >= 80) return 'partial';
+  return 'low';
+}
+
+function fulfillRenderOrdersTable(list, hostId) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  if (!list.length) { host.innerHTML = '<div class="ff-empty">No orders to show.</div>'; return; }
+  const rows = list.map(ord => {
+    const expanded = !!fulfill.expandedOrders[ord.code];
+    const pct = ord.fulfillPct || 0;
+    const pctC = fulfillPctClass(pct);
+    const main = `
+      <tr class="ord-row" data-ffcode="${fulfillEscapeHtml(ord.code)}">
+        <td><b>${fulfillEscapeHtml(ord.code)}</b></td>
+        <td>${fulfillEscapeHtml(ord.name || '(no name)')}<div style="color:var(--text-soft); font-size:11px;">${fulfillEscapeHtml(ord.phone)}</div></td>
+        <td>${fulfillEscapeHtml(ord.seller || '—')}</td>
+        <td>${ord.totalQty.toLocaleString()}</td>
+        <td>${(ord.deliverableTotal || 0).toLocaleString()}</td>
+        <td class="ff-pct ${pctC}">${pct.toFixed(1)}%</td>
+        <td>${fulfillFmtMad(ord.totalAmt)}</td>
+        <td><span style="color:var(--text-soft); font-size:11px;">${expanded ? '▼' : '▶'} ${ord.lines.length} line(s)</span></td>
+      </tr>`;
+    let detail = '';
+    if (expanded) {
+      const lineRows = ord.lines.map(l => {
+        // Resolve a friendly name: line's own productName → GMV categories → '—'.
+        let pname = l.productName || '';
+        if (!pname && typeof gmv !== 'undefined' && gmv && gmv.productCategories) {
+          const cat = gmv.productCategories[l.productCode];
+          if (cat && cat.description) pname = cat.description;
+        }
+        if (!pname) pname = '—';
+        return `
+        <tr>
+          <td><b>${fulfillEscapeHtml(l.productCode)}</b></td>
+          <td>${fulfillEscapeHtml(pname)}</td>
+          <td>${l.qty.toLocaleString()}</td>
+          <td>${(l.deliverable || 0).toLocaleString()}</td>
+          <td>${fulfillFmtMad(l.amount || 0)}</td>
+        </tr>`;
+      }).join('');
+      detail = `
+        <tr class="lines-row">
+          <td colspan="8">
+            <div class="lines-inner">
+              <table>
+                <thead><tr><th>Product code</th><th>Product name</th><th>Qty</th><th>Deliverable</th><th>Line amount</th></tr></thead>
+                <tbody>${lineRows}</tbody>
+              </table>
+            </div>
+          </td>
+        </tr>`;
+    }
+    return main + detail;
+  }).join('');
+  host.innerHTML = `
+    <table class="ff-table">
+      <thead><tr>
+        <th>Order code</th><th>Client</th><th>Seller</th><th>Ordered (units)</th>
+        <th>Deliverable</th><th>Fulfillment</th><th>Total amount</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  host.querySelectorAll('tr.ord-row').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const code = tr.dataset.ffcode;
+      fulfill.expandedOrders[code] = !fulfill.expandedOrders[code];
+      fulfillRenderAll();
+    });
+  });
+}
+
+function fulfillTopClients() {
+  const ama = fulfill.amaProducts;
+  if (!ama || !ama.size) return [];
+  // Sum AMA-GMV per phone across ALL orders (regardless of allocator outcome).
+  const byPhone = {};
+  fulfill.orders.forEach(l => {
+    if (!ama.has(l.productCode)) return;
+    if (!byPhone[l.phone]) byPhone[l.phone] = { phone: l.phone, gmv: 0, lines: [] };
+    byPhone[l.phone].gmv += (l.amount || 0);
+    byPhone[l.phone].lines.push(l);
+  });
+  // Status by orderCode (full / partial / wait).
+  const statusByOrd = {};
+  fulfill.allocations.full.forEach(o => statusByOrd[o.code] = 'full');
+  fulfill.allocations.partial.forEach(o => statusByOrd[o.code] = 'partial');
+  fulfill.allocations.waiting.forEach(o => statusByOrd[o.code] = 'wait');
+  const list = Object.values(byPhone)
+    .filter(c => c.gmv >= fulfill.topThreshold)
+    .map(c => {
+      const cl = fulfill.clients[c.phone] || {};
+      const ordersSet = new Set(c.lines.map(l => l.orderCode));
+      const ords = Array.from(ordersSet).map(code => ({ code, status: statusByOrd[code] || 'unknown' }));
+      // Resolve name: clients file → order line's name → '(no name)'.
+      const lineName = (c.lines[0] && c.lines[0].name) ? c.lines[0].name : '';
+      return { phone: c.phone, name: cl.name || lineName || '(no name)', seller: cl.seller || '—', gmv: c.gmv, orders: ords };
+    })
+    .sort((a, b) => b.gmv - a.gmv);
+  return list;
+}
+
+function fulfillRenderTopClients(hostId) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  let list = fulfillTopClients();
+  if (fulfill.sellerFilter) list = list.filter(c => c.seller === fulfill.sellerFilter);
+  if (fulfill.search) {
+    const q = fulfill.search.toLowerCase();
+    list = list.filter(c => (c.name + ' ' + c.phone).toLowerCase().includes(q));
+  }
+  if (!list.length) {
+    host.innerHTML = `<div class="ff-empty">No clients above ${fulfillFmtMad(fulfill.topThreshold)} AMA-GMV.${fulfill.amaProducts.size ? '' : ' (Upload the AMA products file first.)'}</div>`;
+    return;
+  }
+  if (!fulfill.expandedTopClients) fulfill.expandedTopClients = {};
+  const allOrders = {};
+  fulfill.allocations.full.concat(fulfill.allocations.partial, fulfill.allocations.waiting)
+    .forEach(o => { allOrders[o.code] = o; });
+
+  const rows = list.map(c => {
+    const expandedClient = !!fulfill.expandedTopClients[c.phone];
+    const main = `
+      <tr class="ord-row" data-ffclient="${fulfillEscapeHtml(c.phone)}">
+        <td>${expandedClient ? '▼' : '▶'} <b>${fulfillEscapeHtml(c.name)}</b><div style="color:var(--text-soft); font-size:11px;">${fulfillEscapeHtml(c.phone)}</div></td>
+        <td>${fulfillEscapeHtml(c.seller)}</td>
+        <td><b>${fulfillFmtMad(c.gmv)}</b></td>
+        <td>${c.orders.length} order(s)</td>
+      </tr>`;
+    let detail = '';
+    if (expandedClient) {
+      const orderRows = c.orders.map(oRef => {
+        const ord = allOrders[oRef.code];
+        if (!ord) return '';
+        const stat = oRef.status;
+        const statCls = stat === 'full' ? 'full' : stat === 'partial' ? 'partial' : 'wait';
+        const statLabel = stat === 'full' ? '100%' : stat === 'partial' ? '≥80%' : 'Waiting';
+        const ordExpanded = !!fulfill.expandedOrders[ord.code];
+        const ordHead = `
+          <tr class="ord-row" data-ffcode="${fulfillEscapeHtml(ord.code)}">
+            <td colspan="2" style="padding-left:24px;">${ordExpanded ? '▼' : '▶'} <b>${fulfillEscapeHtml(ord.code)}</b></td>
+            <td><span class="ff-status-badge ${statCls}">${statLabel}</span> ${(ord.fulfillPct || 0).toFixed(1)}%</td>
+            <td>${(ord.deliverableTotal || 0).toLocaleString()} / ${ord.totalQty.toLocaleString()} units · ${fulfillFmtMad(ord.totalAmt)}</td>
+          </tr>`;
+        let lineDetail = '';
+        if (ordExpanded) {
+          const lineRows = ord.lines.map(l => {
+            let pname = l.productName || '';
+            if (!pname && typeof gmv !== 'undefined' && gmv && gmv.productCategories) {
+              const cat = gmv.productCategories[l.productCode];
+              if (cat && cat.description) pname = cat.description;
+            }
+            if (!pname) pname = '—';
+            const initialStock = (fulfill.stock && fulfill.stock[l.productCode]) || 0;
+            const remStock = (fulfill.remainingStock && fulfill.remainingStock[l.productCode]) || 0;
+            return `
+              <tr>
+                <td><b>${fulfillEscapeHtml(l.productCode)}</b></td>
+                <td>${fulfillEscapeHtml(pname)}</td>
+                <td>${l.qty.toLocaleString()}</td>
+                <td>${(l.deliverable || 0).toLocaleString()}</td>
+                <td>${initialStock.toLocaleString()}</td>
+                <td>${remStock.toLocaleString()}</td>
+                <td>${fulfillFmtMad(l.amount || 0)}</td>
+              </tr>`;
+          }).join('');
+          lineDetail = `
+            <tr class="lines-row">
+              <td colspan="4">
+                <div class="lines-inner" style="padding-left:48px;">
+                  <table>
+                    <thead><tr>
+                      <th>Product code</th><th>Product name</th>
+                      <th>Ordered</th><th>Deliverable</th>
+                      <th>Stock (initial)</th><th>Stock (after)</th>
+                      <th>Line amount</th>
+                    </tr></thead>
+                    <tbody>${lineRows}</tbody>
+                  </table>
+                </div>
+              </td>
+            </tr>`;
+        }
+        return ordHead + lineDetail;
+      }).join('');
+      detail = `
+        <tr class="lines-row">
+          <td colspan="4" style="padding:0;">
+            <table style="width:100%; background:#fafafa;">
+              <tbody>${orderRows}</tbody>
+            </table>
+          </td>
+        </tr>`;
+    }
+    return main + detail;
+  }).join('');
+
+  host.innerHTML = `
+    <table class="ff-table">
+      <thead><tr><th>Client</th><th>Seller</th><th>AMA-GMV</th><th>Orders</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  host.querySelectorAll('tr.ord-row[data-ffclient]').forEach(tr => {
+    tr.addEventListener('click', e => {
+      e.stopPropagation();
+      const phone = tr.dataset.ffclient;
+      fulfill.expandedTopClients[phone] = !fulfill.expandedTopClients[phone];
+      fulfillRenderAll();
+    });
+  });
+  host.querySelectorAll('tr.ord-row[data-ffcode]').forEach(tr => {
+    tr.addEventListener('click', e => {
+      e.stopPropagation();
+      const code = tr.dataset.ffcode;
+      fulfill.expandedOrders[code] = !fulfill.expandedOrders[code];
+      fulfillRenderAll();
+    });
+  });
+}
+
+// Sanity-check the allocator output against the input files.
+// Returns { passed, failed, summary, details }.
+function fulfillRunTests() {
+  const tests = [];
+  const T = (name, ok, detail) => tests.push({ name, ok: !!ok, detail: detail || '' });
+  const a = fulfill.allocations || { full: [], partial: [], waiting: [] };
+  const allOrders = a.full.concat(a.partial, a.waiting);
+  const totalLines = fulfill.orders.length;
+  const uniqueOrderCodes = new Set(fulfill.orders.map(l => l.orderCode)).size;
+
+  // 1. Order count: every input order is in exactly one bucket.
+  T('Every input order appears in exactly one bucket',
+    allOrders.length === uniqueOrderCodes,
+    `Input orders: ${uniqueOrderCodes} | In buckets: ${allOrders.length}`);
+
+  // 2. Bucket boundaries.
+  let badFull = 0, badPartial = 0, badWait = 0;
+  a.full.forEach(o => { if ((o.fulfillPct || 0) < 100 - 1e-6) badFull++; });
+  a.partial.forEach(o => { if ((o.fulfillPct || 0) < 80 - 1e-6 || (o.fulfillPct || 0) >= 100 - 1e-6) badPartial++; });
+  a.waiting.forEach(o => { if ((o.fulfillPct || 0) >= 80 - 1e-6) badWait++; });
+  T('100% bucket: every order has fulfillPct = 100', badFull === 0, `${badFull} order(s) failed`);
+  T('80–99% bucket: every order has 80 ≤ fulfillPct < 100', badPartial === 0, `${badPartial} order(s) failed`);
+  T('Waiting bucket: every order has fulfillPct < 80', badWait === 0, `${badWait} order(s) failed`);
+
+  // 3. Per-line: deliverable ≤ ordered.
+  let overAlloc = 0;
+  fulfill.orders.forEach(l => { if ((l.deliverable || 0) > (l.qty || 0) + 1e-6) overAlloc++; });
+  T('No line is over-allocated (deliverable ≤ ordered)', overAlloc === 0, `${overAlloc} line(s) over-allocated`);
+
+  // 4. Stock conservation per product.
+  const allocatedPer = {};
+  fulfill.orders.forEach(l => { allocatedPer[l.productCode] = (allocatedPer[l.productCode] || 0) + (l.deliverable || 0); });
+  const allCodes = new Set([...Object.keys(fulfill.stock || {}), ...Object.keys(allocatedPer), ...Object.keys(fulfill.remainingStock || {})]);
+  let stockMismatch = 0;
+  let overUsed = 0;
+  let mismatchExamples = [];
+  allCodes.forEach(code => {
+    const init = (fulfill.stock || {})[code] || 0;
+    const used = allocatedPer[code] || 0;
+    const rem = (fulfill.remainingStock || {})[code] || 0;
+    // initial = used + remaining
+    if (Math.abs(init - used - rem) > 1e-6) {
+      stockMismatch++;
+      if (mismatchExamples.length < 3) mismatchExamples.push(`${code}: init=${init}, used=${used}, remaining=${rem}`);
+    }
+    // can't allocate more than initial stock
+    if (used > init + 1e-6) overUsed++;
+  });
+  T('Stock conservation: initial = allocated + remaining (per SKU)', stockMismatch === 0,
+    stockMismatch ? `${stockMismatch} SKU(s) mismatched. e.g. ${mismatchExamples.join(' | ')}` : `All ${allCodes.size} SKU(s) balanced`);
+  T('No SKU over-used (allocated ≤ initial stock)', overUsed === 0, `${overUsed} SKU(s) over-used`);
+
+  // 5. Aggregated totals.
+  const totalOrdered = fulfill.orders.reduce((s, l) => s + (l.qty || 0), 0);
+  const totalDelivered = fulfill.orders.reduce((s, l) => s + (l.deliverable || 0), 0);
+  const stockSumInitial = Object.values(fulfill.stock || {}).reduce((s, v) => s + (v || 0), 0);
+  const stockSumRemaining = Object.values(fulfill.remainingStock || {}).reduce((s, v) => s + Math.max(0, v || 0), 0);
+  T('Total delivered units ≤ total stock', totalDelivered <= stockSumInitial + 1e-6,
+    `delivered=${totalDelivered.toLocaleString()}, stock=${stockSumInitial.toLocaleString()}`);
+
+  // 6. Order line-level math: ord.deliverableTotal = sum(line.deliverable)
+  let pctMismatch = 0;
+  allOrders.forEach(o => {
+    const sum = o.lines.reduce((s, l) => s + (l.deliverable || 0), 0);
+    if (Math.abs(sum - (o.deliverableTotal || 0)) > 1e-6) pctMismatch++;
+  });
+  T('Order deliverableTotal = sum of line deliverables', pctMismatch === 0, `${pctMismatch} order(s) mismatched`);
+
+  // 7. fulfillPct = deliverableTotal / totalQty * 100
+  let pctCalcMismatch = 0;
+  allOrders.forEach(o => {
+    const exp = o.totalQty ? (o.deliverableTotal || 0) / o.totalQty * 100 : 0;
+    if (Math.abs(exp - (o.fulfillPct || 0)) > 0.001) pctCalcMismatch++;
+  });
+  T('fulfillPct = deliverableTotal / totalQty × 100', pctCalcMismatch === 0, `${pctCalcMismatch} mismatched`);
+
+  const passed = tests.filter(t => t.ok).length;
+  const failed = tests.length - passed;
+  return {
+    passed, failed, total: tests.length, tests,
+    summary: { totalLines, uniqueOrderCodes, totalOrdered, totalDelivered, stockSumInitial, stockSumRemaining }
+  };
+}
+
+// Re-parse a freshly-uploaded orders file and compare with the in-memory
+// state. Catches parser drift and "phantom rows" issues.
+async function fulfillVerifyAgainstFile(file) {
+  const host = document.getElementById('ffTestReport');
+  if (!host) return;
+  host.style.display = 'block';
+  host.style.background = '#f1f5f9';
+  host.style.border = '1px solid #cbd5e1';
+  host.style.color = 'var(--text)';
+  host.innerHTML = 'Re-parsing file…';
+  // Raw count (every row in the workbook before any filter).
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rawRows = XLSX.utils.sheet_to_json(ws || {}, { defval: '', raw: true });
+  // Re-run the OF parser path.
+  const parsed = await fulfillParseOrders(file);
+  // Build comparison.
+  const cur = fulfill.orders || [];
+  const curUnique = new Set(cur.map(l => l.orderCode)).size;
+  const newUnique = new Set(parsed.lines.map(l => l.orderCode)).size;
+  const sumQty = list => list.reduce((s, l) => s + (l.qty || 0), 0);
+  const sumAmt = list => list.reduce((s, l) => s + (l.amount || 0), 0);
+  const cur_lines = cur.length, new_lines = parsed.lines.length;
+  const cur_qty = sumQty(cur), new_qty = sumQty(parsed.lines);
+  const cur_amt = sumAmt(cur), new_amt = sumAmt(parsed.lines);
+  const fmt = n => (Math.round(n * 100) / 100).toLocaleString();
+  const tests = [
+    { name: 'Line count matches', ok: cur_lines === new_lines, detail: `current: ${cur_lines}, re-parsed: ${new_lines}` },
+    { name: 'Unique-order count matches', ok: curUnique === newUnique, detail: `current: ${curUnique}, re-parsed: ${newUnique}` },
+    { name: 'Total ordered units match', ok: Math.abs(cur_qty - new_qty) < 1e-6, detail: `current: ${fmt(cur_qty)}, re-parsed: ${fmt(new_qty)}` },
+    { name: 'Total amount matches', ok: Math.abs(cur_amt - new_amt) < 0.5, detail: `current: ${fmt(cur_amt)}, re-parsed: ${fmt(new_amt)}` },
+  ];
+  // Diagnostics: how many rows were filtered out at parse time?
+  const dropped = rawRows.length - parsed.lines.length - parsed.skipped;
+  const droppedDetail = `Workbook total rows: ${rawRows.length} | Parser kept: ${parsed.lines.length} | Parser skipped (channel/status/empty): ${parsed.skipped}` + (dropped ? ` | Unaccounted: ${dropped}` : '');
+  const ok = tests.every(t => t.ok);
+  host.style.background = ok ? '#f0fdf4' : '#fee2e2';
+  host.style.border = '1px solid ' + (ok ? '#86efac' : '#fecaca');
+  host.style.color = ok ? '#166534' : '#7f1d1d';
+  const items = tests.map(t =>
+    `<li style="list-style:none; margin:2px 0;">` +
+    (t.ok ? '<span style="color:#166534;">✓</span>' : '<span style="color:#dc2626;">✗</span>') +
+    ` ${fulfillEscapeHtml(t.name)} <span style="color:var(--text-soft); font-size:11px;">— ${fulfillEscapeHtml(t.detail)}</span></li>`
+  ).join('');
+  host.innerHTML = `
+    <div style="font-size:14px; margin-bottom:6px;">
+      <b>${ok ? '✓ Verification passed — the in-memory data matches the file.' : '✗ Verification failed — current state does NOT match the file.'}</b>
+    </div>
+    <ul style="margin:0; padding:0;">${items}</ul>
+    <div style="margin-top:8px; font-size:11px; color:var(--text-soft); border-top:1px dashed #cbd5e1; padding-top:6px;">
+      ${droppedDetail}
+    </div>`;
+}
+
+function fulfillShowTestReport() {
+  const host = document.getElementById('ffTestReport');
+  if (!host) return;
+  if (!fulfill.orders.length || !Object.keys(fulfill.stock).length) {
+    host.style.display = 'block';
+    host.style.background = '#fef3c7';
+    host.style.border = '1px solid #f59e0b';
+    host.style.color = '#78350f';
+    host.innerHTML = '<b>Cannot run tests</b> — upload Orders and Stock files first.';
+    return;
+  }
+  const r = fulfillRunTests();
+  const ok = r.failed === 0;
+  host.style.display = 'block';
+  host.style.background = ok ? '#f0fdf4' : '#fee2e2';
+  host.style.border = '1px solid ' + (ok ? '#86efac' : '#fecaca');
+  host.style.color = ok ? '#166534' : '#7f1d1d';
+  const items = r.tests.map(t =>
+    `<li style="list-style:none; margin:2px 0;">` +
+    (t.ok ? '<span style="color:#166534;">✓</span>' : '<span style="color:#dc2626;">✗</span>') +
+    ` ${fulfillEscapeHtml(t.name)}` +
+    (t.detail ? ` <span style="color:var(--text-soft); font-size:11px;">— ${fulfillEscapeHtml(t.detail)}</span>` : '') +
+    `</li>`
+  ).join('');
+  const s = r.summary;
+  host.innerHTML = `
+    <div style="font-size:14px; margin-bottom:6px;">
+      <b>${ok ? '✓ All ' + r.total + ' checks passed' : '✗ ' + r.failed + ' of ' + r.total + ' checks failed'}</b>
+    </div>
+    <ul style="margin:0; padding:0;">${items}</ul>
+    <div style="margin-top:8px; font-size:11px; color:var(--text-soft); border-top:1px dashed #cbd5e1; padding-top:6px;">
+      Input lines: <b>${s.totalLines.toLocaleString()}</b>
+       · Unique orders: <b>${s.uniqueOrderCodes.toLocaleString()}</b>
+       · Total ordered units: <b>${s.totalOrdered.toLocaleString()}</b>
+       · Total delivered units: <b>${s.totalDelivered.toLocaleString()}</b>
+       · Stock initial: <b>${s.stockSumInitial.toLocaleString()}</b>
+       · Stock remaining: <b>${s.stockSumRemaining.toLocaleString()}</b>
+    </div>`;
+}
+
+function fulfillRenderAll() {
+  fulfillRefreshSellerFilter();
+  const a = fulfill.allocations;
+  const fF = fulfillFilterOrders(a.full);
+  const fP = fulfillFilterOrders(a.partial);
+  const fW = fulfillFilterOrders(a.waiting);
+  // Pills.
+  const pillFull = document.getElementById('ffPillFull');
+  const pillPart = document.getElementById('ffPillPartial');
+  const pillWait = document.getElementById('ffPillWaiting');
+  const pillTop  = document.getElementById('ffPillTop');
+  if (pillFull) pillFull.textContent = fF.length;
+  if (pillPart) pillPart.textContent = fP.length;
+  if (pillWait) pillWait.textContent = fW.length;
+  if (pillTop)  pillTop.textContent = fulfillTopClients().length;
+  // Summaries — show count + total GMV of orders currently in view.
+  const gmvLine = (n, sumOrd, sumDeliv) =>
+    `<span style="font-size:14px;"><b>${n}</b> order(s)</span> · ` +
+    `Total GMV in view: <b style="color:var(--text);">${fulfillFmtMad(sumOrd)}</b>` +
+    (sumDeliv != null ? ` · Deliverable GMV: <b style="color:#166534;">${fulfillFmtMad(sumDeliv)}</b>` : '');
+  const sumOrd = list => list.reduce((s,o) => s + (o.totalAmt || 0), 0);
+  const sumDeliv = list => list.reduce((s,o) => {
+    const ratio = o.totalQty ? (o.deliverableTotal || 0) / o.totalQty : 0;
+    return s + (o.totalAmt || 0) * ratio;
+  }, 0);
+  fulfillSetSummary('ffSummaryFull',
+    `Fully fulfilled (100%) — ${gmvLine(fF.length, sumOrd(fF), sumOrd(fF))}`);
+  fulfillSetSummary('ffSummaryPartial',
+    `Partial 80–99% — ${gmvLine(fP.length, sumOrd(fP), sumDeliv(fP))}`);
+  fulfillSetSummary('ffSummaryWaiting',
+    `Waiting list (<80%) — ${gmvLine(fW.length, sumOrd(fW), sumDeliv(fW))}`);
+  fulfillSetSummary('ffSummaryTop',
+    `Clients with AMA-GMV above <b>${fulfillFmtMad(fulfill.topThreshold)}</b>.`);
+  // Tables.
+  fulfillRenderOrdersTable(fF, 'ffTableFull');
+  fulfillRenderOrdersTable(fP, 'ffTablePartial');
+  fulfillRenderOrdersTable(fW, 'ffTableWaiting');
+  fulfillRenderTopClients('ffTableTop');
+}
+
+// ---- Wiring -------------------------------------------------------
+function fulfillTryAutoRun() {
+  if (fulfill.orders.length && Object.keys(fulfill.stock).length) {
+    fulfillRunAllocator();
+    fulfillRenderAll();
+    const s = document.getElementById('ffRunStatus');
+    if (s) s.innerHTML = '<span style="color:var(--success);">✓ Allocated.</span>';
+  }
+}
+
+async function fulfillOnUpload(kind, file) {
+  if (typeof gmvIsCreator === 'function' && !gmvIsCreator()) {
+    alert('Only the creator can upload files. You’re in viewer mode.');
+    return;
+  }
+  try {
+    if (kind === 'orders') {
+      const { lines, skipped } = await fulfillParseOrders(file);
+      fulfill.orders = lines;
+      fulfillSetSummary('ffOrdersSummary', `Loaded <b>${lines.length}</b> order line(s)${skipped ? `, skipped ${skipped}` : ''}.`);
+      document.getElementById('ffTileOrders')?.classList.add('ok');
+      await fulfillPush('ff_orders', lines);
+    } else if (kind === 'clients') {
+      fulfill.clients = await fulfillParseClients(file);
+      fulfillSetSummary('ffClientsSummary', `Loaded <b>${Object.keys(fulfill.clients).length}</b> client(s).`);
+      document.getElementById('ffTileClients')?.classList.add('ok');
+      await fulfillPush('ff_clients', fulfill.clients);
+    } else if (kind === 'stock') {
+      fulfill.stock = await fulfillParseStock(file);
+      fulfillSetSummary('ffStockSummary', `Loaded <b>${Object.keys(fulfill.stock).length}</b> SKU(s).`);
+      document.getElementById('ffTileStock')?.classList.add('ok');
+      await fulfillPush('ff_stock', fulfill.stock);
+    } else if (kind === 'ama') {
+      fulfill.amaProducts = await fulfillParseAma(file);
+      fulfillSetSummary('ffAmaSummary', `Loaded <b>${fulfill.amaProducts.size}</b> AMA product code(s).`);
+      document.getElementById('ffTileAma')?.classList.add('ok');
+      await fulfillPush('ff_ama', Array.from(fulfill.amaProducts));
+    }
+    fulfillTryAutoRun();
+  } catch (e) {
+    alert((kind[0].toUpperCase() + kind.slice(1)) + ' file error: ' + (e && e.message ? e.message : e));
+  }
+}
+
+// ---- Cloud sync ---------------------------------------------------
+async function fulfillPush(key, value) {
+  if (typeof sbWriteKey !== 'function' || typeof sbUser === 'undefined' || !sbUser) return false;
+  try { return await sbWriteKey(key, value); }
+  catch (e) { console.warn('fulfill push ' + key + ' failed:', e); return false; }
+}
+
+async function fulfillPullFromCloud() {
+  if (typeof sbUser === 'undefined' || !sbUser) return;
+  if (typeof gmvReadShared !== 'function') return;
+  try {
+    const [ords, clis, stk, ama, strategy] = await Promise.all([
+      gmvReadShared('ff_orders'),
+      gmvReadShared('ff_clients'),
+      gmvReadShared('ff_stock'),
+      gmvReadShared('ff_ama'),
+      gmvReadShared('ff_strategy'),
+    ]);
+    if (strategy === 'dp' || strategy === 'max100') {
+      fulfill.allocStrategy = strategy;
+      try { localStorage.setItem('rihab_ff_strategy_v1', strategy); } catch (_) {}
+      const sel = document.getElementById('ffStrategy');
+      if (sel) sel.value = strategy;
+    }
+    if (Array.isArray(ords) && ords.length) {
+      fulfill.orders = ords.map(l => ({
+        ...l,
+        date: l.date ? new Date(l.date) : null,
+      }));
+      fulfillSetSummary('ffOrdersSummary', `Synced <b>${ords.length}</b> order line(s) from ${gmvIsCreator() ? 'your account' : 'the creator’s account'}.`);
+      document.getElementById('ffTileOrders')?.classList.add('ok');
+    }
+    if (clis && typeof clis === 'object') {
+      fulfill.clients = clis;
+      fulfillSetSummary('ffClientsSummary', `Synced <b>${Object.keys(clis).length}</b> client(s).`);
+      document.getElementById('ffTileClients')?.classList.add('ok');
+    }
+    if (stk && typeof stk === 'object') {
+      fulfill.stock = stk;
+      fulfillSetSummary('ffStockSummary', `Synced <b>${Object.keys(stk).length}</b> SKU(s).`);
+      document.getElementById('ffTileStock')?.classList.add('ok');
+    }
+    if (Array.isArray(ama) && ama.length) {
+      fulfill.amaProducts = new Set(ama);
+      fulfillSetSummary('ffAmaSummary', `Synced <b>${ama.length}</b> AMA product code(s).`);
+      document.getElementById('ffTileAma')?.classList.add('ok');
+    }
+  } catch (e) { console.warn('fulfill pull failed:', e); }
+}
+
+// Apply viewer/creator gate: hide upload tiles for non-creators.
+function fulfillApplyRoleUI() {
+  const isCreator = (typeof gmvIsCreator === 'function') ? gmvIsCreator() : true;
+  const host = document.getElementById('featureFulfill');
+  if (!host) return;
+  const uploads = host.querySelector('.ff-uploads');
+  if (uploads) uploads.style.display = isCreator ? '' : 'none';
+  // Strategy selector: creator only.
+  const stratWrap = document.getElementById('ffStrategyWrap');
+  if (stratWrap) stratWrap.style.display = isCreator ? '' : 'none';
+  let badge = document.getElementById('ffRoleBadge');
+  if (!isCreator && typeof sbUser !== 'undefined' && sbUser) {
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'ffRoleBadge';
+      badge.style.cssText = 'margin:0 0 12px; padding:8px 12px; border-radius:6px; background:#eff6ff; color:#1e40af; font-size:12px; border:1px solid #bfdbfe;';
+      const tagline = host.querySelector('.ff-tagline');
+      if (tagline && tagline.parentNode) tagline.parentNode.insertBefore(badge, tagline.nextSibling);
+      else host.insertBefore(badge, host.firstChild);
+    }
+    badge.textContent = 'Viewer mode — only the creator can upload files. You see the latest synced data.';
+  } else if (badge) {
+    badge.remove();
+  }
+}
+
+async function fulfillInit() {
+  if (fulfill.inited) return;
+  fulfill.inited = true;
+  // Apply role UI immediately and again after auth resolves.
+  try { fulfillApplyRoleUI(); } catch (_) {}
+  // File handlers.
+  const wire = (id, kind) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (f) fulfillOnUpload(kind, f);
+      try { e.target.value = ''; } catch (_) {}
+    });
+  };
+  wire('ffOrdersFile', 'orders');
+  wire('ffClientsFile', 'clients');
+  wire('ffStockFile', 'stock');
+  wire('ffAmaFile', 'ama');
+
+  // Tabs.
+  document.querySelectorAll('.ff-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.fftab;
+      fulfill.activeTab = tab;
+      document.querySelectorAll('.ff-tab').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.ff-panel').forEach(p => p.classList.toggle('active', p.dataset.ffpanel === tab));
+    });
+  });
+
+  // Seller filter / search / threshold.
+  const selSeller = document.getElementById('ffSellerFilter');
+  if (selSeller) selSeller.addEventListener('change', () => {
+    fulfill.sellerFilter = selSeller.value;
+    fulfillRenderAll();
+  });
+  const search = document.getElementById('ffSearch');
+  if (search) search.addEventListener('input', () => {
+    fulfill.search = search.value;
+    fulfillRenderAll();
+  });
+  const thr = document.getElementById('ffTopThreshold');
+  if (thr) {
+    thr.value = fulfill.topThreshold;
+    thr.addEventListener('input', () => {
+      const n = parseFloat(thr.value);
+      fulfill.topThreshold = isFinite(n) ? n : 0;
+      fulfillRenderAll();
+    });
+  }
+  const strat = document.getElementById('ffStrategy');
+  if (strat) {
+    strat.value = fulfill.allocStrategy || 'dp';
+    strat.addEventListener('change', async () => {
+      fulfill.allocStrategy = strat.value === 'max100' ? 'max100' : 'dp';
+      try { localStorage.setItem('rihab_ff_strategy_v1', fulfill.allocStrategy); } catch (_) {}
+      // Creator pushes to Supabase so viewers/sellers see the same choice.
+      if (typeof gmvIsCreator === 'function' && gmvIsCreator()) {
+        await fulfillPush('ff_strategy', fulfill.allocStrategy);
+      }
+      if (fulfill.orders.length && Object.keys(fulfill.stock).length) {
+        fulfillRunAllocator();
+        fulfillRenderAll();
+      }
+    });
+  }
+
+  const testBtn = document.getElementById('ffTestBtn');
+  if (testBtn) testBtn.addEventListener('click', () => fulfillShowTestReport());
+  const verifyInput = document.getElementById('ffVerifyOrdersFile');
+  if (verifyInput) verifyInput.addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) fulfillVerifyAgainstFile(f).catch(err => alert('Verify failed: ' + (err.message || err)));
+    try { e.target.value = ''; } catch (_) {}
+  });
+
+  // Manual run button.
+  const runBtn = document.getElementById('ffRunBtn');
+  if (runBtn) runBtn.addEventListener('click', () => {
+    if (!fulfill.orders.length) { alert('Upload the orders file first.'); return; }
+    if (!Object.keys(fulfill.stock).length) { alert('Upload the stock file first.'); return; }
+    fulfillRunAllocator();
+    fulfillRenderAll();
+    const s = document.getElementById('ffRunStatus');
+    if (s) s.innerHTML = '<span style="color:var(--success);">✓ Allocated.</span>';
+  });
+
+  // Pull whatever the creator has already pushed (works for both
+  // creator and viewers — viewers read via gmvReadShared).
+  await fulfillPullFromCloud();
+  fulfillTryAutoRun();
+  fulfillRenderAll();
+  // Re-apply role UI now that data is in.
+  try { fulfillApplyRoleUI(); } catch (_) {}
+}
+
 </script>
 
 
@@ -19111,6 +20405,276 @@ function gmvRenderTargets() {
 
   </div>
 
+</div>
+
+<!-- ===== Order Fulfillment feature ===== -->
+<style>
+  .ff-app { padding:24px; max-width:1400px; margin:0 auto; }
+  .ff-app h1 { font-size:20px; margin:0 0 4px; color:var(--text); }
+  .ff-app .ff-tagline { font-size:13px; color:var(--text-soft); margin-bottom:16px; }
+  .ff-uploads { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:10px; margin-bottom:16px; }
+  .ff-tile { padding:12px; border-radius:8px; border:1px dashed #cbd5e1; background:#f8fafc; cursor:pointer; transition:.15s; }
+  .ff-tile:hover { background:#f1f5f9; border-color:#94a3b8; }
+  .ff-tile.ok { background:#f0fdf4; border:1px solid #86efac; border-style:solid; }
+  .ff-tile-title { font-weight:600; font-size:13px; margin-bottom:4px; }
+  .ff-tile-hint { font-size:11px; color:var(--text-soft); line-height:1.4; }
+  .ff-tile-summary { font-size:11px; color:#166534; margin-top:6px; }
+  .ff-tile input[type=file] { display:none; }
+  .ff-controls { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:12px; background:#f1f5f9; border-radius:8px; margin-bottom:12px; }
+  .ff-controls label { font-size:12px; color:var(--text-soft); }
+  .ff-controls input[type=number], .ff-controls select, .ff-controls input[type=search] { padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; background:#fff; }
+  .ff-tabs { display:flex; gap:6px; border-bottom:1px solid #e2e8f0; margin-bottom:12px; flex-wrap:wrap; }
+  .ff-tab { padding:8px 14px; border:0; background:transparent; cursor:pointer; font-size:13px; font-weight:600; color:var(--text-soft); border-bottom:2px solid transparent; }
+  .ff-tab.active { color:var(--text); border-bottom-color:#3b82f6; }
+  .ff-tab .pill { display:inline-block; margin-left:6px; padding:1px 8px; border-radius:10px; background:#e2e8f0; font-size:11px; font-weight:700; color:var(--text); }
+  .ff-tab.active .pill { background:#dbeafe; color:#1e40af; }
+  .ff-panel { display:none; }
+  .ff-panel.active { display:block; }
+  .ff-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .ff-table th { text-align:left; padding:8px 10px; background:#f8fafc; border-bottom:1px solid #e2e8f0; font-size:11px; color:var(--text-soft); text-transform:uppercase; letter-spacing:.04em; position:sticky; top:0; }
+  .ff-table td { padding:8px 10px; border-bottom:1px solid #f1f5f9; }
+  .ff-table tr.ord-row { cursor:pointer; }
+  .ff-table tr.ord-row:hover { background:#f8fafc; }
+  .ff-table tr.lines-row td { background:#fafafa; padding:0; }
+  .ff-table .lines-inner { padding:8px 16px; }
+  .ff-table .lines-inner table { width:100%; font-size:12px; }
+  .ff-table .lines-inner th { background:transparent; padding:4px 6px; }
+  .ff-table .lines-inner td { padding:4px 6px; border:0; }
+  .ff-pct { font-weight:700; }
+  .ff-pct.full { color:#166534; }
+  .ff-pct.partial { color:#92400e; }
+  .ff-pct.low { color:#7f1d1d; }
+  .ff-status-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+  .ff-status-badge.full { background:#dcfce7; color:#166534; }
+  .ff-status-badge.partial { background:#fef3c7; color:#92400e; }
+  .ff-status-badge.wait { background:#fee2e2; color:#7f1d1d; }
+  .ff-empty { padding:40px; text-align:center; color:var(--text-soft); font-size:13px; }
+  .ff-table-wrap { overflow-x:auto; border:1px solid #e2e8f0; border-radius:8px; max-height:600px; overflow-y:auto; }
+  .ff-summary { font-size:12px; color:var(--text-soft); margin-bottom:8px; }
+</style>
+<div class="app ff-app" id="featureFulfill" style="display:none;">
+  <h1>Order Fulfillment <span style="color:#dc2626; font-size:12px;">[v2 — DP-aligned]</span></h1>
+  <div class="ff-tagline">Allocate stock to maximize fully-completed orders. Remaining stock is then distributed to push partial fills as high as possible.</div>
+
+  <!-- Uploads -->
+  <div class="ff-uploads">
+    <label class="ff-tile" id="ffTileOrders">
+      <div class="ff-tile-title">Orders file</div>
+      <div class="ff-tile-hint">Same format as Delivery Planner: phone, order code, partnerCode, qty, amount, status, date.</div>
+      <div class="ff-tile-summary" id="ffOrdersSummary"></div>
+      <input type="file" id="ffOrdersFile" accept=".xlsx,.xls,.csv">
+    </label>
+    <label class="ff-tile" id="ffTileClients">
+      <div class="ff-tile-title">Clients file</div>
+      <div class="ff-tile-hint">Same format as GMV Tracker: phone, seller, name.</div>
+      <div class="ff-tile-summary" id="ffClientsSummary"></div>
+      <input type="file" id="ffClientsFile" accept=".xlsx,.xls,.csv">
+    </label>
+    <label class="ff-tile" id="ffTileStock">
+      <div class="ff-tile-title">Stock file</div>
+      <div class="ff-tile-hint">Same format as Delivery Planner: partnerCode + quantity.</div>
+      <div class="ff-tile-summary" id="ffStockSummary"></div>
+      <input type="file" id="ffStockFile" accept=".xlsx,.xls,.csv">
+    </label>
+    <label class="ff-tile" id="ffTileAma">
+      <div class="ff-tile-title">AMA products file</div>
+      <div class="ff-tile-hint">Two columns: PARTENAIRE · Product code. Used to compute High GMV clients (AMA).</div>
+      <div class="ff-tile-summary" id="ffAmaSummary"></div>
+      <input type="file" id="ffAmaFile" accept=".xlsx,.xls,.csv">
+    </label>
+  </div>
+
+  <!-- Controls -->
+  <div class="ff-controls">
+    <label>Seller:
+      <select id="ffSellerFilter"><option value="">All sellers</option></select>
+    </label>
+    <label>Search:
+      <input type="search" id="ffSearch" placeholder="Order code, phone, name…">
+    </label>
+    <label>High GMV (AMA) threshold (MAD):
+      <input type="number" id="ffTopThreshold" min="0" step="1000" value="100000">
+    </label>
+    <button type="button" class="btn btn-primary" id="ffRunBtn">Run allocator</button>
+    <button type="button" class="btn" id="ffTestBtn" title="Sanity-check: verify the allocator output matches the input files (stock conservation, ordered vs deliverable, bucket boundaries).">Test</button>
+    <label class="btn" style="cursor:pointer;" title="Pick the orders file again — we re-parse it and compare row count + totals against what's currently loaded.">
+      Verify with file
+      <input type="file" id="ffVerifyOrdersFile" accept=".xlsx,.xls,.csv" style="display:none;">
+    </label>
+    <label id="ffStrategyWrap" style="display:none;">Strategy:
+      <select id="ffStrategy" title="Creator-only — choose how stock is distributed.">
+        <option value="dp">Max total volume (line-by-line)</option>
+        <option value="max100">Max 100% orders (reserve stock)</option>
+      </select>
+    </label>
+    <span id="ffRunStatus" style="font-size:12px; color:var(--text-soft);"></span>
+  </div>
+  <div id="ffTestReport" style="display:none; margin:0 0 12px; padding:12px 14px; border-radius:8px; font-size:13px; line-height:1.6;"></div>
+
+  <!-- Tabs -->
+  <div class="ff-tabs">
+    <button type="button" class="ff-tab active" data-fftab="full">100% Orders <span class="pill" id="ffPillFull">0</span></button>
+    <button type="button" class="ff-tab" data-fftab="partial">More Than 80% <span class="pill" id="ffPillPartial">0</span></button>
+    <button type="button" class="ff-tab" data-fftab="waiting">Waiting List <span class="pill" id="ffPillWaiting">0</span></button>
+    <button type="button" class="ff-tab" data-fftab="top">High GMV clients (AMA) <span class="pill" id="ffPillTop">0</span></button>
+  </div>
+
+  <!-- Panels -->
+  <div class="ff-panel active" data-ffpanel="full">
+    <div class="ff-summary" id="ffSummaryFull"></div>
+    <div class="ff-table-wrap" id="ffTableFull"></div>
+  </div>
+  <div class="ff-panel" data-ffpanel="partial">
+    <div class="ff-summary" id="ffSummaryPartial"></div>
+    <div class="ff-table-wrap" id="ffTablePartial"></div>
+  </div>
+  <div class="ff-panel" data-ffpanel="waiting">
+    <div class="ff-summary" id="ffSummaryWaiting"></div>
+    <div class="ff-table-wrap" id="ffTableWaiting"></div>
+  </div>
+  <div class="ff-panel" data-ffpanel="top">
+    <div class="ff-summary" id="ffSummaryTop"></div>
+    <div class="ff-table-wrap" id="ffTableTop"></div>
+  </div>
+</div>
+
+
+<!-- ===== Settings (creator only) ===== -->
+<style>
+  .settings-app { padding:32px; max-width:880px; margin:0 auto; }
+  .settings-app h1 { font-size:22px; margin:0 0 4px; color:#0f172a; font-weight:700; letter-spacing:-0.01em; }
+  .settings-tagline { font-size:13px; color:#64748b; margin-bottom:28px; }
+  .st-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:20px 24px; margin-bottom:18px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .st-card h2 { font-size:15px; margin:0 0 4px; color:#0f172a; font-weight:600; display:flex; align-items:center; gap:8px; }
+  .st-card .sub { font-size:12px; color:#64748b; margin-bottom:14px; }
+  .st-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid #f1f5f9; }
+  .st-row:first-of-type { border-top:0; }
+  .st-row .label { font-size:13px; color:#0f172a; }
+  .st-row .value { font-size:13px; color:#64748b; font-family:monospace; }
+  .st-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; border:0; background:#0f172a; color:#fff; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; }
+  .st-btn:hover { background:#1e293b; }
+  .st-btn:disabled { opacity:.5; cursor:not-allowed; }
+  .st-btn.secondary { background:#f1f5f9; color:#0f172a; border:1px solid #e2e8f0; }
+  .st-btn.secondary:hover { background:#e2e8f0; }
+  .st-btn.danger { background:#fee2e2; color:#991b1b; }
+  .st-btn.danger:hover { background:#fecaca; }
+  .invite-list { margin:0; padding:0; list-style:none; }
+  .invite-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid #f1f5f9; }
+  .invite-item:first-child { border-top:0; }
+  .invite-avatar { width:32px; height:32px; border-radius:50%; background:#dbeafe; color:#1e40af; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0; }
+  .invite-avatar.seller { background:#fef3c7; color:#92400e; }
+  .invite-info { flex:1; min-width:0; }
+  .invite-email { font-size:13px; color:#0f172a; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .invite-meta { font-size:11px; color:#64748b; }
+  .invite-tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .invite-tag.viewer { background:#e0e7ff; color:#3730a3; }
+  .invite-tag.seller { background:#fef3c7; color:#92400e; }
+  .invite-empty { font-size:13px; color:#94a3b8; text-align:center; padding:24px 0; }
+  /* Modal */
+  .st-modal-bg { position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
+  .st-modal-bg.open { display:flex; }
+  .st-modal { background:#fff; border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,.25); width:100%; max-width:440px; padding:28px; }
+  .st-modal h3 { margin:0 0 6px; font-size:18px; font-weight:700; color:#0f172a; }
+  .st-modal .modal-sub { font-size:13px; color:#64748b; margin-bottom:20px; }
+  .st-form-row { margin-bottom:14px; }
+  .st-form-row label { display:block; font-size:12px; font-weight:600; color:#334155; margin-bottom:6px; }
+  .st-form-row input[type="email"], .st-form-row input[type="text"] { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; background:#fff; box-sizing:border-box; transition:.15s; }
+  .st-form-row input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.15); }
+  .st-role-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .st-role-card { padding:12px; border:2px solid #e2e8f0; border-radius:10px; cursor:pointer; transition:.15s; background:#fff; text-align:left; }
+  .st-role-card:hover { border-color:#cbd5e1; }
+  .st-role-card.selected { border-color:#3b82f6; background:#eff6ff; }
+  .st-role-card .name { font-size:13px; font-weight:600; color:#0f172a; }
+  .st-role-card .desc { font-size:11px; color:#64748b; margin-top:2px; line-height:1.4; }
+  .st-form-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:24px; }
+  .st-modal-error { background:#fee2e2; color:#991b1b; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:14px; display:none; }
+  .st-modal-error.show { display:block; }
+  .st-modal-success { background:#d1fae5; color:#065f46; padding:10px 12px; border-radius:6px; font-size:13px; margin-bottom:14px; display:none; }
+  .st-modal-success.show { display:block; }
+  .st-conditional { display:none; }
+  .st-conditional.show { display:block; }
+  .st-help { font-size:11px; color:#64748b; margin-top:4px; }
+</style>
+<div class="app settings-app" id="featureSettings" style="display:none;">
+  <h1>Settings</h1>
+  <div class="settings-tagline">Account, team, and access management.</div>
+
+  <div class="st-card">
+    <h2>Account</h2>
+    <div class="sub">Your signed-in identity.</div>
+    <div class="st-row">
+      <div class="label">Email</div>
+      <div class="value" id="stAccountEmail">—</div>
+    </div>
+    <div class="st-row">
+      <div class="label">User ID</div>
+      <div class="value" id="stAccountUid" style="font-size:11px;">—</div>
+    </div>
+    <div class="st-row">
+      <div class="label">Role</div>
+      <div class="value"><span class="invite-tag" id="stAccountRole" style="background:#dcfce7; color:#166534;">CREATOR</span></div>
+    </div>
+  </div>
+
+  <div class="st-card">
+    <h2>Team
+      <span style="margin-left:auto; font-weight:400; font-size:12px; color:#64748b;" id="stTeamCount"></span>
+    </h2>
+    <div class="sub">Invite viewers (full read access) or sellers (scoped to their own orders).</div>
+    <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+      <button type="button" class="st-btn" id="stInviteBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Invite member
+      </button>
+    </div>
+    <ul class="invite-list" id="stInviteList">
+      <li class="invite-empty">No invites yet. Click "Invite member" to add your first teammate.</li>
+    </ul>
+  </div>
+
+  <div class="st-card">
+    <h2>Recent activity</h2>
+    <div class="sub">Last 20 invites sent from this device.</div>
+    <ul class="invite-list" id="stRecentInvites">
+      <li class="invite-empty">Nothing yet.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Invite modal -->
+<div class="st-modal-bg" id="stInviteModal">
+  <div class="st-modal">
+    <h3>Invite a team member</h3>
+    <div class="modal-sub">They'll receive an email from Supabase to set their password.</div>
+    <div class="st-modal-error" id="stInviteError"></div>
+    <div class="st-modal-success" id="stInviteSuccess"></div>
+    <div class="st-form-row">
+      <label for="stInviteEmail">Email address</label>
+      <input type="email" id="stInviteEmail" placeholder="name@company.com" autocomplete="off">
+    </div>
+    <div class="st-form-row">
+      <label>Role</label>
+      <div class="st-role-grid">
+        <div class="st-role-card selected" data-role="viewer">
+          <div class="name">Viewer</div>
+          <div class="desc">Full read access. No uploads. Sees all data.</div>
+        </div>
+        <div class="st-role-card" data-role="seller">
+          <div class="name">Seller</div>
+          <div class="desc">Only sees their own orders, in Order Fulfillment.</div>
+        </div>
+      </div>
+    </div>
+    <div class="st-form-row st-conditional" id="stSellerNameRow">
+      <label for="stInviteSeller">Seller name</label>
+      <input type="text" id="stInviteSeller" placeholder="Exact name from your clients file (e.g., RIDA BENCHAOUI)">
+      <div class="st-help">Must match the seller name used in your uploaded clients file, character-for-character.</div>
+    </div>
+    <div class="st-form-actions">
+      <button type="button" class="st-btn secondary" id="stInviteCancel">Cancel</button>
+      <button type="button" class="st-btn" id="stInviteSubmit">Send invite</button>
+    </div>
+  </div>
 </div>
 
   </main>
