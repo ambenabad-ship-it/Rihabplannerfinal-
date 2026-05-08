@@ -19591,7 +19591,14 @@ async function fulfillParseOrders(file) {
   const cName    = findCol(rows[0], ['Client name','ClientName','Customer_Name','Customer Name','Name','partnerName','PartnerName']);
   const cStatus  = findCol(rows[0], ['Status','OrderStatus','status']);
   const cDate    = findCol(rows[0], ['Order date','OrderDate','Date','date']);
+  const cDelDate = findCol(rows[0], ['Delivery Date','DeliveryDate','Delivery date','delivery_date','deliveryDate']);
   const cChannel = findCol(rows[0], ['Channel']);
+  const cCategory = findCol(rows[0], ['Category','category','Categorie','Catégorie']);
+  const cMatjar  = findCol(rows[0], ['Matjar','matjar','Store','store']);
+  const cRegion  = findCol(rows[0], ['Region','region','Région','région','Ville','City']);
+  const cWarehouse = findCol(rows[0], ['Warehouse Name','WarehouseName','warehouse_name','Warehouse']);
+  const cAgent    = findCol(rows[0], ['Delivery agent name','DeliveryAgentName','Delivery agent','agent']);
+  const cTour     = findCol(rows[0], ['Tour ID','TourID','tour_id','Tour']);
   if (!cCode) throw new Error('Missing order code column (Code / partnerReference).');
   if (!cProd) throw new Error('Missing product code column (partnerCode / Code).');
   if (!cQty)  throw new Error('Missing quantity column.');
@@ -19622,6 +19629,13 @@ async function fulfillParseOrders(file) {
       name: cName ? String(r[cName] || '').trim() : '',
       status: cStatus ? String(r[cStatus] || '').trim() : '',
       date: cDate ? parseDate(r[cDate]) : null,
+      deliveryDate: cDelDate ? parseDate(r[cDelDate]) : null,
+      category: cCategory ? String(r[cCategory] || '').trim() : '',
+      matjar: cMatjar ? String(r[cMatjar] || '').trim() : '',
+      region: cRegion ? String(r[cRegion] || '').trim() : '',
+      warehouse: cWarehouse ? String(r[cWarehouse] || '').trim() : '',
+      agent: cAgent ? String(r[cAgent] || '').trim() : '',
+      tourId: cTour ? String(r[cTour] || '').trim() : '',
     });
   });
   return { lines: out, skipped };
@@ -20631,16 +20645,37 @@ async function fulfillExportFullReport() {
 
   const round2 = n => Math.round((n || 0) * 100) / 100;
 
-  // === Sheet 1: All orders by client ===
+  // Helper — return a YYYY-MM-DD-ish string from a Date or pass-through.
+  const fmtDate = d => {
+    if (!d) return '';
+    if (d instanceof Date && !isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    return String(d);
+  };
+  // Pull a representative line per order to lift order-level metadata
+  // (seller, dates, region, etc.) that live on the line.
+  const repLine = ord => (ord.lines && ord.lines[0]) || {};
+
+  // === Sheet 1: All orders — full info per order ===
   const sheet1Rows = filteredOrders.map(({ ord, bucket }) => {
     const dec = (fulfill.decisions || {})[ord.code] || {};
     const ratio = ord.totalQty ? (ord.deliverableTotal || 0) / ord.totalQty : 0;
+    const l = repLine(ord);
     return {
       'Client': ord.name || '(no name)',
       'Phone': ord.phone || '',
       'Seller': ord.seller || '',
-      'Status': STATUS_LABEL[bucket],
       'Order code': ord.code,
+      'Order date': fmtDate(l.date),
+      'Delivery date': fmtDate(l.deliveryDate),
+      'File status': l.status || '',
+      'Allocator status': STATUS_LABEL[bucket] || '',
+      'Region / Ville': l.region || '',
+      'Matjar / Store': l.matjar || '',
+      'Warehouse': l.warehouse || '',
+      'Delivery agent': l.agent || '',
+      'Tour ID': l.tourId || '',
+      'Channel': 'Z_WHOLESALER',
+      '# Product lines': ord.lines.length,
       'Ordered units': ord.totalQty || 0,
       'Deliverable units': ord.deliverableTotal || 0,
       'Fill %': round2(ord.fulfillPct || 0),
@@ -20649,9 +20684,49 @@ async function fulfillExportFullReport() {
       'Decision': dec.status || '',
       'Decision delivery date': dec.delivery_date || '',
       'Decision note': dec.note || '',
-      'Decided by': dec.decided_by_seller || dec.decided_by_email || '',
+      'Decided by (seller)': dec.decided_by_seller || '',
+      'Decided by (email)': dec.decided_by_email || '',
       'Decided at': dec.decided_at ? new Date(dec.decided_at).toISOString().slice(0, 19).replace('T', ' ') : '',
     };
+  });
+
+  // === Sheet 1b: Per-line detail for every order in scope ===
+  const sheet1Lines = [];
+  filteredOrders.forEach(({ ord, bucket }) => {
+    const dec = (fulfill.decisions || {})[ord.code] || {};
+    ord.lines.forEach(l => {
+      let pname = l.productName || '';
+      if (!pname && typeof gmv !== 'undefined' && gmv && gmv.productCategories) {
+        const cat = gmv.productCategories[l.productCode];
+        if (cat && cat.description) pname = cat.description;
+      }
+      sheet1Lines.push({
+        'Client': ord.name || '(no name)',
+        'Phone': ord.phone || '',
+        'Seller': ord.seller || '',
+        'Order code': ord.code,
+        'Order date': fmtDate(l.date),
+        'Delivery date': fmtDate(l.deliveryDate),
+        'File status': l.status || '',
+        'Allocator status': STATUS_LABEL[bucket] || '',
+        'Product code': l.productCode,
+        'Product name': pname || (l.category ? `[${l.category}]` : ''),
+        'Category': l.category || '',
+        'Region / Ville': l.region || '',
+        'Matjar / Store': l.matjar || '',
+        'Warehouse': l.warehouse || '',
+        'Delivery agent': l.agent || '',
+        'Tour ID': l.tourId || '',
+        'Ordered qty': l.qty || 0,
+        'Deliverable qty': l.deliverable || 0,
+        'Stock initial': (fulfill.stock && fulfill.stock[l.productCode]) || 0,
+        'Stock remaining': (fulfill.remainingStock && fulfill.remainingStock[l.productCode]) || 0,
+        'Line amount (MAD)': round2(l.amount || 0),
+        'Decision': dec.status || '',
+        'Decision delivery date': dec.delivery_date || '',
+        'Decision note': dec.note || '',
+      });
+    });
   });
 
   // === Sheet 2: High-GMV clients (AMA) ===
@@ -20726,12 +20801,20 @@ async function fulfillExportFullReport() {
   // Build the workbook.
   const wb = XLSX.utils.book_new();
   const setColWidths = (ws, widths) => { ws['!cols'] = widths.map(w => ({ wch: w })); };
-  // Sheet 1
+  // Sheet 1 — Orders by client (one row per order, full metadata)
   if (sheet1Rows.length) {
     const ws = XLSX.utils.json_to_sheet(sheet1Rows);
-    setColWidths(ws, [28, 14, 22, 12, 18, 12, 14, 8, 16, 18, 12, 18, 38, 22, 18]);
+    setColWidths(ws, [28, 14, 22, 18, 12, 12, 16, 16, 18, 16, 18, 22, 12, 14, 9, 12, 14, 8, 16, 18, 12, 18, 38, 22, 30, 18]);
     if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
-    XLSX.utils.book_append_sheet(wb, ws, 'Orders by client');
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+    XLSX.utils.book_append_sheet(wb, ws, 'Orders');
+  }
+  // Sheet 1b — Lines detail (per product line)
+  if (sheet1Lines.length) {
+    const ws = XLSX.utils.json_to_sheet(sheet1Lines);
+    setColWidths(ws, [28, 14, 22, 18, 12, 12, 16, 16, 14, 36, 18, 18, 18, 18, 18, 12, 10, 12, 12, 14, 14, 12, 14, 38]);
+    if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
+    XLSX.utils.book_append_sheet(wb, ws, 'Lines detail');
   }
   // Sheet 2 — summary on top, detail below (separated by a blank row).
   const ws2Header = XLSX.utils.json_to_sheet(sheet2Summary.length ? sheet2Summary : [{ note: 'No High-GMV clients in scope.' }]);
