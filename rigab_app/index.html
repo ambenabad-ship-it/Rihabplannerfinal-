@@ -15454,22 +15454,26 @@ try {
     const close = () => shell.classList.remove('sidebar-open');
     tog.addEventListener('click', () => shell.classList.toggle('sidebar-open'));
     ov.addEventListener('click', close);
-    // Apply seller restriction — sellers only see Order Fulfillment.
-    // Also show the Settings entry only to the creator.
+    // Apply seller restriction — sellers see Order Fulfillment + GMV Tracker
+    // (locked to the Engagement tab). Settings is creator-only.
     const applySellerSidebarLock = () => {
       const isSeller = (typeof gmvIsSeller === 'function') && gmvIsSeller();
       const isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
+      const sellerAllowed = ['fulfill', 'gmv'];
       document.querySelectorAll('.as-feature').forEach(b => {
         const f = b.dataset.feature || '';
         if (f === 'settings') {
           b.style.display = isCreator ? '' : 'none';
         } else {
-          b.style.display = (isSeller && f !== 'fulfill') ? 'none' : '';
+          b.style.display = (isSeller && !sellerAllowed.includes(f)) ? 'none' : '';
         }
       });
       if (isSeller) {
-        const ff = document.querySelector('.as-feature[data-feature="fulfill"]');
-        if (ff && !ff.classList.contains('active')) ff.click();
+        const active = document.querySelector('.as-feature.active');
+        if (!active || !sellerAllowed.includes(active.dataset.feature)) {
+          const ff = document.querySelector('.as-feature[data-feature="fulfill"]');
+          if (ff) ff.click();
+        }
       }
     };
     // Run now and again whenever auth state changes (sb may resolve later).
@@ -15480,11 +15484,14 @@ try {
     document.querySelectorAll('.as-feature').forEach(btn => {
       btn.addEventListener('click', () => {
         if (btn.classList.contains('coming-soon')) return;
-        // Hard block: a seller clicking any non-fulfill feature gets bounced.
-        if ((typeof gmvIsSeller === 'function') && gmvIsSeller() && btn.dataset.feature !== 'fulfill') {
-          const ff = document.querySelector('.as-feature[data-feature="fulfill"]');
-          if (ff) ff.click();
-          return;
+        // Sellers may only enter Order Fulfillment or GMV Tracker.
+        if ((typeof gmvIsSeller === 'function') && gmvIsSeller()) {
+          const f = btn.dataset.feature;
+          if (f !== 'fulfill' && f !== 'gmv') {
+            const ff = document.querySelector('.as-feature[data-feature="fulfill"]');
+            if (ff) ff.click();
+            return;
+          }
         }
         document.querySelectorAll('.as-feature').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -15701,12 +15708,34 @@ async function gmvReadShared(key) {
   return sbReadKeyAs(uid, key);
 }
 
+// Creator impersonation — when the creator picks a seller to impersonate,
+// the app behaves as if signed in as that seller (uploads hidden, sidebar
+// locked to Order Fulfillment, seller filter pinned, etc.). Stored locally
+// so it persists across reloads on the creator's machine.
+function gmvImpersonatedSeller() {
+  try { return (localStorage.getItem('rihab_impersonate_v1') || '').trim(); }
+  catch (_) { return ''; }
+}
+function gmvSetImpersonatedSeller(seller) {
+  try {
+    if (seller) localStorage.setItem('rihab_impersonate_v1', seller);
+    else localStorage.removeItem('rihab_impersonate_v1');
+  } catch (_) {}
+}
+// True only when the signed-in user is the creator AND not impersonating.
 function gmvIsCreator() {
+  if (gmvImpersonatedSeller()) return false;
+  return !!(sbUser && sbUser.email && sbUser.email.toLowerCase() === GMV_CREATOR_EMAIL.toLowerCase());
+}
+// Real-creator check (ignores impersonation) — used by the impersonation UI itself.
+function gmvIsRealCreator() {
   return !!(sbUser && sbUser.email && sbUser.email.toLowerCase() === GMV_CREATOR_EMAIL.toLowerCase());
 }
 // Returns the seller name (case-sensitive, must match the value in the
-// clients file) if the signed-in user was invited as a seller, else ''.
+// clients file). Honors creator impersonation.
 function gmvSellerName() {
+  const imp = gmvImpersonatedSeller();
+  if (imp && gmvIsRealCreator()) return imp;
   if (!sbUser || !sbUser.user_metadata) return '';
   return String(sbUser.user_metadata.seller || '').trim();
 }
@@ -17174,8 +17203,16 @@ function gmvRenderMiniStrip(result) {
 function gmvRenderPageBar() {
   const bar = document.getElementById('gmvPageBar');
   if (!bar) return;
+  // Sellers only see Engagement inside GMV Tracker.
+  const isSeller = (typeof gmvIsSeller === 'function') && gmvIsSeller();
+  if (isSeller) gmv.activePage = 'engagement';
   const cur = gmv.activePage || 'performance';
   bar.querySelectorAll('.gmv-pagebtn').forEach(btn => {
+    if (isSeller && btn.dataset.gpage !== 'engagement') {
+      btn.style.display = 'none';
+    } else {
+      btn.style.display = '';
+    }
     btn.classList.toggle('active', btn.dataset.gpage === cur);
   });
   if (!bar.__wired) {
@@ -19269,90 +19306,237 @@ async function gmvRenderEngagement(wrap) {
   else gmvRenderEngagementScoreboard(panel, mySeller, isCreator);
 }
 
+// 5 progressive engagement levels — "Niveaux d'engagement". Default is L1
+// (= reference minimum). Higher levels unlock once the current target is hit.
+const ENG_LEVELS = [
+  { id: 1, label: 'Engagé',    mult: 1.0, color: '#0f766e' },
+  { id: 2, label: 'Confirmé',  mult: 1.5, color: '#0369a1' },
+  { id: 3, label: 'Performant',mult: 2.0, color: '#7c3aed' },
+  { id: 4, label: 'Élite',     mult: 3.0, color: '#c026d3' },
+  { id: 5, label: 'Champion',  mult: 5.0, color: '#dc2626' },
+];
+
+function gmvComputeSoldForSeller(seller, period) {
+  // Returns { code: qty } — uses line.qty when available (OF orders),
+  // falls back to 1 per line for GMV-only orders.
+  const out = {};
+  const useFulfillOrders = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders) && fulfill.orders.length);
+  const sourceLines = useFulfillOrders ? fulfill.orders : (gmv.orders || []);
+  sourceLines.forEach(o => {
+    if (!o || !o.productCode) return;
+    if (!gmvEngagement.focusProducts[o.productCode]) return;
+    const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
+    if (!d || isNaN(d.getTime())) return;
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (key !== period) return;
+    const cl = (gmv.clients || {})[o.phone] || {};
+    const assigned = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '';
+    if (assigned !== seller) return;
+    out[o.productCode] = (out[o.productCode] || 0) + (typeof o.qty === 'number' ? o.qty : 1);
+  });
+  return out;
+}
+
+function gmvLevelTargetFor(code, levelId) {
+  const meta = gmvEngagement.focusProducts[code];
+  const min = (meta && meta.min) || 0;
+  const lvl = ENG_LEVELS.find(l => l.id === levelId) || ENG_LEVELS[0];
+  return Math.round(min * lvl.mult);
+}
+
 function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
   if (!panel) return;
   const codes = Object.keys(gmvEngagement.focusProducts);
   if (!codes.length) {
-    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">No focus products defined yet. ' + (isCreator ? 'Upload a focus products file above.' : 'Ask the creator to upload the focus products file.') + '</div>';
+    panel.innerHTML = `
+      <div style="padding:48px 32px; text-align:center; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px;">
+        <div style="font-size:32px; margin-bottom:8px;">📋</div>
+        <div style="font-size:14px; color:#0f172a; font-weight:600; margin-bottom:4px;">No focus products yet</div>
+        <div style="font-size:12px; color:#64748b;">${isCreator ? 'Upload the focus products file above to set up the period.' : 'Ask the creator to upload the focus products file.'}</div>
+      </div>`;
     return;
   }
   if (!mySeller && !isCreator) {
-    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">Sign in as a seller to commit and track focus products.</div>';
+    panel.innerHTML = '<div style="padding:48px; text-align:center; color:#94a3b8; font-size:13px;">Sign in as a seller to commit and track focus products.</div>';
     return;
   }
   const period = gmvCurrentPeriodKey();
   const seller = mySeller || ((isCreator && (Object.keys(gmvEngagement.commitments)[0] || '')) || '(creator)');
   const commitment = (gmvEngagement.commitments[seller] || {}).focus || {};
-  // Compute sold qty per product for this seller this period (from orders + client assignments).
-  const soldByProd = {};
-  const period_ = period;
-  (gmv.orders || []).forEach(o => {
-    if (!o || !o.productCode) return;
-    const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
-    if (!d || isNaN(d.getTime())) return;
-    if ((d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')) !== period_) return;
-    const cl = (gmv.clients || {})[o.phone] || {};
-    const assignedSeller = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '';
-    if (assignedSeller !== seller) return;
-    if (!gmvEngagement.focusProducts[o.productCode]) return;
-    soldByProd[o.productCode] = (soldByProd[o.productCode] || 0) + 1; // counted lines if no qty field
-  });
-  // If we have qty in line items it's already on each line; for GMV-side `gmv.orders` we don't have qty. Use amount-based proxy: count of lines.
+  const sold = gmvComputeSoldForSeller(seller, period);
+
+  function commitFor(code) {
+    const v = commitment[code];
+    if (!v) return { selected: false, level: 1 };
+    if (typeof v === 'number') return { selected: true, level: 1 };
+    return { selected: !!v.selected, level: v.level || 1 };
+  }
+  function maxUnlockedLevel(code) {
+    const s = sold[code] || 0;
+    let unlocked = 1;
+    for (let i = 1; i <= 5; i++) {
+      if (s >= gmvLevelTargetFor(code, i)) unlocked = Math.min(5, i + 1);
+    }
+    return unlocked;
+  }
+
   const families = {};
   codes.forEach(c => {
-    const f = gmvEngagement.focusProducts[c].family || '(other)';
+    const f = (gmvEngagement.focusProducts[c].family || 'Other').trim();
     if (!families[f]) families[f] = [];
     families[f].push(c);
   });
-  let n = 0, hit = 0;
-  let html = '';
+
+  let totalSelected = 0, totalReached = 0;
+  Object.values(families).flat().forEach(c => {
+    const cm = commitFor(c);
+    if (cm.selected) {
+      totalSelected++;
+      const tgt = gmvLevelTargetFor(c, cm.level);
+      if ((sold[c] || 0) >= tgt && tgt > 0) totalReached++;
+    }
+  });
+
+  const minRequired = 5;
+  const selectedOk = totalSelected >= minRequired;
+  const headerHtml = `
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:16px;">
+      <div style="padding:16px 18px; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; border-radius:12px;">
+        <div style="font-size:11px; opacity:.7; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px;">Période</div>
+        <div style="font-size:18px; font-weight:700;">${period}</div>
+        <div style="font-size:11px; opacity:.7; margin-top:4px;">Vendeur · ${gmvEscapeHtmlEng(seller)}</div>
+      </div>
+      <div style="padding:16px 18px; background:#fff; border:1px solid #e2e8f0; border-radius:12px;">
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px;">Engagés</div>
+        <div style="font-size:24px; font-weight:700; color:${selectedOk ? '#16a34a' : '#dc2626'};">${totalSelected} <span style="font-size:14px; color:#94a3b8;">/ ${minRequired} min.</span></div>
+        <div style="font-size:11px; color:${selectedOk ? '#16a34a' : '#dc2626'}; margin-top:4px;">${selectedOk ? '✓ Minimum atteint' : `Sélectionner ${minRequired - totalSelected} de plus`}</div>
+      </div>
+      <div style="padding:16px 18px; background:#fff; border:1px solid #e2e8f0; border-radius:12px;">
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px;">Atteints</div>
+        <div style="font-size:24px; font-weight:700; color:#16a34a;">${totalReached} <span style="font-size:14px; color:#94a3b8;">/ ${totalSelected}</span></div>
+        <div style="font-size:11px; color:#64748b; margin-top:4px;">${totalReached === totalSelected && totalSelected > 0 ? '🎯 Tous au niveau' : 'Continuer la progression'}</div>
+      </div>
+      <div style="padding:16px 18px; background:#fff; border:1px solid #e2e8f0; border-radius:12px;">
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px;">Catalogue</div>
+        <div style="font-size:24px; font-weight:700;">${codes.length}</div>
+        <div style="font-size:11px; color:#64748b; margin-top:4px;">SKU(s) prioritaires</div>
+      </div>
+    </div>`;
+
+  const legendHtml = `
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; background:#f8fafc; border-radius:10px; margin-bottom:16px; font-size:11px;">
+      <span style="color:#64748b; font-weight:600;">Niveaux :</span>
+      ${ENG_LEVELS.map(l => `<span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:8px; height:8px; border-radius:50%; background:${l.color};"></span><b>${l.id}. ${l.label}</b><span style="color:#94a3b8;">×${l.mult}</span></span>`).join('<span style="color:#cbd5e1;">·</span>')}
+    </div>`;
+
+  let cardsHtml = '';
   Object.entries(families).forEach(([fam, list]) => {
-    html += `<h3 style="margin:18px 0 6px; font-size:13px; color:#475569; text-transform:uppercase; letter-spacing:.04em;">${gmvEscapeHtmlEng(fam)} — ${list.length} référence(s)</h3>`;
-    html += `<table style="width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; margin-bottom:8px;">
-      <thead><tr style="background:#f8fafc;">
-        <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Code</th>
-        <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Nom</th>
-        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Min ref.</th>
-        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Mon engagement</th>
-        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Vendu (lignes)</th>
-        <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Statut</th>
-      </tr></thead><tbody>`;
+    cardsHtml += `<div style="display:flex; align-items:baseline; justify-content:space-between; margin:18px 0 10px;">
+      <h3 style="margin:0; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.08em; font-weight:700;">${gmvEscapeHtmlEng(fam)}</h3>
+      <span style="font-size:11px; color:#94a3b8;">${list.length} référence(s)</span>
+    </div>`;
+    cardsHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">`;
     list.forEach(code => {
       const meta = gmvEngagement.focusProducts[code];
-      const target = commitment[code] || meta.min || 0;
-      const sold = soldByProd[code] || 0;
-      const pct = target > 0 ? Math.min(100, sold / target * 100) : 0;
-      let statusBadge;
-      if (sold >= target && target > 0) { statusBadge = '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">🎯 Atteint</span>'; hit++; }
-      else if (pct >= 50) { statusBadge = '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">⚠ En cours</span>'; }
-      else { statusBadge = '<span style="background:#fee2e2; color:#7f1d1d; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">En retard</span>'; }
-      n++;
-      html += `<tr style="border-top:1px solid #f1f5f9;">
-        <td style="padding:6px 10px; font-family:monospace; font-size:12px;">${gmvEscapeHtmlEng(code)}</td>
-        <td style="padding:6px 10px;">${gmvEscapeHtmlEng(meta.name || '')}</td>
-        <td style="padding:6px 10px; text-align:right; color:#64748b;">${(meta.min || 0).toLocaleString()}</td>
-        <td style="padding:6px 10px; text-align:right;"><input type="number" data-eng-focus="${gmvEscapeHtmlEng(code)}" value="${target}" min="0" style="width:90px; padding:3px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; text-align:right;" ${(!mySeller && !isCreator) ? 'disabled' : ''}></td>
-        <td style="padding:6px 10px; text-align:right; font-weight:600;">${sold}</td>
-        <td style="padding:6px 10px;">${statusBadge}</td>
-      </tr>`;
+      const cm = commitFor(code);
+      const unlocked = maxUnlockedLevel(code);
+      const cur = sold[code] || 0;
+      const target = gmvLevelTargetFor(code, cm.level);
+      const pct = target > 0 ? Math.min(100, (cur / target) * 100) : 0;
+      const reached = target > 0 && cur >= target;
+      const lvl = ENG_LEVELS.find(l => l.id === cm.level) || ENG_LEVELS[0];
+      const canUpgrade = reached && cm.level < 5;
+      const cardBorder = cm.selected ? `border:2px solid ${lvl.color};` : 'border:1px solid #e2e8f0;';
+      const cardBg = cm.selected ? '#fff' : '#f8fafc';
+      cardsHtml += `
+        <div data-eng-card="${gmvEscapeHtmlEng(code)}" style="${cardBorder} background:${cardBg}; border-radius:12px; padding:14px 16px; transition:.2s; position:relative;">
+          <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:10px;">
+            <label style="display:flex; align-items:center; cursor:pointer; flex-shrink:0; padding-top:2px;">
+              <input type="checkbox" data-eng-sel="${gmvEscapeHtmlEng(code)}" ${cm.selected ? 'checked' : ''} style="width:18px; height:18px; accent-color:${lvl.color}; cursor:pointer;">
+            </label>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600; color:#0f172a; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${gmvEscapeHtmlEng(meta.name || code)}</div>
+              <div style="font-size:10px; color:#94a3b8; font-family:monospace;">${gmvEscapeHtmlEng(code)} · min. ref. ${(meta.min || 0).toLocaleString()}</div>
+            </div>
+            ${cm.selected ? `<span style="background:${lvl.color}; color:#fff; padding:3px 8px; border-radius:6px; font-size:10px; font-weight:700; letter-spacing:.04em; flex-shrink:0;">N${cm.level} · ${gmvEscapeHtmlEng(lvl.label).toUpperCase()}</span>` : ''}
+          </div>
+          ${cm.selected ? `
+            <div style="margin:10px 0 6px;">
+              <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                <span style="color:#64748b;">Vendu <b style="color:#0f172a;">${cur.toLocaleString()}</b> / ${target.toLocaleString()}</span>
+                <span style="color:${reached ? '#16a34a' : '#64748b'}; font-weight:700;">${pct.toFixed(0)}%</span>
+              </div>
+              <div style="height:6px; background:#f1f5f9; border-radius:99px; overflow:hidden;">
+                <div style="height:100%; width:${pct}%; background:linear-gradient(90deg, ${lvl.color}, ${reached ? '#16a34a' : lvl.color}); transition:width .4s;"></div>
+              </div>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center; margin-top:10px;">
+              <select data-eng-level="${gmvEscapeHtmlEng(code)}" style="padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; background:#fff; flex:1;">
+                ${ENG_LEVELS.map(l => `<option value="${l.id}" ${l.id === cm.level ? 'selected' : ''} ${l.id > unlocked ? 'disabled' : ''}>Niveau ${l.id} · ${l.label} (${gmvLevelTargetFor(code, l.id).toLocaleString()})${l.id > unlocked ? ' 🔒' : ''}</option>`).join('')}
+              </select>
+              ${canUpgrade ? `<button type="button" data-eng-up="${gmvEscapeHtmlEng(code)}" style="padding:5px 10px; background:#16a34a; color:#fff; border:0; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap;">↑ Niveau ${cm.level + 1}</button>` : ''}
+            </div>
+          ` : `
+            <div style="font-size:11px; color:#94a3b8; padding:8px 0;">Cocher pour s'engager — démarre au niveau 1.</div>
+          `}
+        </div>`;
     });
-    html += `</tbody></table>`;
+    cardsHtml += `</div>`;
   });
+
   panel.innerHTML = `
-    <div style="display:flex; gap:18px; align-items:baseline; margin:0 0 8px;">
-      <span style="font-size:13px;"><b>${hit}</b> / ${n} produit(s) atteint(s) ce mois</span>
-      <span style="font-size:11px; color:#64748b;">Min. requis : 5 produits / mois — 10 sur Mai-Juin</span>
-      <button type="button" id="engSaveFocus" class="btn btn-primary" style="margin-left:auto; font-size:12px;">Save my engagement</button>
+    ${headerHtml}
+    ${legendHtml}
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px;">
+      <span style="font-size:12px; color:#64748b;">Cochez les SKU pour vous engager. Atteignez la cible pour débloquer le niveau supérieur.</span>
+      <button type="button" id="engSaveFocus" style="margin-left:auto; padding:9px 18px; background:#0f172a; color:#fff; border:0; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Enregistrer mon engagement</button>
     </div>
-    ${html}`;
+    ${cardsHtml}`;
+
+  panel.querySelectorAll('[data-eng-sel]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const code = cb.dataset.engSel;
+      commitment[code] = { selected: cb.checked, level: commitFor(code).level || 1 };
+      gmvRenderEngagementFocus(panel, mySeller, isCreator);
+    });
+  });
+  panel.querySelectorAll('[data-eng-level]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const code = sel.dataset.engLevel;
+      const cur = commitFor(code);
+      commitment[code] = { selected: cur.selected, level: parseInt(sel.value) || 1 };
+      gmvRenderEngagementFocus(panel, mySeller, isCreator);
+    });
+  });
+  panel.querySelectorAll('[data-eng-up]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.dataset.engUp;
+      const cur = commitFor(code);
+      commitment[code] = { selected: true, level: Math.min(5, (cur.level || 1) + 1) };
+      gmvRenderEngagementFocus(panel, mySeller, isCreator);
+    });
+  });
   const saveBtn = document.getElementById('engSaveFocus');
   if (saveBtn) saveBtn.addEventListener('click', async () => {
     const focus = {};
-    panel.querySelectorAll('[data-eng-focus]').forEach(i => {
-      const v = parseFloat(i.value); if (isFinite(v) && v > 0) focus[i.dataset.engFocus] = v;
+    panel.querySelectorAll('[data-eng-card]').forEach(card => {
+      const code = card.dataset.engCard;
+      const sel = card.querySelector('[data-eng-sel]');
+      const lvlSel = card.querySelector('[data-eng-level]');
+      focus[code] = {
+        selected: !!(sel && sel.checked),
+        level: lvlSel ? parseInt(lvlSel.value) || 1 : (commitFor(code).level || 1),
+      };
     });
-    try { await gmvSaveEngagementCommitment(seller, period, { focus }); alert('Saved.'); }
-    catch (e) { alert('Save failed: ' + (e.message || e)); }
+    const sel = Object.values(focus).filter(v => v && v.selected).length;
+    if (sel < 5) {
+      if (!confirm(`Vous n'êtes engagé que sur ${sel} produit(s). Le minimum requis est 5. Sauvegarder quand même ?`)) return;
+    }
+    try {
+      await gmvSaveEngagementCommitment(seller, period, { focus });
+      saveBtn.textContent = '✓ Enregistré';
+      setTimeout(() => { saveBtn.textContent = 'Enregistrer mon engagement'; }, 1500);
+    } catch (e) { alert('Save failed: ' + (e.message || e)); }
   });
 }
 
@@ -19798,8 +19982,10 @@ function gmvRenderTargets() {
   // sometimes parses the URL fragment asynchronously).
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', detectInviteAndShow);
+    document.addEventListener('DOMContentLoaded', () => { try { settingsRenderImpersonationBanner(); } catch (_) {} });
   } else {
     detectInviteAndShow();
+    try { settingsRenderImpersonationBanner(); } catch (_) {}
   }
   window.addEventListener('hashchange', detectInviteAndShow);
   // Wire submit + Enter handler once the DOM is ready.
@@ -20047,14 +20233,84 @@ async function settingsSubmitInvite() {
   }
 }
 
+async function settingsRenderImpersonation() {
+  const sel = document.getElementById('stImpersonateSel');
+  const active = document.getElementById('stImpersonateActive');
+  if (!sel) return;
+  // Make sure GMV clients are loaded before we read sellers from them.
+  try {
+    if ((!gmv.clients || !Object.keys(gmv.clients).length) && typeof gmvInit === 'function') {
+      await gmvInit();
+    }
+  } catch (_) {}
+  const sellers = new Set();
+  try {
+    Object.values((typeof gmv !== 'undefined' && gmv && gmv.clients) || {}).forEach(c => {
+      if (c && c.seller) sellers.add(String(c.seller).trim());
+    });
+  } catch (_) {}
+  const sorted = Array.from(sellers).sort((a, b) => a.localeCompare(b));
+  const cur = (typeof gmvImpersonatedSeller === 'function') ? gmvImpersonatedSeller() : '';
+  sel.innerHTML = '<option value="">— Pick a seller to impersonate —</option>' +
+    sorted.map(s => `<option value="${s.replace(/"/g, '&quot;')}" ${s === cur ? 'selected' : ''}>${s}</option>`).join('');
+  if (active) {
+    if (cur) {
+      active.innerHTML = `<span style="display:inline-block; padding:4px 10px; background:#fef3c7; color:#92400e; border-radius:6px; font-weight:600;">⚡ Currently impersonating: ${cur}</span>`;
+    } else {
+      active.textContent = 'Not impersonating — you see everything as creator.';
+    }
+  }
+}
+
+function settingsRenderImpersonationBanner() {
+  const cur = (typeof gmvImpersonatedSeller === 'function') ? gmvImpersonatedSeller() : '';
+  let bar = document.getElementById('impersonationBanner');
+  if (cur) {
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'impersonationBanner';
+      bar.style.cssText = 'position:fixed; top:0; left:0; right:0; z-index:9998; background:linear-gradient(90deg,#dc2626,#b91c1c); color:#fff; padding:8px 16px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:12px; box-shadow:0 2px 8px rgba(0,0,0,.15);';
+      document.body.appendChild(bar);
+      // Push the rest of the app down so the banner doesn't cover content.
+      document.body.style.paddingTop = '36px';
+    }
+    bar.innerHTML = `<span style="font-size:16px;">⚡</span> <span>Impersonating <b>${cur}</b> — you see and act as this seller</span> <button type="button" id="impersonationStop" style="margin-left:auto; padding:4px 12px; background:#fff; color:#dc2626; border:0; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">Stop & return to creator</button>`;
+    const btn = document.getElementById('impersonationStop');
+    if (btn) btn.addEventListener('click', () => {
+      gmvSetImpersonatedSeller('');
+      location.reload();
+    });
+  } else if (bar) {
+    bar.remove();
+    document.body.style.paddingTop = '';
+  }
+}
+
 function settingsInit() {
   if (settings.inited) {
     settingsRenderAccount();
     settingsRenderTeam();
     settingsRenderRecent();
+    settingsRenderImpersonation();
+    settingsRenderImpersonationBanner();
     return;
   }
   settings.inited = true;
+  // Wire impersonation controls.
+  const startBtn = document.getElementById('stImpersonateStart');
+  const stopBtn = document.getElementById('stImpersonateStop');
+  if (startBtn) startBtn.addEventListener('click', () => {
+    if (typeof gmvIsRealCreator === 'function' && !gmvIsRealCreator()) { alert('Only the creator can impersonate.'); return; }
+    const sel = document.getElementById('stImpersonateSel');
+    const v = sel && sel.value;
+    if (!v) { alert('Pick a seller first.'); return; }
+    gmvSetImpersonatedSeller(v);
+    location.reload();
+  });
+  if (stopBtn) stopBtn.addEventListener('click', () => {
+    gmvSetImpersonatedSeller('');
+    location.reload();
+  });
   // Wire invite trigger.
   const inviteBtn = document.getElementById('stInviteBtn');
   if (inviteBtn) inviteBtn.addEventListener('click', settingsOpenInviteModal);
@@ -20085,6 +20341,8 @@ function settingsInit() {
   settingsRenderAccount();
   settingsRenderTeam();
   settingsRenderRecent();
+  settingsRenderImpersonation();
+  settingsRenderImpersonationBanner();
 }
 
 // =========================================================================
@@ -21313,9 +21571,14 @@ function fulfillShowTestReport() {
 // Respects current seller/search filters on Sheets 1 & 2; Sheet 3 is full.
 async function fulfillExportFullReport() {
   if (typeof XLSX === 'undefined') { alert('XLSX library not available.'); return; }
+  // Always re-run the allocator so the export reflects the freshest
+  // state — including top-clients exclusion (fulfill.topOrders).
+  if (fulfill.orders.length && Object.keys(fulfill.stock).length && typeof fulfillRunAllocator === 'function') {
+    try { fulfillRunAllocator(); } catch (_) {}
+  }
   const a = fulfill.allocations || { full: [], partial: [], waiting: [] };
-  if (!a.full.length && !a.partial.length && !a.waiting.length) {
-    alert('Nothing to export — run the allocator first.');
+  if (!a.full.length && !a.partial.length && !a.waiting.length && !(fulfill.topOrders && fulfill.topOrders.length)) {
+    alert('Nothing to export — upload orders + stock and run the allocator first.');
     return;
   }
   // Refresh decisions from Supabase so the export contains the latest
@@ -21486,10 +21749,18 @@ async function fulfillExportFullReport() {
     };
   });
 
-  // Per-client order detail (flat).
+  // Per-client order detail (flat). Pull every order this top client
+  // has — not just AMA-product orders — by scanning fulfill.topOrders
+  // (and fallbacks) for matching phones.
+  const ordersByPhone = {};
+  Object.values(ordByCode).forEach(o => {
+    if (!o || !o.phone) return;
+    if (!ordersByPhone[o.phone]) ordersByPhone[o.phone] = [];
+    ordersByPhone[o.phone].push(o);
+  });
   const sheet2Detail = [];
   topList.forEach(c => {
-    const ords = c.orders.map(oRef => ordByCode[oRef.code]).filter(Boolean);
+    const ords = (ordersByPhone[c.phone] || []).slice();
     ords.sort((x, y) => {
       const rx = STATUS_RANK[bucketByCode[x.code]] || 9;
       const ry = STATUS_RANK[bucketByCode[y.code]] || 9;
@@ -21663,15 +21934,30 @@ function fulfillExportTab(tab) {
       }))
     });
     // 2) One row per (client, order, line) for full traceability.
+    // Include excluded top orders (fulfill.topOrders) since high-GMV
+    // clients now live there. Group by phone so every one of their
+    // orders shows up — not just AMA ones.
     const allOrders = {};
-    fulfill.allocations.full.concat(fulfill.allocations.partial, fulfill.allocations.waiting)
+    fulfill.allocations.full
+      .concat(fulfill.allocations.partial, fulfill.allocations.waiting, fulfill.topOrders || [])
       .forEach(o => { allOrders[o.code] = o; });
+    const ordersByPhone = {};
+    Object.values(allOrders).forEach(o => {
+      if (!o || !o.phone) return;
+      if (!ordersByPhone[o.phone]) ordersByPhone[o.phone] = [];
+      ordersByPhone[o.phone].push(o);
+    });
     const detail = [];
     list.forEach(c => {
-      c.orders.forEach(oRef => {
-        const ord = allOrders[oRef.code];
-        if (!ord) return;
-        const statusLabel = oRef.status === 'full' ? ffT('badge_full') : oRef.status === 'partial' ? ffT('badge_partial') : oRef.status === 'wait' ? ffT('badge_wait') : '?';
+      const ords = ordersByPhone[c.phone] || [];
+      ords.forEach(ord => {
+        const ref = c.orders.find(o => o.code === ord.code);
+        const s = ref && ref.status;
+        const statusLabel = ord._excluded ? ffT('badge_excluded')
+          : s === 'full' ? ffT('badge_full')
+          : s === 'partial' ? ffT('badge_partial')
+          : s === 'wait' ? ffT('badge_wait')
+          : '?';
         ord.lines.forEach(l => {
           let pname = l.productName || '';
           if (!pname && typeof gmv !== 'undefined' && gmv && gmv.productCategories) {
@@ -21695,6 +21981,35 @@ function fulfillExportTab(tab) {
       });
     });
     sheets.push({ name: 'Orders & lines', rows: detail });
+    // 3) AMA lines — every product line from top-client orders that IS
+    // in the AMA catalog. Keeps mixed orders, drops non-AMA lines.
+    const ama = fulfill.amaProducts || new Set();
+    const nonAmaDetail = [];
+    list.forEach(c => {
+      const ords = ordersByPhone[c.phone] || [];
+      ords.forEach(ord => {
+        ord.lines.forEach(l => {
+          if (!ama.has(l.productCode)) return;
+          let pname = l.productName || '';
+          if (!pname && typeof gmv !== 'undefined' && gmv && gmv.productCategories) {
+            const cat = gmv.productCategories[l.productCode];
+            if (cat && cat.description) pname = cat.description;
+          }
+          nonAmaDetail.push({
+            'Client': c.name,
+            'Phone': c.phone || '',
+            'Seller': c.seller,
+            'Order code': ord.code,
+            'Product code': l.productCode,
+            'Product name': pname || '',
+            'Ordered qty': l.qty,
+            'Deliverable qty': l.deliverable || 0,
+            'Line amount (MAD)': Math.round((l.amount || 0) * 100) / 100,
+          });
+        });
+      });
+    });
+    sheets.push({ name: 'AMA lines', rows: nonAmaDetail });
     filename = `OF_high_gmv_clients${sellerSuffix}_${today}.xlsx`;
   } else { return; }
 
@@ -22429,6 +22744,19 @@ async function fulfillInit() {
       <div class="label">Role</div>
       <div class="value"><span class="invite-tag" id="stAccountRole" style="background:#dcfce7; color:#166534;">CREATOR</span></div>
     </div>
+  </div>
+
+  <div class="st-card">
+    <h2>Impersonate seller (testing)</h2>
+    <div class="sub">Take any seller's seat to see exactly what they see and do. Affects sidebar, filters, uploads, and Engagement page.</div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <select id="stImpersonateSel" style="flex:1; min-width:220px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; background:#fff;">
+        <option value="">— Pick a seller to impersonate —</option>
+      </select>
+      <button type="button" class="st-btn" id="stImpersonateStart">Start impersonation</button>
+      <button type="button" class="st-btn secondary" id="stImpersonateStop">Stop</button>
+    </div>
+    <div id="stImpersonateActive" style="margin-top:10px; font-size:12px; color:#64748b;"></div>
   </div>
 
   <div class="st-card">
