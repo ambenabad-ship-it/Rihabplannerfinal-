@@ -19210,8 +19210,31 @@ function settingsRenderTeam() {
           <div class="invite-meta">${isSeller ? 'Seller: ' + settingsEscapeHtml(inv.seller) : 'Full-access viewer'} · invited ${settingsTimeAgo(inv.when)}</div>
         </div>
         <span class="invite-tag ${tagCls}">${tagLabel}</span>
+        <button type="button" class="st-btn danger" data-st-remove="${settingsEscapeHtml(inv.email)}" style="font-size:11px; padding:6px 10px; margin-left:6px;">Remove</button>
       </li>`;
   }).join('');
+  list.querySelectorAll('[data-st-remove]').forEach(btn => {
+    btn.addEventListener('click', () => settingsRemoveUser(btn.dataset.stRemove));
+  });
+}
+
+async function settingsRemoveUser(email) {
+  if (!email) return;
+  if (!confirm('Remove ' + email + '?\n\nThis permanently deletes their account from Supabase. They will no longer be able to sign in.')) return;
+  if (typeof sb === 'undefined' || !sb) { alert('Supabase not initialized.'); return; }
+  if (typeof gmvIsCreator !== 'function' || !gmvIsCreator()) { alert('Only the creator can delete users.'); return; }
+  try {
+    const { data, error } = await sb.functions.invoke('delete-user', { body: { email } });
+    if (error) throw new Error(error.message || String(error));
+    if (data && data.error) throw new Error(data.error);
+    // Remove from local recent-invites list.
+    settings.recentInvites = settings.recentInvites.filter(inv => (inv.email || '').toLowerCase() !== email.toLowerCase());
+    try { localStorage.setItem('rihab_recent_invites_v1', JSON.stringify(settings.recentInvites)); } catch (_) {}
+    settingsRenderTeam();
+    settingsRenderRecent();
+  } catch (e) {
+    alert('Remove failed: ' + (e && e.message ? e.message : e));
+  }
 }
 
 function settingsRenderRecent() {
@@ -19375,7 +19398,8 @@ const fulfill = {
   // belong to the same logical order.
   orders: [],          // [{orderCode, phone, productCode, qty, amount, status, date, name}]
   clients: {},         // phone -> { name, seller }
-  stock: {},           // productCode -> qty
+  stock: {},           // productCode -> qty (main stock)
+  topClientsStock: {}, // productCode -> qty (dedicated to high-GMV clients)
   amaProducts: new Set(),
   allocations: { full: [], partial: [], waiting: [] },
   remainingStock: {},
@@ -19403,6 +19427,8 @@ const FF_I18N = {
     tile_stock_hint: "Même format que le Delivery Planner : partnerCode + quantité.",
     tile_ama_title: 'Fichier produits AMA',
     tile_ama_hint: "Deux colonnes : PARTENAIRE · Product code. Utilisé pour les clients à fort GMV (AMA).",
+    tile_topstock_title: 'Stock dédié — clients à fort GMV',
+    tile_topstock_hint: "Stock réservé aux clients à fort GMV (AMA). Leurs commandes ne consommeront pas le stock principal.",
     lbl_seller: 'Vendeur :', lbl_search: 'Recherche :', lbl_threshold: 'Seuil clients à fort GMV (AMA, MAD) :',
     ph_search: 'Code commande, téléphone, nom…', opt_all_sellers: 'Tous les vendeurs',
     btn_run: 'Lancer le calcul', btn_test: 'Tester', btn_verify: 'Vérifier avec un fichier', btn_export: '⇓ Exporter vers Excel',
@@ -19454,6 +19480,8 @@ const FF_I18N = {
     tile_stock_hint: 'Same format as Delivery Planner: partnerCode + quantity.',
     tile_ama_title: 'AMA products file',
     tile_ama_hint: 'Two columns: PARTENAIRE · Product code. Used to compute High GMV clients (AMA).',
+    tile_topstock_title: 'Dedicated stock — High GMV clients',
+    tile_topstock_hint: "Stock reserved for High GMV (AMA) clients. Their orders won't consume the main stock pool.",
     lbl_seller: 'Seller:', lbl_search: 'Search:', lbl_threshold: 'High GMV (AMA) threshold (MAD):',
     ph_search: 'Order code, phone, name…', opt_all_sellers: 'All sellers',
     btn_run: 'Run allocator', btn_test: 'Test', btn_verify: 'Verify with file', btn_export: '⇓ Export to Excel',
@@ -19705,12 +19733,33 @@ function fulfillRunAllocator() {
     return { code, lines, totalQty, totalAmt, phone, seller, name, needPer };
   });
 
-  // Working stock copy.
+  // Identify top-GMV clients — they get a DEDICATED stock pool so their
+  // orders never compete with the rest. Result: more main-stock available
+  // for everyone else → more 100% / ≥80% across the regular orders.
+  const ama = fulfill.amaProducts || new Set();
+  const topPhones = new Set();
+  if (ama.size) {
+    const amaGmvByPhone = {};
+    fulfill.orders.forEach(l => {
+      if (!ama.has(l.productCode)) return;
+      amaGmvByPhone[l.phone] = (amaGmvByPhone[l.phone] || 0) + (l.amount || 0);
+    });
+    Object.entries(amaGmvByPhone).forEach(([phone, gmv]) => {
+      if (gmv >= (fulfill.topThreshold || 0)) topPhones.add(phone);
+    });
+  }
+  // Two working pools.
   const stock = Object.assign({}, fulfill.stock);
+  const topStock = Object.assign({}, fulfill.topClientsStock || {});
+  // Per-order: which pool to use.
+  orderObjs.forEach(o => { o._pool = topPhones.has(o.phone) ? 'top' : 'main'; });
 
   const fullList = [];
   const partialList = [];
   const waitingList = [];
+
+  // Helper to pick the working stock pool for an order.
+  const poolFor = ord => ord._pool === 'top' ? topStock : stock;
 
   if (fulfill.allocStrategy === 'max100') {
     // Strategy: max number of 100% orders. Reserves stock for orders
@@ -19721,9 +19770,10 @@ function fulfillRunAllocator() {
     orderObjs.sort((a, b) => (_firstSeen[a.code] || 0) - (_firstSeen[b.code] || 0));
     const remaining = [];
     orderObjs.forEach(ord => {
-      const canFull = Object.entries(ord.needPer).every(([code, q]) => (stock[code] || 0) >= q);
+      const pool = poolFor(ord);
+      const canFull = Object.entries(ord.needPer).every(([code, q]) => (pool[code] || 0) >= q);
       if (canFull) {
-        Object.entries(ord.needPer).forEach(([code, q]) => { stock[code] = (stock[code] || 0) - q; });
+        Object.entries(ord.needPer).forEach(([code, q]) => { pool[code] = (pool[code] || 0) - q; });
         ord.fulfillPct = 100;
         ord.deliverableTotal = ord.totalQty;
         ord.lines.forEach(l => { l.deliverable = l.qty; });
@@ -19742,17 +19792,18 @@ function fulfillRunAllocator() {
       });
       return d / ord.totalQty * 100;
     }
-    remaining.forEach(o => { o._potential = potentialPct(o, stock); });
+    remaining.forEach(o => { o._potential = potentialPct(o, poolFor(o)); });
     remaining.sort((a, b) => b._potential - a._potential);
     remaining.forEach(ord => {
+      const pool = poolFor(ord);
       let deliv = 0; const used = {};
       ord.lines.forEach(l => {
-        const have = (stock[l.productCode] || 0) - (used[l.productCode] || 0);
+        const have = (pool[l.productCode] || 0) - (used[l.productCode] || 0);
         const give = Math.min(l.qty, Math.max(0, have));
         used[l.productCode] = (used[l.productCode] || 0) + give;
         l.deliverable = give; deliv += give;
       });
-      Object.entries(used).forEach(([code, q]) => { stock[code] = (stock[code] || 0) - q; });
+      Object.entries(used).forEach(([code, q]) => { pool[code] = (pool[code] || 0) - q; });
       ord.fulfillPct = deliv / ord.totalQty * 100;
       ord.deliverableTotal = deliv;
       if (ord.fulfillPct >= 80) partialList.push(ord);
@@ -19760,12 +19811,15 @@ function fulfillRunAllocator() {
     });
   } else {
     // Strategy: DP-style — line-by-line in file order, no reservation.
-    // Maximizes total deliverable volume, matches Delivery Planner.
+    // Each order's lines are allocated against ITS pool (top vs main).
+    const orderPoolByCode = {};
+    orderObjs.forEach(o => { orderPoolByCode[o.code] = o._pool; });
     fulfill.orders.forEach(l => {
-      const have = Math.max(0, stock[l.productCode] || 0);
+      const pool = (orderPoolByCode[l.orderCode] === 'top') ? topStock : stock;
+      const have = Math.max(0, pool[l.productCode] || 0);
       const give = Math.min(l.qty, have);
       l.deliverable = give;
-      stock[l.productCode] = have - give;
+      pool[l.productCode] = have - give;
     });
     orderObjs.forEach(ord => {
       const deliv = ord.lines.reduce((s, l) => s + (l.deliverable || 0), 0);
@@ -19784,6 +19838,7 @@ function fulfillRunAllocator() {
 
   fulfill.allocations = { full: fullList, partial: partialList, waiting: waitingList };
   fulfill.remainingStock = stock;
+  fulfill.remainingTopStock = topStock;
   // Diagnostic — surfaces totals so we can compare against Delivery Planner.
   try {
     const sum = list => list.reduce((s,o)=>s+(o.totalAmt||0),0);
@@ -20690,6 +20745,11 @@ async function fulfillOnUpload(kind, file) {
       fulfillSetSummary('ffAmaSummary', `Loaded <b>${fulfill.amaProducts.size}</b> AMA product code(s).`);
       document.getElementById('ffTileAma')?.classList.add('ok');
       await fulfillPush('ff_ama', Array.from(fulfill.amaProducts));
+    } else if (kind === 'topstock') {
+      fulfill.topClientsStock = await fulfillParseStock(file);
+      fulfillSetSummary('ffTopStockSummary', `Loaded <b>${Object.keys(fulfill.topClientsStock).length}</b> SKU(s) for High GMV clients.`);
+      document.getElementById('ffTileTopStock')?.classList.add('ok');
+      await fulfillPush('ff_topstock', fulfill.topClientsStock);
     }
     fulfillTryAutoRun();
   } catch (e) {
@@ -20708,12 +20768,13 @@ async function fulfillPullFromCloud() {
   if (typeof sbUser === 'undefined' || !sbUser) return;
   if (typeof gmvReadShared !== 'function') return;
   try {
-    const [ords, clis, stk, ama, strategy] = await Promise.all([
+    const [ords, clis, stk, ama, strategy, topStk] = await Promise.all([
       gmvReadShared('ff_orders'),
       gmvReadShared('ff_clients'),
       gmvReadShared('ff_stock'),
       gmvReadShared('ff_ama'),
       gmvReadShared('ff_strategy'),
+      gmvReadShared('ff_topstock'),
     ]);
     if (strategy === 'dp' || strategy === 'max100') {
       fulfill.allocStrategy = strategy;
@@ -20743,6 +20804,11 @@ async function fulfillPullFromCloud() {
       fulfill.amaProducts = new Set(ama);
       fulfillSetSummary('ffAmaSummary', `Synced <b>${ama.length}</b> AMA product code(s).`);
       document.getElementById('ffTileAma')?.classList.add('ok');
+    }
+    if (topStk && typeof topStk === 'object') {
+      fulfill.topClientsStock = topStk;
+      fulfillSetSummary('ffTopStockSummary', `Synced <b>${Object.keys(topStk).length}</b> SKU(s) for High GMV clients.`);
+      document.getElementById('ffTileTopStock')?.classList.add('ok');
     }
   } catch (e) { console.warn('fulfill pull failed:', e); }
 }
@@ -20797,6 +20863,7 @@ async function fulfillInit() {
   wire('ffClientsFile', 'clients');
   wire('ffStockFile', 'stock');
   wire('ffAmaFile', 'ama');
+  wire('ffTopStockFile', 'topstock');
 
   // Tabs.
   document.querySelectorAll('.ff-tab').forEach(btn => {
@@ -21157,6 +21224,12 @@ async function fulfillInit() {
       <div class="ff-tile-hint" data-fft="tile_ama_hint">Deux colonnes : PARTENAIRE · Product code. Utilisé pour les clients à fort GMV (AMA).</div>
       <div class="ff-tile-summary" id="ffAmaSummary"></div>
       <input type="file" id="ffAmaFile" accept=".xlsx,.xls,.csv">
+    </label>
+    <label class="ff-tile" id="ffTileTopStock">
+      <div class="ff-tile-title" data-fft="tile_topstock_title">Stock dédié — clients à fort GMV</div>
+      <div class="ff-tile-hint" data-fft="tile_topstock_hint">Stock réservé aux clients à fort GMV (AMA). Leurs commandes ne consommeront pas le stock principal.</div>
+      <div class="ff-tile-summary" id="ffTopStockSummary"></div>
+      <input type="file" id="ffTopStockFile" accept=".xlsx,.xls,.csv">
     </label>
   </div>
 
