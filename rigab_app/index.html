@@ -19238,6 +19238,7 @@ function gmvEscapeHtmlEng(s) {
 
 // ---- Renderers ----
 async function gmvRenderEngagement(wrap) {
+  if (wrap) wrap.setAttribute('dir', engLang() === 'ar' ? 'rtl' : 'ltr');
   if (!gmvEngagement.loaded) {
     wrap.innerHTML = '<div style="padding:24px; color:#64748b; font-size:13px;">Loading engagement…</div>';
     await gmvLoadEngagement();
@@ -19268,13 +19269,13 @@ async function gmvRenderEngagement(wrap) {
   wrap.innerHTML = `
     <div style="margin:0 0 14px;">
       <h2 style="margin:0 0 4px; font-size:18px; font-weight:700;">Engagement</h2>
-      <div style="font-size:12px; color:#64748b;">Period <b>${gmvCurrentPeriodKey()}</b>${mySeller ? ` · Seller <b>${gmvEscapeHtmlEng(mySeller)}</b>` : ''}</div>
+      <div style="font-size:12px; color:#64748b;">${engT('eng_period_label')} <b>${gmvCurrentPeriodKey()}</b>${mySeller ? ` · ${engT('eng_seller_label')} <b>${gmvEscapeHtmlEng(mySeller)}</b>` : ''}</div>
     </div>
     ${uploadsHtml}
     <div style="display:inline-flex; gap:4px; margin:0 0 12px; padding:4px; background:#f1f5f9; border-radius:8px;">
-      ${tabBtn('focus', 'My focus products')}
-      ${tabBtn('paliers', 'My client paliers')}
-      ${tabBtn('scoreboard', 'Scoreboard')}
+      ${tabBtn('focus', engT('eng_subtab_focus'))}
+      ${tabBtn('paliers', engT('eng_subtab_paliers'))}
+      ${tabBtn('scoreboard', engT('eng_subtab_score'))}
     </div>
     <div id="engPanel"></div>`;
   // Wire subtab switcher.
@@ -19363,6 +19364,20 @@ const ENG_I18N = {
     eng_lvl_1: 'Niveau Engagé', eng_lvl_2: 'Niveau Confirmé', eng_lvl_3: 'Niveau Performant', eng_lvl_4: 'Niveau Élite', eng_lvl_5: 'Niveau Champion',
     eng_not_l1: 'Pas encore au niveau 1', eng_continue: 'Continuer la progression',
     eng_ref_min: 'min. ref.',
+    eng_subtab_focus: 'Mes produits focus', eng_subtab_paliers: 'Paliers de mes clients', eng_subtab_score: 'Mes performances',
+    eng_period_label: 'Période', eng_seller_label: 'Vendeur',
+    eng_refs: '{n} référence(s)',
+    sc_my_perf: 'Mes performances', sc_overall: 'Score global',
+    sc_focus_score: 'Score Produits Focus', sc_palier_score: 'Score Paliers Clients',
+    sc_committed: 'Engagés', sc_reached: 'Atteints',
+    sc_gmv_tier: 'Niveau GMV actuel',
+    sc_gmv_total: 'GMV total (focus)',
+    sc_clients_paliers: 'Paliers clients',
+    sc_leaderboard: 'Classement des vendeurs',
+    sc_rank: '#', sc_seller: 'Vendeur', sc_focus_hit: 'Focus',
+    sc_palier_hit: 'Paliers', sc_score: 'Score',
+    sc_no_data: "Pas encore de données — engagez-vous sur des produits pour voir vos performances.",
+    sc_great: 'Excellent !', sc_good: 'Bonne progression', sc_keep: 'Continuez',
   },
   en: {
     eng_title: 'Engagement', eng_period: 'Period', eng_seller: 'Seller',
@@ -19383,6 +19398,20 @@ const ENG_I18N = {
     eng_lvl_1: 'Engaged tier', eng_lvl_2: 'Confirmed tier', eng_lvl_3: 'Performer tier', eng_lvl_4: 'Elite tier', eng_lvl_5: 'Champion tier',
     eng_not_l1: 'Not at tier 1 yet', eng_continue: 'Keep going',
     eng_ref_min: 'ref. min.',
+    eng_subtab_focus: 'My focus products', eng_subtab_paliers: 'My client tiers', eng_subtab_score: 'My performance',
+    eng_period_label: 'Period', eng_seller_label: 'Seller',
+    eng_refs: '{n} reference(s)',
+    sc_my_perf: 'My performance', sc_overall: 'Overall score',
+    sc_focus_score: 'Focus products score', sc_palier_score: 'Client tiers score',
+    sc_committed: 'Committed', sc_reached: 'Reached',
+    sc_gmv_tier: 'Current GMV tier',
+    sc_gmv_total: 'Total GMV (focus)',
+    sc_clients_paliers: 'Client tiers',
+    sc_leaderboard: 'Sellers leaderboard',
+    sc_rank: '#', sc_seller: 'Seller', sc_focus_hit: 'Focus',
+    sc_palier_hit: 'Tiers', sc_score: 'Score',
+    sc_no_data: "No data yet — commit to products to see your performance.",
+    sc_great: 'Excellent!', sc_good: 'Good progress', sc_keep: 'Keep going',
   },
   ar: {
     eng_title: 'الالتزام', eng_period: 'الفترة', eng_seller: 'البائع',
@@ -19400,9 +19429,23 @@ const ENG_I18N = {
     eng_no_focus_seller: 'اطلب من المالك رفع ملف المنتجات المستهدفة.',
     eng_signin_seller: 'سجل الدخول كبائع للالتزام وتتبع منتجاتك.',
     eng_save_warn: 'تم اختيار {n} منتج فقط. الحد الأدنى هو {min}. الحفظ على أي حال ؟',
-    eng_lvl_1: 'مستوى ملتزم', eng_lvl_2: 'مستوى مؤكد', eng_lvl_3: 'مستوى متميز', eng_lvl_4: 'مستوى نخبة', eng_lvl_5: 'مستوى البطل',
-    eng_not_l1: 'لم يصل بعد إلى المستوى 1', eng_continue: 'استمر في التقدم',
-    eng_ref_min: 'الحد الأدنى المرجعي',
+    eng_lvl_1: 'المستوى الأول', eng_lvl_2: 'المستوى الثاني', eng_lvl_3: 'المستوى الثالث', eng_lvl_4: 'المستوى الرابع', eng_lvl_5: 'بطل البيع',
+    eng_not_l1: 'لم تصل بعد للمستوى الأول', eng_continue: 'واصل التقدم',
+    eng_ref_min: 'الحد الأدنى',
+    eng_subtab_focus: 'منتجاتي المختارة', eng_subtab_paliers: 'مستويات زبنائي', eng_subtab_score: 'أدائي',
+    eng_period_label: 'الفترة', eng_seller_label: 'البائع',
+    eng_refs: '{n} منتج',
+    sc_my_perf: 'أدائي هذا الشهر', sc_overall: 'النتيجة الإجمالية',
+    sc_focus_score: 'نتيجة المنتجات المختارة', sc_palier_score: 'نتيجة مستويات الزبناء',
+    sc_committed: 'الملتزم بها', sc_reached: 'المنجزة',
+    sc_gmv_tier: 'المستوى الحالي',
+    sc_gmv_total: 'إجمالي GMV (المنتجات المختارة)',
+    sc_clients_paliers: 'مستويات الزبناء',
+    sc_leaderboard: 'ترتيب البائعين',
+    sc_rank: '#', sc_seller: 'البائع', sc_focus_hit: 'المنتجات',
+    sc_palier_hit: 'المستويات', sc_score: 'النتيجة',
+    sc_no_data: 'لا توجد بيانات بعد — التزم بمنتجات لرؤية أدائك.',
+    sc_great: '🔥 ممتاز !', sc_good: 'تقدم جيد', sc_keep: 'واصل',
   },
 };
 function engLang() {
@@ -19543,7 +19586,7 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
   Object.entries(families).forEach(([fam, lst]) => {
     cardsHtml += `<div style="display:flex; align-items:baseline; justify-content:space-between; margin:18px 0 10px;">
       <h3 style="margin:0; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.08em; font-weight:700;">${gmvEscapeHtmlEng(fam)}</h3>
-      <span style="font-size:11px; color:#94a3b8;">${lst.length} référence(s)</span>
+      <span style="font-size:11px; color:#94a3b8;">${engT('eng_refs', { n: lst.length })}</span>
     </div>`;
     cardsHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">`;
     lst.forEach(code => {
@@ -19693,78 +19736,167 @@ function gmvRenderEngagementPaliers(panel, mySeller, isCreator) {
 
 function gmvRenderEngagementScoreboard(panel, mySeller, isCreator) {
   if (!panel) return;
-  // Compute per-seller stats.
+  panel.setAttribute('dir', engLang() === 'ar' ? 'rtl' : 'ltr');
   const period = gmvCurrentPeriodKey();
-  const allSellers = new Set(Object.values(gmv.clients || {}).map(c => c && c.seller).filter(Boolean));
-  Object.values(gmvClientAssignments.byPhone || {}).forEach(a => { if (a.seller) allSellers.add(a.seller); });
-  const ca = gmvComputeCaPerClient();
-  const stats = Array.from(allSellers).map(seller => {
+  const fmt = n => Math.round(n || 0).toLocaleString('en-US');
+  // Compute stats for one seller.
+  const computeFor = (seller) => {
     const commitment = gmvEngagement.commitments[seller] || {};
-    const focus = commitment.focus || {};
+    const rawFocus = commitment.focus || {};
+    // Normalize: a "selected" entry means the seller committed to the SKU.
+    const focusSelected = Object.entries(rawFocus)
+      .filter(([_, v]) => v && (v.selected || typeof v === 'number'))
+      .map(([k]) => k);
     const paliersTgt = commitment.paliers || {};
-    let focusHit = 0;
-    Object.keys(focus).forEach(code => {
-      // Recompute sold for this seller/code.
-      let sold = 0;
-      (gmv.orders || []).forEach(o => {
-        if (!o || o.productCode !== code) return;
-        const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
-        if (!d) return;
-        if ((d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')) !== period) return;
-        const cl = (gmv.clients || {})[o.phone] || {};
-        const assigned = (gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller;
-        if (assigned !== seller) return;
-        sold += 1;
-      });
-      if (sold >= focus[code]) focusHit++;
+    const sold = gmvComputeSoldForSeller(seller, period);
+    let focusGmv = 0, focusHit = 0;
+    focusSelected.forEach(code => {
+      const meta = gmvEngagement.focusProducts[code] || {};
+      const s = sold[code] || { qty: 0, gmv: 0 };
+      focusGmv += s.gmv;
+      if (meta.min && s.qty >= meta.min) focusHit++;
     });
+    // Tier score based on cumulative GMV.
+    const curTier = gmvCurrentThreshold(focusGmv);
+    const tierIdx = curTier ? curTier.id : 0;
+    // Client tiers progress.
+    const ca = gmvComputeCaPerClient();
     let palierHit = 0;
     Object.entries(paliersTgt).forEach(([phone, target]) => {
       const ach = gmvAchievedPalier(ca[phone] || 0);
       if (ach && ach.palier >= parseInt(target)) palierHit++;
     });
-    const focusTotal = Object.keys(focus).length;
+    const focusTotal = focusSelected.length;
     const palierTotal = Object.keys(paliersTgt).length;
     const focusScore = focusTotal ? focusHit / focusTotal : 0;
     const palierScore = palierTotal ? palierHit / palierTotal : 0;
     const blend = Math.round(((focusScore + palierScore) / 2) * 100);
-    return { seller, focusHit, focusTotal, palierHit, palierTotal, score: blend };
-  }).sort((a, b) => b.score - a.score);
-  const targetList = mySeller ? stats.filter(s => s.seller === mySeller) : stats;
+    return { seller, focusSelected, focusHit, focusTotal, focusGmv, curTier, tierIdx, palierHit, palierTotal, focusScorePct: Math.round(focusScore * 100), palierScorePct: Math.round(palierScore * 100), score: blend };
+  };
+
+  // Donut helper: SVG circular progress.
+  const donut = (pct, color, size, strokeW, label) => {
+    const r = (size - strokeW) / 2;
+    const c = 2 * Math.PI * r;
+    const off = c * (1 - Math.max(0, Math.min(100, pct)) / 100);
+    return `
+      <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="display:block;">
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="#f1f5f9" stroke-width="${strokeW}" fill="none"/>
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="${color}" stroke-width="${strokeW}" fill="none"
+          stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round"
+          transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dashoffset .8s;"/>
+        <text x="50%" y="48%" text-anchor="middle" font-size="${Math.round(size*0.22)}" font-weight="700" fill="#0f172a">${pct}%</text>
+        ${label ? `<text x="50%" y="68%" text-anchor="middle" font-size="${Math.round(size*0.09)}" fill="#64748b">${label}</text>` : ''}
+      </svg>`;
+  };
+
+  // Decide which view to render: seller (only their data) or creator (full leaderboard).
+  if (mySeller && !isCreator) {
+    // PERSONAL VIEW
+    const me = computeFor(mySeller);
+    if (me.focusTotal === 0 && me.palierTotal === 0) {
+      panel.innerHTML = `<div style="padding:48px 32px; text-align:center; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px;"><div style="font-size:32px; margin-bottom:8px;">📈</div><div style="font-size:13px; color:#64748b;">${engT('sc_no_data')}</div></div>`;
+      return;
+    }
+    const scoreColor = me.score >= 75 ? '#16a34a' : me.score >= 40 ? '#f59e0b' : '#dc2626';
+    const moodEmoji = me.score >= 75 ? '🔥' : me.score >= 40 ? '👍' : '💪';
+    const moodTxt = me.score >= 75 ? engT('sc_great') : me.score >= 40 ? engT('sc_good') : engT('sc_keep');
+    const tierLabel = me.curTier ? engLevelLabel(me.curTier) : engT('eng_not_l1');
+    const tierColor = me.curTier ? me.curTier.color : '#94a3b8';
+    panel.innerHTML = `
+      <div style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius:18px; padding:28px 24px; color:#fff; margin-bottom:14px; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:-30px; right:-30px; width:160px; height:160px; background:radial-gradient(circle, ${scoreColor}40 0%, transparent 70%); border-radius:50%;"></div>
+        <div style="position:relative; display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
+          <div style="flex-shrink:0;">${donut(me.score, scoreColor, 140, 14, '')}</div>
+          <div style="flex:1; min-width:200px;">
+            <div style="font-size:11px; opacity:.7; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;">${engT('sc_my_perf')} · ${period}</div>
+            <div style="font-size:24px; font-weight:700;">${gmvEscapeHtmlEng(me.seller)}</div>
+            <div style="margin-top:10px; font-size:14px; opacity:.9;">${moodEmoji} <b>${moodTxt}</b></div>
+            <div style="margin-top:6px; font-size:12px; opacity:.7;">${engT('sc_overall')} : <b style="color:${scoreColor};">${me.score}%</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:14px;">
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            ${donut(me.focusScorePct, '#3b82f6', 64, 8, '')}
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em;">${engT('sc_focus_score')}</div>
+              <div style="font-size:20px; font-weight:700; color:#0f172a; margin-top:2px;">${me.focusHit}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${me.focusTotal}</span></div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">${engT('sc_committed')} : ${me.focusTotal} · ${engT('sc_reached')} : ${me.focusHit}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="width:64px; height:64px; border-radius:50%; background:${tierColor}20; color:${tierColor}; display:flex; align-items:center; justify-content:center; font-size:24px;">🏆</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em;">${engT('sc_gmv_tier')}</div>
+              <div style="font-size:18px; font-weight:700; color:${tierColor}; margin-top:2px;">${tierLabel}</div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">${engT('sc_gmv_total')} : <b style="color:#0f172a;">${fmt(me.focusGmv)}</b> MAD</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            ${donut(me.palierScorePct, '#a855f7', 64, 8, '')}
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em;">${engT('sc_palier_score')}</div>
+              <div style="font-size:20px; font-weight:700; color:#0f172a; margin-top:2px;">${me.palierHit}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${me.palierTotal}</span></div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">${engT('sc_clients_paliers')}</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // CREATOR / VIEWER VIEW — full leaderboard.
+  const allSellers = new Set(Object.values(gmv.clients || {}).map(c => c && c.seller).filter(Boolean));
+  Object.values(gmvClientAssignments.byPhone || {}).forEach(a => { if (a.seller) allSellers.add(a.seller); });
+  const stats = Array.from(allSellers).map(computeFor).sort((a, b) => b.score - a.score);
+  const podium = stats.slice(0, 3);
+  const rest = stats.slice(3);
+  const podiumCard = (s, i) => {
+    const medals = ['🥇','🥈','🥉'];
+    const colors = ['#fbbf24', '#94a3b8', '#a3754f'];
+    return `
+      <div style="background:#fff; border:2px solid ${colors[i]}; border-radius:14px; padding:18px; text-align:center;">
+        <div style="font-size:32px; margin-bottom:6px;">${medals[i]}</div>
+        <div style="font-size:14px; font-weight:700; color:#0f172a;">${gmvEscapeHtmlEng(s.seller)}</div>
+        <div style="font-size:24px; font-weight:700; color:${colors[i]}; margin-top:6px;">${s.score}%</div>
+        <div style="font-size:11px; color:#64748b; margin-top:4px;">${engT('sc_focus_hit')}: <b>${s.focusHit}/${s.focusTotal}</b> · ${engT('sc_palier_hit')}: <b>${s.palierHit}/${s.palierTotal}</b></div>
+      </div>`;
+  };
   panel.innerHTML = `
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:14px;">
-      <div style="padding:14px; background:#fff; border:1px solid #e2e8f0; border-radius:10px;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase;">Sellers</div>
-        <div style="font-size:24px; font-weight:700;">${stats.length}</div>
-      </div>
-      <div style="padding:14px; background:#fff; border:1px solid #e2e8f0; border-radius:10px;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase;">Focus SKUs</div>
-        <div style="font-size:24px; font-weight:700;">${Object.keys(gmvEngagement.focusProducts).length}</div>
-      </div>
-      <div style="padding:14px; background:#fff; border:1px solid #e2e8f0; border-radius:10px;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase;">Paliers</div>
-        <div style="font-size:24px; font-weight:700;">${gmvEngagement.paliers.length}</div>
-      </div>
+    <div style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; border-radius:14px; padding:18px 22px; margin-bottom:14px;">
+      <div style="font-size:11px; opacity:.7; text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px;">${engT('sc_leaderboard')} · ${period}</div>
+      <div style="font-size:18px; font-weight:700;">${stats.length} ${engT('sc_seller').toLowerCase()}(s)</div>
     </div>
-    <table style="width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
-      <thead><tr style="background:#f8fafc;">
-        <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">#</th>
-        <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Seller</th>
-        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Focus hit</th>
-        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Paliers hit</th>
-        <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">Score</th>
-      </tr></thead>
-      <tbody>
-        ${targetList.map((s, i) => `
-          <tr style="border-top:1px solid #f1f5f9; ${s.seller === mySeller ? 'background:#eff6ff;' : ''}">
-            <td style="padding:6px 10px; color:#94a3b8;">${i + 1}</td>
-            <td style="padding:6px 10px; font-weight:600;">${gmvEscapeHtmlEng(s.seller)}</td>
-            <td style="padding:6px 10px; text-align:right;">${s.focusHit} / ${s.focusTotal}</td>
-            <td style="padding:6px 10px; text-align:right;">${s.palierHit} / ${s.palierTotal}</td>
-            <td style="padding:6px 10px; text-align:right; font-weight:700; color:${s.score >= 75 ? '#166534' : s.score >= 40 ? '#92400e' : '#7f1d1d'};">${s.score}%</td>
-          </tr>`).join('')}
-      </tbody>
-    </table>`;
+    ${podium.length ? `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:18px;">${podium.map((s, i) => podiumCard(s, i)).join('')}</div>` : ''}
+    ${rest.length ? `
+      <table style="width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+        <thead><tr style="background:#f8fafc;">
+          <th style="text-align:left; padding:10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em;">${engT('sc_rank')}</th>
+          <th style="text-align:left; padding:10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em;">${engT('sc_seller')}</th>
+          <th style="text-align:right; padding:10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em;">${engT('sc_focus_hit')}</th>
+          <th style="text-align:right; padding:10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em;">${engT('sc_palier_hit')}</th>
+          <th style="text-align:right; padding:10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em;">${engT('sc_score')}</th>
+        </tr></thead>
+        <tbody>
+          ${rest.map((s, i) => `
+            <tr style="border-top:1px solid #f1f5f9;">
+              <td style="padding:8px 10px; color:#94a3b8;">${i + 4}</td>
+              <td style="padding:8px 10px; font-weight:600;">${gmvEscapeHtmlEng(s.seller)}</td>
+              <td style="padding:8px 10px; text-align:right;">${s.focusHit} / ${s.focusTotal}</td>
+              <td style="padding:8px 10px; text-align:right;">${s.palierHit} / ${s.palierTotal}</td>
+              <td style="padding:8px 10px; text-align:right; font-weight:700; color:${s.score >= 75 ? '#166534' : s.score >= 40 ? '#f59e0b' : '#dc2626'};">${s.score}%</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>` : ''}`;
 }
 
 // =========================================================================
