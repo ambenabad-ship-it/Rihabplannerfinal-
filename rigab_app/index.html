@@ -19612,16 +19612,19 @@ function fulfillRenderOrdersTable(list, hostId) {
     const expanded = !!fulfill.expandedOrders[ord.code];
     const pct = ord.fulfillPct || 0;
     const pctC = fulfillPctClass(pct);
+    const dec = fulfill.decisions && fulfill.decisions[ord.code];
+    const decCls = dec && dec.status === 'confirmed' ? 'dec-confirmed'
+                 : dec && dec.status === 'canceled' ? 'dec-canceled' : '';
     const main = `
-      <tr class="ord-row" data-ffcode="${fulfillEscapeHtml(ord.code)}">
-        <td><b>${fulfillEscapeHtml(ord.code)}</b></td>
-        <td>${fulfillEscapeHtml(ord.name || '(no name)')}<div style="color:var(--text-soft); font-size:11px;">${fulfillEscapeHtml(ord.phone)}</div></td>
+      <tr class="ord-row ${decCls}" data-ffcode="${fulfillEscapeHtml(ord.code)}">
+        <td class="ff-chev">${expanded ? '▼' : '▶'}</td>
+        <td class="ff-code"><code>${fulfillEscapeHtml(ord.code)}</code></td>
+        <td><div class="ff-client-name">${fulfillEscapeHtml(ord.name || '(no name)')}</div><div class="ff-sub">${fulfillEscapeHtml(ord.phone)}</div></td>
         <td>${fulfillEscapeHtml(ord.seller || '—')}</td>
-        <td>${ord.totalQty.toLocaleString()}</td>
-        <td>${(ord.deliverableTotal || 0).toLocaleString()}</td>
-        <td class="ff-pct ${pctC}">${pct.toFixed(1)}%</td>
-        <td>${fulfillFmtMad(ord.totalAmt)}</td>
-        <td><span style="color:var(--text-soft); font-size:11px;">${expanded ? '▼' : '▶'} ${ord.lines.length} line(s)</span></td>
+        <td class="ff-num">${ord.totalQty.toLocaleString()}</td>
+        <td class="ff-num">${(ord.deliverableTotal || 0).toLocaleString()}</td>
+        <td><span class="ff-pct ${pctC}">${pct.toFixed(1)}%</span></td>
+        <td class="ff-num">${fulfillFmtMad(ord.totalAmt)}</td>
       </tr>`;
     let detail = '';
     if (expanded) {
@@ -19661,14 +19664,19 @@ function fulfillRenderOrdersTable(list, hostId) {
   host.innerHTML = `
     <table class="ff-table">
       <thead><tr>
-        <th>Order code</th><th>Client</th><th>Seller</th><th>Ordered (units)</th>
-        <th>Deliverable</th><th>Fulfillment</th><th>Total amount</th><th></th>
+        <th></th>
+        <th>Order code</th>
+        <th>Client</th>
+        <th>Seller</th>
+        <th class="ff-num">Ordered</th>
+        <th class="ff-num">Deliverable</th>
+        <th>Fill %</th>
+        <th class="ff-num">Total amount</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   host.querySelectorAll('tr.ord-row').forEach(tr => {
     tr.addEventListener('click', e => {
-      // Don't toggle expansion when clicking inside the decision panel.
       if (e.target.closest('[data-ffdecision-host]') || e.target.closest('[data-ffdec-action]')) return;
       const code = tr.dataset.ffcode;
       fulfill.expandedOrders[code] = !fulfill.expandedOrders[code];
@@ -19730,10 +19738,11 @@ function fulfillRenderTopClients(hostId) {
     const expandedClient = !!fulfill.expandedTopClients[c.phone];
     const main = `
       <tr class="ord-row" data-ffclient="${fulfillEscapeHtml(c.phone)}">
-        <td>${expandedClient ? '▼' : '▶'} <b>${fulfillEscapeHtml(c.name)}</b><div style="color:var(--text-soft); font-size:11px;">${fulfillEscapeHtml(c.phone)}</div></td>
+        <td class="ff-chev">${expandedClient ? '▼' : '▶'}</td>
+        <td><div class="ff-client-name">${fulfillEscapeHtml(c.name)}</div><div class="ff-sub">${fulfillEscapeHtml(c.phone)}</div></td>
         <td>${fulfillEscapeHtml(c.seller)}</td>
-        <td><b>${fulfillFmtMad(c.gmv)}</b></td>
-        <td>${c.orders.length} order(s)</td>
+        <td class="ff-num"><b>${fulfillFmtMad(c.gmv)}</b></td>
+        <td class="ff-num">${c.orders.length}</td>
       </tr>`;
     let detail = '';
     if (expandedClient) {
@@ -19744,11 +19753,16 @@ function fulfillRenderTopClients(hostId) {
         const statCls = stat === 'full' ? 'full' : stat === 'partial' ? 'partial' : 'wait';
         const statLabel = stat === 'full' ? '100%' : stat === 'partial' ? '≥80%' : 'Waiting';
         const ordExpanded = !!fulfill.expandedOrders[ord.code];
+        const decC = fulfill.decisions && fulfill.decisions[ord.code];
+        const decClsRow = decC && decC.status === 'confirmed' ? 'dec-confirmed'
+                        : decC && decC.status === 'canceled' ? 'dec-canceled' : '';
         const ordHead = `
-          <tr class="ord-row" data-ffcode="${fulfillEscapeHtml(ord.code)}">
-            <td colspan="2" style="padding-left:24px;">${ordExpanded ? '▼' : '▶'} <b>${fulfillEscapeHtml(ord.code)}</b></td>
-            <td><span class="ff-status-badge ${statCls}">${statLabel}</span> ${(ord.fulfillPct || 0).toFixed(1)}%</td>
-            <td>${(ord.deliverableTotal || 0).toLocaleString()} / ${ord.totalQty.toLocaleString()} units · ${fulfillFmtMad(ord.totalAmt)}</td>
+          <tr class="ord-row ${decClsRow}" data-ffcode="${fulfillEscapeHtml(ord.code)}">
+            <td class="ff-chev">${ordExpanded ? '▼' : '▶'}</td>
+            <td class="ff-code"><code>${fulfillEscapeHtml(ord.code)}</code></td>
+            <td><span class="ff-status-badge ${statCls}">${statLabel}</span></td>
+            <td class="ff-num"><span class="ff-pct ${fulfillPctClass(ord.fulfillPct || 0)}">${(ord.fulfillPct || 0).toFixed(1)}%</span></td>
+            <td class="ff-num ff-sub">${(ord.deliverableTotal || 0).toLocaleString()} / ${ord.totalQty.toLocaleString()} · ${fulfillFmtMad(ord.totalAmt)}</td>
           </tr>`;
         let lineDetail = '';
         if (ordExpanded) {
@@ -19775,15 +19789,15 @@ function fulfillRenderTopClients(hostId) {
           const decisionHtml = fulfillRenderDecision(ord.code, ord);
           lineDetail = `
             <tr class="lines-row">
-              <td colspan="4">
+              <td colspan="5">
                 <div class="lines-inner" style="padding-left:48px;">
                   ${decisionHtml}
                   <table>
                     <thead><tr>
                       <th>Product code</th><th>Product name</th>
-                      <th>Ordered</th><th>Deliverable</th>
-                      <th>Stock (initial)</th><th>Stock (after)</th>
-                      <th>Line amount</th>
+                      <th class="ff-num">Ordered</th><th class="ff-num">Deliverable</th>
+                      <th class="ff-num">Stock (initial)</th><th class="ff-num">Stock (after)</th>
+                      <th class="ff-num">Line amount</th>
                     </tr></thead>
                     <tbody>${lineRows}</tbody>
                   </table>
@@ -19795,8 +19809,8 @@ function fulfillRenderTopClients(hostId) {
       }).join('');
       detail = `
         <tr class="lines-row">
-          <td colspan="4" style="padding:0;">
-            <table style="width:100%; background:#fafafa;">
+          <td colspan="5" style="padding:0;">
+            <table style="width:100%;">
               <tbody>${orderRows}</tbody>
             </table>
           </td>
@@ -19807,7 +19821,13 @@ function fulfillRenderTopClients(hostId) {
 
   host.innerHTML = `
     <table class="ff-table">
-      <thead><tr><th>Client</th><th>Seller</th><th>AMA-GMV</th><th>Orders</th></tr></thead>
+      <thead><tr>
+        <th></th>
+        <th>Client</th>
+        <th>Seller</th>
+        <th class="ff-num">AMA-GMV</th>
+        <th class="ff-num">Orders</th>
+      </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   host.querySelectorAll('tr.ord-row[data-ffclient]').forEach(tr => {
@@ -20682,27 +20702,71 @@ async function fulfillInit() {
   .ff-tab.active .pill { background:#dbeafe; color:#1e40af; }
   .ff-panel { display:none; }
   .ff-panel.active { display:block; }
-  .ff-table { width:100%; border-collapse:collapse; font-size:13px; }
-  .ff-table th { text-align:left; padding:8px 10px; background:#f8fafc; border-bottom:1px solid #e2e8f0; font-size:11px; color:var(--text-soft); text-transform:uppercase; letter-spacing:.04em; position:sticky; top:0; }
-  .ff-table td { padding:8px 10px; border-bottom:1px solid #f1f5f9; }
+  /* Table — modeled on Confirm and Review (.rvt-table). */
+  .ff-table { width:100%; border-collapse:collapse; font-size:12px; min-width:780px; }
+  .ff-table thead th {
+    position:sticky; top:0; z-index:2;
+    background:#f1f5f9;
+    padding:6px 10px;
+    text-align:left;
+    font-weight:700; font-size:11px;
+    color:#64748b;
+    border-bottom:1px solid #e2e8f0;
+    text-transform:uppercase; letter-spacing:.03em;
+    white-space:nowrap;
+  }
+  .ff-table thead th.ff-num { text-align:right; }
+  .ff-table tbody td { padding:5px 10px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
   .ff-table tr.ord-row { cursor:pointer; }
-  .ff-table tr.ord-row:hover { background:#f8fafc; }
-  .ff-table tr.lines-row td { background:#fafafa; padding:0; }
-  .ff-table .lines-inner { padding:8px 16px; }
-  .ff-table .lines-inner table { width:100%; font-size:12px; }
-  .ff-table .lines-inner th { background:transparent; padding:4px 6px; }
-  .ff-table .lines-inner td { padding:4px 6px; border:0; }
-  .ff-pct { font-weight:700; }
-  .ff-pct.full { color:#166534; }
-  .ff-pct.partial { color:#92400e; }
-  .ff-pct.low { color:#7f1d1d; }
+  .ff-table tr.ord-row:hover td { background:#f8fafc; }
+  .ff-table tr.ord-row.dec-confirmed td { background:rgba(5,150,105,0.06); }
+  .ff-table tr.ord-row.dec-confirmed:hover td { background:rgba(5,150,105,0.12); }
+  .ff-table tr.ord-row.dec-canceled td { background:rgba(220,38,38,0.05); }
+  .ff-table tr.ord-row.dec-canceled:hover td { background:rgba(220,38,38,0.1); }
+  .ff-chev { width:28px; padding:0 !important; text-align:center; color:#94a3b8; font-size:11px; }
+  .ff-code code {
+    font-size:11px; background:#f1f5f9; border:1px solid #e2e8f0;
+    padding:1px 6px; border-radius:4px; font-family:ui-monospace,monospace;
+  }
+  .ff-client-name { font-weight:600; color:#0f172a; }
+  .ff-sub { color:#64748b; font-size:10.5px; }
+  .ff-num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .ff-pct {
+    display:inline-block;
+    font-size:10.5px; font-weight:700;
+    padding:1px 6px; border-radius:4px;
+    font-variant-numeric:tabular-nums;
+    background:#f1f5f9; color:#475569;
+  }
+  .ff-pct.full    { background:#dcfce7; color:#166534; }
+  .ff-pct.partial { background:#fef3c7; color:#92400e; }
+  .ff-pct.low     { background:#fee2e2; color:#7f1d1d; }
   .ff-status-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
-  .ff-status-badge.full { background:#dcfce7; color:#166534; }
+  .ff-status-badge.full    { background:#dcfce7; color:#166534; }
   .ff-status-badge.partial { background:#fef3c7; color:#92400e; }
-  .ff-status-badge.wait { background:#fee2e2; color:#7f1d1d; }
-  .ff-empty { padding:40px; text-align:center; color:var(--text-soft); font-size:13px; }
-  .ff-table-wrap { overflow-x:auto; border:1px solid #e2e8f0; border-radius:8px; max-height:600px; overflow-y:auto; }
-  .ff-summary { font-size:12px; color:var(--text-soft); margin-bottom:8px; }
+  .ff-status-badge.wait    { background:#fee2e2; color:#7f1d1d; }
+  .ff-table tr.lines-row td { background:#fbfdfd; padding:0; border-bottom:1px solid #e2e8f0; }
+  .ff-table .lines-inner { padding:14px 18px; }
+  .ff-table .lines-inner > table {
+    width:100%; font-size:11.5px; margin-top:10px; border-collapse:collapse;
+  }
+  .ff-table .lines-inner > table thead th {
+    position:static; background:transparent;
+    padding:4px 8px;
+    border-bottom:1px solid #e2e8f0;
+    color:#94a3b8;
+    text-transform:uppercase; letter-spacing:.04em;
+    font-size:10px; font-weight:700;
+  }
+  .ff-table .lines-inner > table tbody td {
+    padding:5px 8px;
+    border-bottom:1px solid #f1f5f9;
+    font-variant-numeric:tabular-nums;
+  }
+  .ff-table .lines-inner > table tbody tr:last-child td { border-bottom:0; }
+  .ff-empty { padding:40px; text-align:center; color:#94a3b8; font-size:13px; }
+  .ff-table-wrap { overflow-x:auto; border:1px solid #e2e8f0; border-radius:10px; max-height:640px; overflow-y:auto; background:#fff; }
+  .ff-summary { font-size:12px; color:#64748b; margin-bottom:8px; }
 </style>
 <div class="app ff-app" id="featureFulfill" style="display:none;">
   <h1>Order Fulfillment <span style="color:#dc2626; font-size:12px;">[v2 — DP-aligned]</span></h1>
