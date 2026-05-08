@@ -19051,6 +19051,114 @@ function gmvRenderTargets() {
 }
 
 // =========================================================================
+// Set-password modal — shown after a user clicks the Supabase invite link.
+// The link signs them in but doesn't ask for a password; we collect it here.
+// Trigger: window.location.hash contains "type=invite" (or "type=recovery").
+// =========================================================================
+(() => {
+  const modal = () => document.getElementById('setPwModal');
+  const showError = msg => {
+    const el = document.getElementById('setPwError');
+    const ok = document.getElementById('setPwSuccess');
+    if (ok) ok.classList.remove('show');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+  };
+  const showOk = msg => {
+    const el = document.getElementById('setPwSuccess');
+    const err = document.getElementById('setPwError');
+    if (err) err.classList.remove('show');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+  };
+  const open = () => {
+    const m = modal();
+    if (!m) return;
+    m.classList.add('open');
+    setTimeout(() => {
+      const i = document.getElementById('setPwInput1');
+      if (i) i.focus();
+    }, 50);
+  };
+  const close = () => { const m = modal(); if (m) m.classList.remove('open'); };
+
+  async function submitPassword() {
+    if (typeof sb === 'undefined' || !sb) {
+      showError('Auth not ready. Please refresh and try again.');
+      return;
+    }
+    const p1 = document.getElementById('setPwInput1');
+    const p2 = document.getElementById('setPwInput2');
+    const btn = document.getElementById('setPwSubmit');
+    const v1 = p1 ? p1.value : '';
+    const v2 = p2 ? p2.value : '';
+    if (v1.length < 6) { showError('Password must be at least 6 characters.'); return; }
+    if (v1 !== v2)    { showError('Passwords don’t match.'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      const { error } = await sb.auth.updateUser({ password: v1 });
+      if (error) throw new Error(error.message || String(error));
+      // Clear the invite token from the URL fragment.
+      try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (_) {}
+      showOk('Password set. Loading the app…');
+      setTimeout(() => { close(); }, 700);
+    } catch (e) {
+      showError('Could not set password: ' + (e && e.message ? e.message : e));
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Set password & continue'; }
+    }
+  }
+
+  function detectInviteAndShow() {
+    const h = window.location.hash || '';
+    // Supabase puts auth tokens in the fragment as: #access_token=...&type=invite&...
+    if (/(?:^|[#&])type=(?:invite|recovery|signup)(?:&|$)/.test(h)) {
+      open();
+    }
+  }
+
+  // Run on DOM ready, on hash change, and on auth state change (Supabase
+  // sometimes parses the URL fragment asynchronously).
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', detectInviteAndShow);
+  } else {
+    detectInviteAndShow();
+  }
+  window.addEventListener('hashchange', detectInviteAndShow);
+  // Wire submit + Enter handler once the DOM is ready.
+  const wireOnce = () => {
+    const btn = document.getElementById('setPwSubmit');
+    if (btn && !btn.__wired) { btn.__wired = true; btn.addEventListener('click', submitPassword); }
+    ['setPwInput1','setPwInput2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el.__wired) {
+        el.__wired = true;
+        el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitPassword(); } });
+      }
+    });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireOnce);
+  else wireOnce();
+  // Re-trigger when Supabase confirms the invite session (some clients
+  // fire onAuthStateChange after the redirect).
+  const tryHook = () => {
+    if (typeof sb !== 'undefined' && sb && sb.auth && !window.__setPwAuthHooked) {
+      window.__setPwAuthHooked = true;
+      sb.auth.onAuthStateChange((evt) => {
+        if (evt === 'PASSWORD_RECOVERY' || evt === 'USER_UPDATED') return;
+        // If the user just signed in via an invite link, the hash should still be present.
+        detectInviteAndShow();
+      });
+    }
+  };
+  // sb may not exist yet; poll briefly.
+  let n = 0;
+  const i = setInterval(() => { tryHook(); if (n++ > 20 || window.__setPwAuthHooked) clearInterval(i); }, 250);
+})();
+
+// =========================================================================
 // Settings — account info + team management.
 // =========================================================================
 const settings = {
@@ -19278,8 +19386,157 @@ const fulfill = {
   expandedOrders: {},  // orderCode -> bool (line-detail toggle)
   allocStrategy: (typeof localStorage !== 'undefined' && localStorage.getItem('rihab_ff_strategy_v1')) || 'dp', // 'dp' | 'max100'
   decisions: {},       // orderCode -> { status, delivery_date, note, decided_by_email, decided_by_seller, decided_at }
+  lang: (typeof localStorage !== 'undefined' && localStorage.getItem('rihab_ff_lang_v1')) || 'fr',
   inited: false,
 };
+
+// ---- i18n ---------------------------------------------------------
+const FF_I18N = {
+  fr: {
+    title: 'Exécution des commandes',
+    tagline: "Distribue le stock pour maximiser les commandes 100% complètes. Le stock restant est ensuite réparti pour pousser les remplissages partiels au plus haut.",
+    tile_orders_title: 'Fichier des commandes',
+    tile_orders_hint: "Même format que le Delivery Planner : téléphone, code commande, partnerCode, qté, montant, statut, date.",
+    tile_clients_title: 'Fichier des clients',
+    tile_clients_hint: "Même format que le GMV Tracker : téléphone, vendeur, nom.",
+    tile_stock_title: 'Fichier du stock',
+    tile_stock_hint: "Même format que le Delivery Planner : partnerCode + quantité.",
+    tile_ama_title: 'Fichier produits AMA',
+    tile_ama_hint: "Deux colonnes : PARTENAIRE · Product code. Utilisé pour les clients à fort GMV (AMA).",
+    lbl_seller: 'Vendeur :', lbl_search: 'Recherche :', lbl_threshold: 'Seuil clients à fort GMV (AMA, MAD) :',
+    ph_search: 'Code commande, téléphone, nom…', opt_all_sellers: 'Tous les vendeurs',
+    btn_run: 'Lancer le calcul', btn_test: 'Tester', btn_verify: 'Vérifier avec un fichier', btn_export: '⇓ Exporter vers Excel',
+    ttl_test: "Vérifie la cohérence des résultats par rapport aux fichiers d'entrée.",
+    ttl_verify: "Re-sélectionne le fichier des commandes — on re-parse et on compare aux données chargées.",
+    ttl_strategy: 'Réservé au créateur — choisir la répartition du stock.',
+    lbl_strategy: 'Stratégie :',
+    opt_strategy_dp: 'Volume maximal (ligne par ligne)',
+    opt_strategy_max100: 'Maximum de commandes 100% (réserve)',
+    tab_full: 'Commandes 100%', tab_partial: 'Plus de 80%', tab_waiting: "Liste d'attente", tab_top: 'Clients à fort GMV (AMA)',
+    sum_full: 'Entièrement servies (100%)', sum_partial: 'Partielles 80–99%', sum_waiting: 'En attente (<80%)',
+    sum_count: 'commande(s)', sum_total_gmv: 'GMV total visible :', sum_deliv_gmv: 'GMV livrable :',
+    sum_top_threshold: 'Clients dont le GMV-AMA dépasse',
+    th_order_code: 'Code commande', th_client: 'Client', th_seller: 'Vendeur',
+    th_ordered: 'Commandé', th_deliverable: 'Livrable', th_fillpct: '% remplissage', th_total_amt: 'Montant total',
+    th_product_code: 'Code produit', th_product_name: 'Nom produit',
+    th_qty: 'Qté', th_line_amt: 'Montant ligne',
+    th_stock_initial: 'Stock initial', th_stock_after: 'Stock après',
+    th_ama_gmv: 'GMV AMA', th_orders: 'Commandes',
+    badge_full: '100%', badge_partial: '≥80%', badge_wait: 'En attente',
+    empty_orders: 'Aucune commande à afficher.',
+    empty_top: 'Aucun client au-dessus de {x} de GMV-AMA.',
+    empty_top_no_ama: ' (Téléverser le fichier produits AMA d\'abord.)',
+    dec_no: 'Pas de décision.',
+    dec_confirmed: '✓ Confirmée', dec_canceled: '✕ Annulée',
+    dec_delivery: 'livraison :', dec_by: 'par',
+    dec_btn_confirm: 'Confirmer la livraison', dec_btn_cancel: 'Annuler la commande',
+    dec_btn_save: 'Enregistrer', dec_btn_back: 'Retour', dec_btn_clear: 'Effacer la décision',
+    dec_pick_date: 'Choisir la date de livraison confirmée',
+    dec_optional_note: 'Note optionnelle',
+    dec_why_cancel: 'Pourquoi cette annulation ?',
+    dec_min_chars: '(min. 10 caractères)',
+    dec_required: "Raison obligatoire — au moins 10 caractères",
+    dec_chars: 'caractères',
+    dec_pick_date_first: 'Choisir une date de livraison.',
+    dec_reason_min: 'La raison doit faire au moins 10 caractères.',
+    dec_clear_q: 'Effacer la décision pour ',
+    only_creator_upload: "Seul le créateur peut téléverser des fichiers. Vous êtes en mode lecture.",
+    viewer_mode_msg: 'Mode lecture — seul le créateur peut téléverser des fichiers. Vous voyez les dernières données synchronisées.',
+  },
+  en: {
+    title: 'Order Fulfillment',
+    tagline: 'Allocate stock to maximize fully-completed orders. Remaining stock is then distributed to push partial fills as high as possible.',
+    tile_orders_title: 'Orders file',
+    tile_orders_hint: 'Same format as Delivery Planner: phone, order code, partnerCode, qty, amount, status, date.',
+    tile_clients_title: 'Clients file',
+    tile_clients_hint: 'Same format as GMV Tracker: phone, seller, name.',
+    tile_stock_title: 'Stock file',
+    tile_stock_hint: 'Same format as Delivery Planner: partnerCode + quantity.',
+    tile_ama_title: 'AMA products file',
+    tile_ama_hint: 'Two columns: PARTENAIRE · Product code. Used to compute High GMV clients (AMA).',
+    lbl_seller: 'Seller:', lbl_search: 'Search:', lbl_threshold: 'High GMV (AMA) threshold (MAD):',
+    ph_search: 'Order code, phone, name…', opt_all_sellers: 'All sellers',
+    btn_run: 'Run allocator', btn_test: 'Test', btn_verify: 'Verify with file', btn_export: '⇓ Export to Excel',
+    ttl_test: 'Sanity-check: verify the allocator output matches the input files.',
+    ttl_verify: "Pick the orders file again — we re-parse and compare with what's loaded.",
+    ttl_strategy: 'Creator-only — choose how stock is distributed.',
+    lbl_strategy: 'Strategy:',
+    opt_strategy_dp: 'Max total volume (line-by-line)',
+    opt_strategy_max100: 'Max 100% orders (reserve stock)',
+    tab_full: '100% Orders', tab_partial: 'More Than 80%', tab_waiting: 'Waiting List', tab_top: 'High GMV clients (AMA)',
+    sum_full: 'Fully fulfilled (100%)', sum_partial: 'Partial 80–99%', sum_waiting: 'Waiting list (<80%)',
+    sum_count: 'order(s)', sum_total_gmv: 'Total GMV in view:', sum_deliv_gmv: 'Deliverable GMV:',
+    sum_top_threshold: 'Clients with AMA-GMV above',
+    th_order_code: 'Order code', th_client: 'Client', th_seller: 'Seller',
+    th_ordered: 'Ordered', th_deliverable: 'Deliverable', th_fillpct: 'Fill %', th_total_amt: 'Total amount',
+    th_product_code: 'Product code', th_product_name: 'Product name',
+    th_qty: 'Qty', th_line_amt: 'Line amount',
+    th_stock_initial: 'Stock (initial)', th_stock_after: 'Stock (after)',
+    th_ama_gmv: 'AMA-GMV', th_orders: 'Orders',
+    badge_full: '100%', badge_partial: '≥80%', badge_wait: 'Waiting',
+    empty_orders: 'No orders to show.',
+    empty_top: 'No clients above {x} AMA-GMV.',
+    empty_top_no_ama: ' (Upload the AMA products file first.)',
+    dec_no: 'No decision yet.',
+    dec_confirmed: '✓ Confirmed', dec_canceled: '✕ Canceled',
+    dec_delivery: 'delivery:', dec_by: 'by',
+    dec_btn_confirm: 'Confirm delivery', dec_btn_cancel: 'Cancel order',
+    dec_btn_save: 'Save', dec_btn_back: 'Back', dec_btn_clear: 'Clear decision',
+    dec_pick_date: 'Pick the confirmed delivery date',
+    dec_optional_note: 'Optional note',
+    dec_why_cancel: 'Why are you canceling?',
+    dec_min_chars: '(min. 10 characters)',
+    dec_required: 'Required reason — at least 10 characters',
+    dec_chars: 'characters',
+    dec_pick_date_first: 'Pick a delivery date first.',
+    dec_reason_min: 'The reason must be at least 10 characters.',
+    dec_clear_q: 'Clear the decision for ',
+    only_creator_upload: "Only the creator can upload files. You're in viewer mode.",
+    viewer_mode_msg: 'Viewer mode — only the creator can upload files. You see the latest synced data.',
+  }
+};
+function ffT(key, vars) {
+  const lang = (fulfill && fulfill.lang) || 'fr';
+  let s = (FF_I18N[lang] && FF_I18N[lang][key]) || (FF_I18N.en[key]) || key;
+  if (vars) Object.entries(vars).forEach(([k, v]) => { s = s.replace('{' + k + '}', v); });
+  return s;
+}
+function fulfillApplyLang() {
+  const lang = (fulfill && fulfill.lang) || 'fr';
+  const host = document.getElementById('featureFulfill');
+  if (!host) return;
+  // 1) Static text nodes via data-fft.
+  host.querySelectorAll('[data-fft]').forEach(el => {
+    el.textContent = ffT(el.dataset.fft);
+  });
+  // 2) Attribute translations via data-fft-attr + data-fft-title (for titles
+  // we use a separate key since data-fft already drives textContent).
+  host.querySelectorAll('[data-fft-attr][data-fft-key]').forEach(el => {
+    el.setAttribute(el.dataset.fftAttr, ffT(el.dataset.fftKey));
+  });
+  host.querySelectorAll('[data-fft-attr][data-fft-title]').forEach(el => {
+    el.setAttribute(el.dataset.fftAttr, ffT(el.dataset.fftTitle));
+  });
+  // 3) Title + tagline.
+  const titleEl = document.getElementById('ffTitle');
+  const tagEl = document.getElementById('ffTagline');
+  if (titleEl) titleEl.textContent = ffT('title');
+  if (tagEl) tagEl.textContent = ffT('tagline');
+  // 4) Toggle button states.
+  document.querySelectorAll('.ff-lang-btn').forEach(b => {
+    const active = b.dataset.fflang === lang;
+    b.style.background = active ? '#0f172a' : '#fff';
+    b.style.color = active ? '#fff' : '#475569';
+    b.classList.toggle('active', active);
+  });
+  // 5) Re-render dynamic content (tables, summaries, decision panels).
+  if (typeof fulfillRenderAll === 'function') fulfillRenderAll();
+}
+function fulfillSetLang(lang) {
+  fulfill.lang = (lang === 'en') ? 'en' : 'fr';
+  try { localStorage.setItem('rihab_ff_lang_v1', fulfill.lang); } catch (_) {}
+  fulfillApplyLang();
+}
 
 function fulfillSetSummary(elId, html) {
   const el = document.getElementById(elId);
@@ -19607,7 +19864,7 @@ function fulfillPctClass(p) {
 function fulfillRenderOrdersTable(list, hostId) {
   const host = document.getElementById(hostId);
   if (!host) return;
-  if (!list.length) { host.innerHTML = '<div class="ff-empty">No orders to show.</div>'; return; }
+  if (!list.length) { host.innerHTML = `<div class="ff-empty">${ffT('empty_orders')}</div>`; return; }
   const rows = list.map(ord => {
     const expanded = !!fulfill.expandedOrders[ord.code];
     const pct = ord.fulfillPct || 0;
@@ -19652,7 +19909,7 @@ function fulfillRenderOrdersTable(list, hostId) {
             <div class="lines-inner">
               ${decisionHtml}
               <table>
-                <thead><tr><th>Product code</th><th>Product name</th><th>Qty</th><th>Deliverable</th><th>Line amount</th></tr></thead>
+                <thead><tr><th>${ffT('th_product_code')}</th><th>${ffT('th_product_name')}</th><th class="ff-num">${ffT('th_qty')}</th><th class="ff-num">${ffT('th_deliverable')}</th><th class="ff-num">${ffT('th_line_amt')}</th></tr></thead>
                 <tbody>${lineRows}</tbody>
               </table>
             </div>
@@ -19665,13 +19922,13 @@ function fulfillRenderOrdersTable(list, hostId) {
     <table class="ff-table">
       <thead><tr>
         <th></th>
-        <th>Order code</th>
-        <th>Client</th>
-        <th>Seller</th>
-        <th class="ff-num">Ordered</th>
-        <th class="ff-num">Deliverable</th>
-        <th>Fill %</th>
-        <th class="ff-num">Total amount</th>
+        <th>${ffT('th_order_code')}</th>
+        <th>${ffT('th_client')}</th>
+        <th>${ffT('th_seller')}</th>
+        <th class="ff-num">${ffT('th_ordered')}</th>
+        <th class="ff-num">${ffT('th_deliverable')}</th>
+        <th>${ffT('th_fillpct')}</th>
+        <th class="ff-num">${ffT('th_total_amt')}</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
@@ -19726,7 +19983,7 @@ function fulfillRenderTopClients(hostId) {
     list = list.filter(c => (c.name + ' ' + c.phone).toLowerCase().includes(q));
   }
   if (!list.length) {
-    host.innerHTML = `<div class="ff-empty">No clients above ${fulfillFmtMad(fulfill.topThreshold)} AMA-GMV.${fulfill.amaProducts.size ? '' : ' (Upload the AMA products file first.)'}</div>`;
+    host.innerHTML = `<div class="ff-empty">${ffT('empty_top', { x: fulfillFmtMad(fulfill.topThreshold) })}${fulfill.amaProducts.size ? '' : ffT('empty_top_no_ama')}</div>`;
     return;
   }
   if (!fulfill.expandedTopClients) fulfill.expandedTopClients = {};
@@ -19751,7 +20008,7 @@ function fulfillRenderTopClients(hostId) {
         if (!ord) return '';
         const stat = oRef.status;
         const statCls = stat === 'full' ? 'full' : stat === 'partial' ? 'partial' : 'wait';
-        const statLabel = stat === 'full' ? '100%' : stat === 'partial' ? '≥80%' : 'Waiting';
+        const statLabel = stat === 'full' ? ffT('badge_full') : stat === 'partial' ? ffT('badge_partial') : ffT('badge_wait');
         const ordExpanded = !!fulfill.expandedOrders[ord.code];
         const decC = fulfill.decisions && fulfill.decisions[ord.code];
         const decClsRow = decC && decC.status === 'confirmed' ? 'dec-confirmed'
@@ -19794,10 +20051,10 @@ function fulfillRenderTopClients(hostId) {
                   ${decisionHtml}
                   <table>
                     <thead><tr>
-                      <th>Product code</th><th>Product name</th>
-                      <th class="ff-num">Ordered</th><th class="ff-num">Deliverable</th>
-                      <th class="ff-num">Stock (initial)</th><th class="ff-num">Stock (after)</th>
-                      <th class="ff-num">Line amount</th>
+                      <th>${ffT('th_product_code')}</th><th>${ffT('th_product_name')}</th>
+                      <th class="ff-num">${ffT('th_ordered')}</th><th class="ff-num">${ffT('th_deliverable')}</th>
+                      <th class="ff-num">${ffT('th_stock_initial')}</th><th class="ff-num">${ffT('th_stock_after')}</th>
+                      <th class="ff-num">${ffT('th_line_amt')}</th>
                     </tr></thead>
                     <tbody>${lineRows}</tbody>
                   </table>
@@ -19823,10 +20080,10 @@ function fulfillRenderTopClients(hostId) {
     <table class="ff-table">
       <thead><tr>
         <th></th>
-        <th>Client</th>
-        <th>Seller</th>
-        <th class="ff-num">AMA-GMV</th>
-        <th class="ff-num">Orders</th>
+        <th>${ffT('th_client')}</th>
+        <th>${ffT('th_seller')}</th>
+        <th class="ff-num">${ffT('th_ama_gmv')}</th>
+        <th class="ff-num">${ffT('th_orders')}</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
@@ -19900,7 +20157,7 @@ function fulfillRenderDecision(orderCode, ord) {
   if (d) {
     const statusCls = d.status === 'confirmed' ? '#166534' : d.status === 'canceled' ? '#7f1d1d' : '#475569';
     const statusBg  = d.status === 'confirmed' ? '#dcfce7' : d.status === 'canceled' ? '#fee2e2' : '#e2e8f0';
-    const statusLabel = d.status === 'confirmed' ? '✓ Confirmed' : d.status === 'canceled' ? '✕ Canceled' : 'Decision';
+    const statusLabel = d.status === 'confirmed' ? ffT('dec_confirmed') : d.status === 'canceled' ? ffT('dec_canceled') : 'Decision';
     const dateStr = d.delivery_date || '';
     const noteStr = d.note || '';
     const by = d.decided_by_seller || d.decided_by_email || '?';
@@ -19908,60 +20165,149 @@ function fulfillRenderDecision(orderCode, ord) {
     badge = `
       <div style="margin:8px 0; padding:10px 12px; background:${statusBg}; color:${statusCls}; border-radius:8px; font-size:12px;">
         <b>${statusLabel}</b>
-        ${dateStr ? `· delivery: <b>${fulfillEscapeHtml(dateStr)}</b>` : ''}
+        ${dateStr ? `· ${ffT('dec_delivery')} <b>${fulfillEscapeHtml(dateStr)}</b>` : ''}
         ${noteStr ? `<div style="margin-top:4px; color:#0f172a;">"${fulfillEscapeHtml(noteStr)}"</div>` : ''}
-        <div style="margin-top:4px; font-size:10px; color:#475569;">by ${fulfillEscapeHtml(by)} · ${fulfillEscapeHtml(when)}</div>
+        <div style="margin-top:4px; font-size:10px; color:#475569;">${ffT('dec_by')} ${fulfillEscapeHtml(by)} · ${fulfillEscapeHtml(when)}</div>
       </div>`;
   }
 
   if (!canEdit) {
-    return badge || '<div style="margin:8px 0; padding:8px 12px; background:#f8fafc; color:#94a3b8; font-size:11px; border-radius:6px;">No decision yet.</div>';
+    return badge || `<div style="margin:8px 0; padding:8px 12px; background:#f8fafc; color:#94a3b8; font-size:11px; border-radius:6px;">${ffT('dec_no')}</div>`;
   }
 
-  // Editor UI for sellers/creator.
-  const todayDefault = (d && d.delivery_date) || '';
-  const noteDefault = (d && d.note) || '';
+  // Two-step editor: initially show two action buttons. Clicking a button
+  // reveals the matching input ribbon (date for confirm, reason for cancel).
   return `${badge}
-    <div data-ffdecision-host="${fulfillEscapeHtml(orderCode)}" style="margin:8px 0; padding:12px; background:#fff; border:1px solid #e2e8f0; border-radius:8px;">
-      <div style="font-size:12px; font-weight:600; color:#0f172a; margin-bottom:8px;">Update decision</div>
-      <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px;">
-        <label style="font-size:11px; color:#475569;">Delivery date
-          <input type="date" data-ffdec-date value="${fulfillEscapeHtml(todayDefault)}" style="padding:4px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; margin-left:4px;">
-        </label>
-        <label style="font-size:11px; color:#475569; flex:1; min-width:200px;">Note
-          <input type="text" data-ffdec-note value="${fulfillEscapeHtml(noteDefault)}" placeholder="Optional note (or required if canceling)" style="padding:4px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; width:100%; margin-top:2px;">
-        </label>
+    <div data-ffdecision-host="${fulfillEscapeHtml(orderCode)}" data-ffmode="idle" style="margin:8px 0; padding:12px; background:#fff; border:1px solid #e2e8f0; border-radius:8px;">
+      <div data-ffdec-bar="idle" style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" data-ffdec-open="confirm" data-ffdec-code="${fulfillEscapeHtml(orderCode)}"
+          style="padding:8px 16px; background:#16a34a; color:#fff; border:0; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          ${ffT('dec_btn_confirm')}
+        </button>
+        <button type="button" data-ffdec-open="cancel" data-ffdec-code="${fulfillEscapeHtml(orderCode)}"
+          style="padding:8px 16px; background:#dc2626; color:#fff; border:0; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          ${ffT('dec_btn_cancel')}
+        </button>
+        ${d ? `<button type="button" data-ffdec-action="clear" data-ffdec-code="${fulfillEscapeHtml(orderCode)}"
+          style="padding:8px 14px; background:transparent; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; cursor:pointer; margin-left:auto;">${ffT('dec_btn_clear')}</button>` : ''}
       </div>
-      <div style="display:flex; gap:6px;">
-        <button type="button" data-ffdec-action="confirmed" data-ffdec-code="${fulfillEscapeHtml(orderCode)}" style="padding:6px 14px; background:#16a34a; color:#fff; border:0; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">✓ Confirm delivery</button>
-        <button type="button" data-ffdec-action="canceled" data-ffdec-code="${fulfillEscapeHtml(orderCode)}" style="padding:6px 14px; background:#dc2626; color:#fff; border:0; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">✕ Cancel</button>
-        ${d ? `<button type="button" data-ffdec-action="clear" data-ffdec-code="${fulfillEscapeHtml(orderCode)}" style="padding:6px 14px; background:transparent; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; cursor:pointer;">Clear decision</button>` : ''}
+      <div data-ffdec-bar="confirm" style="display:none;">
+        <div style="font-size:12px; font-weight:600; color:#0f172a; margin-bottom:6px;">${ffT('dec_pick_date')}</div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+          <input type="date" data-ffdec-date style="padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; flex:0 0 auto;">
+          <input type="text" data-ffdec-note placeholder="${ffT('dec_optional_note')}" style="padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; flex:1 1 200px; min-width:160px;">
+          <button type="button" data-ffdec-action="confirmed" data-ffdec-code="${fulfillEscapeHtml(orderCode)}"
+            style="padding:8px 16px; background:#16a34a; color:#fff; border:0; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">${ffT('dec_btn_save')}</button>
+          <button type="button" data-ffdec-back data-ffdec-code="${fulfillEscapeHtml(orderCode)}"
+            style="padding:8px 12px; background:transparent; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; cursor:pointer;">${ffT('dec_btn_back')}</button>
+        </div>
+      </div>
+      <div data-ffdec-bar="cancel" style="display:none;">
+        <div style="font-size:12px; font-weight:600; color:#0f172a; margin-bottom:6px;">
+          ${ffT('dec_why_cancel')} <span style="color:#dc2626; font-weight:500;">${ffT('dec_min_chars')}</span>
+        </div>
+        <textarea data-ffdec-reason placeholder="${ffT('dec_required')}" rows="2"
+          style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; resize:vertical; font-family:inherit;"></textarea>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap;">
+          <span data-ffdec-counter style="font-size:11px; color:#94a3b8;">0 / 10 ${ffT('dec_chars')}</span>
+          <span style="flex:1;"></span>
+          <button type="button" data-ffdec-action="canceled" data-ffdec-code="${fulfillEscapeHtml(orderCode)}" disabled
+            style="padding:8px 16px; background:#dc2626; color:#fff; border:0; border-radius:6px; font-size:13px; font-weight:600; cursor:not-allowed; opacity:.5;">${ffT('dec_btn_save')}</button>
+          <button type="button" data-ffdec-back data-ffdec-code="${fulfillEscapeHtml(orderCode)}"
+            style="padding:8px 12px; background:transparent; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; cursor:pointer;">${ffT('dec_btn_back')}</button>
+        </div>
       </div>
     </div>`;
 }
 
 function fulfillWireDecisionButtons(host) {
   if (!host) return;
+  // Helpers to switch between idle / confirm / cancel modes inside one panel.
+  const setMode = (wrap, mode) => {
+    if (!wrap) return;
+    wrap.dataset.ffmode = mode;
+    ['idle','confirm','cancel'].forEach(m => {
+      const bar = wrap.querySelector(`[data-ffdec-bar="${m}"]`);
+      if (bar) bar.style.display = m === mode ? '' : 'none';
+    });
+    if (mode === 'confirm') {
+      const dInput = wrap.querySelector('[data-ffdec-date]');
+      if (dInput && !dInput.value) {
+        // Default to tomorrow.
+        const t = new Date(); t.setDate(t.getDate() + 1);
+        dInput.value = t.toISOString().slice(0, 10);
+      }
+      setTimeout(() => { const el = wrap.querySelector('[data-ffdec-date]'); if (el) el.focus(); }, 50);
+    } else if (mode === 'cancel') {
+      const ta = wrap.querySelector('[data-ffdec-reason]');
+      if (ta) ta.value = '';
+      const counter = wrap.querySelector('[data-ffdec-counter]');
+      if (counter) { counter.textContent = '0 / 10 characters'; counter.style.color = '#94a3b8'; }
+      const saveBtn = wrap.querySelector('[data-ffdec-action="canceled"]');
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.style.cursor = 'not-allowed'; saveBtn.style.opacity = '.5'; }
+      setTimeout(() => { if (ta) ta.focus(); }, 50);
+    }
+  };
+
+  // Open buttons: switch the panel into the matching mode.
+  host.querySelectorAll('[data-ffdec-open]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const wrap = btn.closest('[data-ffdecision-host]');
+      setMode(wrap, btn.dataset.ffdecOpen);
+    });
+  });
+  // Back buttons: return to idle.
+  host.querySelectorAll('[data-ffdec-back]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const wrap = btn.closest('[data-ffdecision-host]');
+      setMode(wrap, 'idle');
+    });
+  });
+  // Live cancel-reason validation (10-char minimum).
+  host.querySelectorAll('[data-ffdec-reason]').forEach(ta => {
+    ta.addEventListener('input', () => {
+      const wrap = ta.closest('[data-ffdecision-host]');
+      const len = ta.value.trim().length;
+      const counter = wrap && wrap.querySelector('[data-ffdec-counter]');
+      const saveBtn = wrap && wrap.querySelector('[data-ffdec-action="canceled"]');
+      if (counter) {
+        counter.textContent = len + ' / 10 ' + ffT('dec_chars');
+        counter.style.color = len >= 10 ? '#16a34a' : (len > 0 ? '#dc2626' : '#94a3b8');
+      }
+      if (saveBtn) {
+        saveBtn.disabled = len < 10;
+        saveBtn.style.cursor = len < 10 ? 'not-allowed' : 'pointer';
+        saveBtn.style.opacity = len < 10 ? '.5' : '1';
+      }
+    });
+  });
+  // Save / clear actions.
   host.querySelectorAll('[data-ffdec-action]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const code = btn.dataset.ffdecCode;
       const action = btn.dataset.ffdecAction;
-      const wrap = host.querySelector(`[data-ffdecision-host="${code.replace(/"/g, '\\"')}"]`);
+      const wrap = btn.closest('[data-ffdecision-host]');
       const dateInput = wrap && wrap.querySelector('[data-ffdec-date]');
       const noteInput = wrap && wrap.querySelector('[data-ffdec-note]');
-      const dateVal = dateInput ? dateInput.value : '';
-      const noteVal = noteInput ? noteInput.value.trim() : '';
+      const reasonInput = wrap && wrap.querySelector('[data-ffdec-reason]');
       try {
         if (action === 'clear') {
-          if (!confirm('Clear the decision for ' + code + '?')) return;
+          if (!confirm(ffT('dec_clear_q') + code + '?')) return;
           await fulfillClearDecision(code);
         } else if (action === 'confirmed') {
-          if (!dateVal) { alert('Pick a delivery date first.'); return; }
+          const dateVal = dateInput ? dateInput.value : '';
+          const noteVal = noteInput ? noteInput.value.trim() : '';
+          if (!dateVal) { alert(ffT('dec_pick_date_first')); return; }
           await fulfillSaveDecision(code, { status: 'confirmed', delivery_date: dateVal, note: noteVal });
         } else if (action === 'canceled') {
-          if (!noteVal) { alert('Please enter a note explaining why this order is canceled.'); return; }
-          await fulfillSaveDecision(code, { status: 'canceled', delivery_date: null, note: noteVal });
+          const reasonVal = reasonInput ? reasonInput.value.trim() : '';
+          if (reasonVal.length < 10) { alert(ffT('dec_reason_min')); return; }
+          await fulfillSaveDecision(code, { status: 'canceled', delivery_date: null, note: reasonVal });
         }
         fulfillRenderAll();
       } catch (err) {
@@ -20232,7 +20578,7 @@ function fulfillExportTab(tab) {
       c.orders.forEach(oRef => {
         const ord = allOrders[oRef.code];
         if (!ord) return;
-        const statusLabel = oRef.status === 'full' ? '100%' : oRef.status === 'partial' ? '≥80%' : oRef.status === 'wait' ? 'Waiting' : '?';
+        const statusLabel = oRef.status === 'full' ? ffT('badge_full') : oRef.status === 'partial' ? ffT('badge_partial') : oRef.status === 'wait' ? ffT('badge_wait') : '?';
         ord.lines.forEach(l => {
           let pname = l.productName || '';
           if (!pname && typeof gmv !== 'undefined' && gmv && gmv.productCategories) {
@@ -20284,22 +20630,22 @@ function fulfillRenderAll() {
   if (pillTop)  pillTop.textContent = fulfillTopClients().length;
   // Summaries — show count + total GMV of orders currently in view.
   const gmvLine = (n, sumOrd, sumDeliv) =>
-    `<span style="font-size:14px;"><b>${n}</b> order(s)</span> · ` +
-    `Total GMV in view: <b style="color:var(--text);">${fulfillFmtMad(sumOrd)}</b>` +
-    (sumDeliv != null ? ` · Deliverable GMV: <b style="color:#166534;">${fulfillFmtMad(sumDeliv)}</b>` : '');
+    `<span style="font-size:14px;"><b>${n}</b> ${ffT('sum_count')}</span> · ` +
+    `${ffT('sum_total_gmv')} <b style="color:var(--text);">${fulfillFmtMad(sumOrd)}</b>` +
+    (sumDeliv != null ? ` · ${ffT('sum_deliv_gmv')} <b style="color:#166534;">${fulfillFmtMad(sumDeliv)}</b>` : '');
   const sumOrd = list => list.reduce((s,o) => s + (o.totalAmt || 0), 0);
   const sumDeliv = list => list.reduce((s,o) => {
     const ratio = o.totalQty ? (o.deliverableTotal || 0) / o.totalQty : 0;
     return s + (o.totalAmt || 0) * ratio;
   }, 0);
   fulfillSetSummary('ffSummaryFull',
-    `Fully fulfilled (100%) — ${gmvLine(fF.length, sumOrd(fF), sumOrd(fF))}`);
+    `${ffT('sum_full')} — ${gmvLine(fF.length, sumOrd(fF), sumOrd(fF))}`);
   fulfillSetSummary('ffSummaryPartial',
-    `Partial 80–99% — ${gmvLine(fP.length, sumOrd(fP), sumDeliv(fP))}`);
+    `${ffT('sum_partial')} — ${gmvLine(fP.length, sumOrd(fP), sumDeliv(fP))}`);
   fulfillSetSummary('ffSummaryWaiting',
-    `Waiting list (<80%) — ${gmvLine(fW.length, sumOrd(fW), sumDeliv(fW))}`);
+    `${ffT('sum_waiting')} — ${gmvLine(fW.length, sumOrd(fW), sumDeliv(fW))}`);
   fulfillSetSummary('ffSummaryTop',
-    `Clients with AMA-GMV above <b>${fulfillFmtMad(fulfill.topThreshold)}</b>.`);
+    `${ffT('sum_top_threshold')} <b>${fulfillFmtMad(fulfill.topThreshold)}</b>.`);
   // Tables.
   fulfillRenderOrdersTable(fF, 'ffTableFull');
   fulfillRenderOrdersTable(fP, 'ffTablePartial');
@@ -20319,7 +20665,7 @@ function fulfillTryAutoRun() {
 
 async function fulfillOnUpload(kind, file) {
   if (typeof gmvIsCreator === 'function' && !gmvIsCreator()) {
-    alert('Only the creator can upload files. You’re in viewer mode.');
+    alert(ffT('only_creator_upload'));
     return;
   }
   try {
@@ -20421,7 +20767,7 @@ function fulfillApplyRoleUI() {
       if (tagline && tagline.parentNode) tagline.parentNode.insertBefore(badge, tagline.nextSibling);
       else host.insertBefore(badge, host.firstChild);
     }
-    badge.textContent = 'Viewer mode — only the creator can upload files. You see the latest synced data.';
+    badge.textContent = ffT('viewer_mode_msg');
   } else if (badge) {
     badge.remove();
   }
@@ -20432,6 +20778,12 @@ async function fulfillInit() {
   fulfill.inited = true;
   // Apply role UI immediately and again after auth resolves.
   try { fulfillApplyRoleUI(); } catch (_) {}
+  // Wire language toggle.
+  document.querySelectorAll('.ff-lang-btn').forEach(b => {
+    b.addEventListener('click', () => fulfillSetLang(b.dataset.fflang));
+  });
+  // Apply current language (default = 'fr').
+  try { fulfillApplyLang(); } catch (_) {}
   // File handlers.
   const wire = (id, kind) => {
     const el = document.getElementById(id);
@@ -20769,32 +21121,40 @@ async function fulfillInit() {
   .ff-summary { font-size:12px; color:#64748b; margin-bottom:8px; }
 </style>
 <div class="app ff-app" id="featureFulfill" style="display:none;">
-  <h1>Order Fulfillment <span style="color:#dc2626; font-size:12px;">[v2 — DP-aligned]</span></h1>
-  <div class="ff-tagline">Allocate stock to maximize fully-completed orders. Remaining stock is then distributed to push partial fills as high as possible.</div>
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+    <div>
+      <h1 id="ffTitle">Exécution des commandes</h1>
+      <div class="ff-tagline" id="ffTagline">Distribue le stock pour maximiser les commandes 100% complètes. Le stock restant est ensuite réparti pour pousser les remplissages partiels au plus haut.</div>
+    </div>
+    <div class="ff-lang-toggle" role="group" aria-label="Language" style="display:inline-flex; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; flex-shrink:0;">
+      <button type="button" class="ff-lang-btn" data-fflang="fr">FR</button>
+      <button type="button" class="ff-lang-btn" data-fflang="en">EN</button>
+    </div>
+  </div>
 
   <!-- Uploads -->
   <div class="ff-uploads">
     <label class="ff-tile" id="ffTileOrders">
-      <div class="ff-tile-title">Orders file</div>
-      <div class="ff-tile-hint">Same format as Delivery Planner: phone, order code, partnerCode, qty, amount, status, date.</div>
+      <div class="ff-tile-title" data-fft="tile_orders_title">Fichier des commandes</div>
+      <div class="ff-tile-hint" data-fft="tile_orders_hint">Même format que le Delivery Planner : téléphone, code commande, partnerCode, qté, montant, statut, date.</div>
       <div class="ff-tile-summary" id="ffOrdersSummary"></div>
       <input type="file" id="ffOrdersFile" accept=".xlsx,.xls,.csv">
     </label>
     <label class="ff-tile" id="ffTileClients">
-      <div class="ff-tile-title">Clients file</div>
-      <div class="ff-tile-hint">Same format as GMV Tracker: phone, seller, name.</div>
+      <div class="ff-tile-title" data-fft="tile_clients_title">Fichier des clients</div>
+      <div class="ff-tile-hint" data-fft="tile_clients_hint">Même format que le GMV Tracker : téléphone, vendeur, nom.</div>
       <div class="ff-tile-summary" id="ffClientsSummary"></div>
       <input type="file" id="ffClientsFile" accept=".xlsx,.xls,.csv">
     </label>
     <label class="ff-tile" id="ffTileStock">
-      <div class="ff-tile-title">Stock file</div>
-      <div class="ff-tile-hint">Same format as Delivery Planner: partnerCode + quantity.</div>
+      <div class="ff-tile-title" data-fft="tile_stock_title">Fichier du stock</div>
+      <div class="ff-tile-hint" data-fft="tile_stock_hint">Même format que le Delivery Planner : partnerCode + quantité.</div>
       <div class="ff-tile-summary" id="ffStockSummary"></div>
       <input type="file" id="ffStockFile" accept=".xlsx,.xls,.csv">
     </label>
     <label class="ff-tile" id="ffTileAma">
-      <div class="ff-tile-title">AMA products file</div>
-      <div class="ff-tile-hint">Two columns: PARTENAIRE · Product code. Used to compute High GMV clients (AMA).</div>
+      <div class="ff-tile-title" data-fft="tile_ama_title">Fichier produits AMA</div>
+      <div class="ff-tile-hint" data-fft="tile_ama_hint">Deux colonnes : PARTENAIRE · Product code. Utilisé pour les clients à fort GMV (AMA).</div>
       <div class="ff-tile-summary" id="ffAmaSummary"></div>
       <input type="file" id="ffAmaFile" accept=".xlsx,.xls,.csv">
     </label>
@@ -20802,25 +21162,25 @@ async function fulfillInit() {
 
   <!-- Controls -->
   <div class="ff-controls">
-    <label>Seller:
-      <select id="ffSellerFilter"><option value="">All sellers</option></select>
+    <label><span data-fft="lbl_seller">Vendeur :</span>
+      <select id="ffSellerFilter"><option value="" data-fft="opt_all_sellers">Tous les vendeurs</option></select>
     </label>
-    <label>Search:
-      <input type="search" id="ffSearch" placeholder="Order code, phone, name…">
+    <label><span data-fft="lbl_search">Recherche :</span>
+      <input type="search" id="ffSearch" data-fft-attr="placeholder" data-fft-key="ph_search" placeholder="Code commande, téléphone, nom…">
     </label>
-    <label>High GMV (AMA) threshold (MAD):
+    <label><span data-fft="lbl_threshold">Seuil clients à fort GMV (AMA, MAD) :</span>
       <input type="number" id="ffTopThreshold" min="0" step="1000" value="100000">
     </label>
-    <button type="button" class="btn btn-primary" id="ffRunBtn">Run allocator</button>
-    <button type="button" class="btn" id="ffTestBtn" title="Sanity-check: verify the allocator output matches the input files (stock conservation, ordered vs deliverable, bucket boundaries).">Test</button>
-    <label class="btn" style="cursor:pointer;" title="Pick the orders file again — we re-parse it and compare row count + totals against what's currently loaded.">
-      Verify with file
+    <button type="button" class="btn btn-primary" id="ffRunBtn" data-fft="btn_run">Lancer le calcul</button>
+    <button type="button" class="btn" id="ffTestBtn" data-fft="btn_test" data-fft-attr="title" data-fft-title="ttl_test" title="Vérifie la cohérence des résultats par rapport aux fichiers d'entrée.">Tester</button>
+    <label class="btn" style="cursor:pointer;" data-fft-attr="title" data-fft-title="ttl_verify" title="Re-sélectionne le fichier des commandes — on re-parse et on compare aux données chargées.">
+      <span data-fft="btn_verify">Vérifier avec un fichier</span>
       <input type="file" id="ffVerifyOrdersFile" accept=".xlsx,.xls,.csv" style="display:none;">
     </label>
-    <label id="ffStrategyWrap" style="display:none;">Strategy:
-      <select id="ffStrategy" title="Creator-only — choose how stock is distributed.">
-        <option value="dp">Max total volume (line-by-line)</option>
-        <option value="max100">Max 100% orders (reserve stock)</option>
+    <label id="ffStrategyWrap" style="display:none;"><span data-fft="lbl_strategy">Stratégie :</span>
+      <select id="ffStrategy" data-fft-attr="title" data-fft-title="ttl_strategy" title="Réservé au créateur — choisir la répartition du stock.">
+        <option value="dp" data-fft="opt_strategy_dp">Volume maximal (ligne par ligne)</option>
+        <option value="max100" data-fft="opt_strategy_max100">Maximum de commandes 100% (réserve)</option>
       </select>
     </label>
     <span id="ffRunStatus" style="font-size:12px; color:var(--text-soft);"></span>
@@ -20829,38 +21189,38 @@ async function fulfillInit() {
 
   <!-- Tabs -->
   <div class="ff-tabs">
-    <button type="button" class="ff-tab active" data-fftab="full">100% Orders <span class="pill" id="ffPillFull">0</span></button>
-    <button type="button" class="ff-tab" data-fftab="partial">More Than 80% <span class="pill" id="ffPillPartial">0</span></button>
-    <button type="button" class="ff-tab" data-fftab="waiting">Waiting List <span class="pill" id="ffPillWaiting">0</span></button>
-    <button type="button" class="ff-tab" data-fftab="top">High GMV clients (AMA) <span class="pill" id="ffPillTop">0</span></button>
+    <button type="button" class="ff-tab active" data-fftab="full"><span data-fft="tab_full">Commandes 100%</span> <span class="pill" id="ffPillFull">0</span></button>
+    <button type="button" class="ff-tab" data-fftab="partial"><span data-fft="tab_partial">Plus de 80%</span> <span class="pill" id="ffPillPartial">0</span></button>
+    <button type="button" class="ff-tab" data-fftab="waiting"><span data-fft="tab_waiting">Liste d'attente</span> <span class="pill" id="ffPillWaiting">0</span></button>
+    <button type="button" class="ff-tab" data-fftab="top"><span data-fft="tab_top">Clients à fort GMV (AMA)</span> <span class="pill" id="ffPillTop">0</span></button>
   </div>
 
   <!-- Panels -->
   <div class="ff-panel active" data-ffpanel="full">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
       <div class="ff-summary" id="ffSummaryFull" style="margin-bottom:0;"></div>
-      <button type="button" class="btn" data-ffexport="full" style="font-size:12px;">⇓ Export to Excel</button>
+      <button type="button" class="btn" data-ffexport="full" style="font-size:12px;" data-fft="btn_export">⇓ Exporter vers Excel</button>
     </div>
     <div class="ff-table-wrap" id="ffTableFull" style="margin-top:8px;"></div>
   </div>
   <div class="ff-panel" data-ffpanel="partial">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
       <div class="ff-summary" id="ffSummaryPartial" style="margin-bottom:0;"></div>
-      <button type="button" class="btn" data-ffexport="partial" style="font-size:12px;">⇓ Export to Excel</button>
+      <button type="button" class="btn" data-ffexport="partial" style="font-size:12px;" data-fft="btn_export">⇓ Exporter vers Excel</button>
     </div>
     <div class="ff-table-wrap" id="ffTablePartial" style="margin-top:8px;"></div>
   </div>
   <div class="ff-panel" data-ffpanel="waiting">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
       <div class="ff-summary" id="ffSummaryWaiting" style="margin-bottom:0;"></div>
-      <button type="button" class="btn" data-ffexport="waiting" style="font-size:12px;">⇓ Export to Excel</button>
+      <button type="button" class="btn" data-ffexport="waiting" style="font-size:12px;" data-fft="btn_export">⇓ Exporter vers Excel</button>
     </div>
     <div class="ff-table-wrap" id="ffTableWaiting" style="margin-top:8px;"></div>
   </div>
   <div class="ff-panel" data-ffpanel="top">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
       <div class="ff-summary" id="ffSummaryTop" style="margin-bottom:0;"></div>
-      <button type="button" class="btn" data-ffexport="top" style="font-size:12px;">⇓ Export to Excel</button>
+      <button type="button" class="btn" data-ffexport="top" style="font-size:12px;" data-fft="btn_export">⇓ Exporter vers Excel</button>
     </div>
     <div class="ff-table-wrap" id="ffTableTop" style="margin-top:8px;"></div>
   </div>
@@ -21001,6 +21361,28 @@ async function fulfillInit() {
     <div class="st-form-actions">
       <button type="button" class="st-btn secondary" id="stInviteCancel">Cancel</button>
       <button type="button" class="st-btn" id="stInviteSubmit">Send invite</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== Set-password modal (shown after Supabase invite) ===== -->
+<div class="st-modal-bg" id="setPwModal">
+  <div class="st-modal" style="max-width:420px;">
+    <h3>Set your password</h3>
+    <div class="modal-sub">Welcome — pick a password to finish setting up your account.</div>
+    <div class="st-modal-error" id="setPwError"></div>
+    <div class="st-modal-success" id="setPwSuccess"></div>
+    <div class="st-form-row">
+      <label for="setPwInput1">New password</label>
+      <input type="password" id="setPwInput1" placeholder="At least 6 characters" autocomplete="new-password">
+    </div>
+    <div class="st-form-row">
+      <label for="setPwInput2">Confirm password</label>
+      <input type="password" id="setPwInput2" placeholder="Re-enter password" autocomplete="new-password">
+    </div>
+    <div class="st-form-actions">
+      <button type="button" class="st-btn" id="setPwSubmit">Set password &amp; continue</button>
     </div>
   </div>
 </div>
