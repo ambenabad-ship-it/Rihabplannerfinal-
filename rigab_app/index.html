@@ -19310,12 +19310,13 @@ async function gmvRenderEngagement(wrap) {
 // total GMV they generate across the selected products unlocks the next
 // threshold once it crosses the previous one.
 const ENG_THRESHOLDS = [
-  { id: 1, label: 'Niveau Engagé',    threshold:  100000, color: '#0f766e' },
-  { id: 2, label: 'Niveau Confirmé',  threshold:  250000, color: '#0369a1' },
-  { id: 3, label: 'Niveau Performant',threshold:  500000, color: '#7c3aed' },
-  { id: 4, label: 'Niveau Élite',     threshold: 1000000, color: '#c026d3' },
-  { id: 5, label: 'Niveau Champion',  threshold: 2000000, color: '#dc2626' },
+  { id: 1, key: 'eng_lvl_1', threshold:  100000, color: '#0f766e' },
+  { id: 2, key: 'eng_lvl_2', threshold:  250000, color: '#0369a1' },
+  { id: 3, key: 'eng_lvl_3', threshold:  500000, color: '#7c3aed' },
+  { id: 4, key: 'eng_lvl_4', threshold: 1000000, color: '#c026d3' },
+  { id: 5, key: 'eng_lvl_5', threshold: 2000000, color: '#dc2626' },
 ];
+function engLevelLabel(t) { return engT(t.key); }
 const ENG_MIN_PRODUCTS = 5;
 
 function gmvComputeSoldForSeller(seller, period) {
@@ -19341,6 +19342,80 @@ function gmvComputeSoldForSeller(seller, period) {
   return out;
 }
 
+// ---- i18n for engagement / GMV tabs (FR default, follows fulfill.lang) ----
+const ENG_I18N = {
+  fr: {
+    eng_title: 'Engagement', eng_period: 'Période', eng_seller: 'Vendeur',
+    eng_committed: 'Produits engagés', eng_min_ok: '✓ Minimum atteint',
+    eng_select_more: 'Sélectionner {n} de plus', eng_min_short: 'min.',
+    eng_total_gmv: 'GMV cumulé (produits choisis)',
+    eng_next_challenge: 'Prochain défi', eng_all_done: '🎉 Tous atteints !',
+    eng_remaining: '{n} MAD restants', eng_path: "Parcours d'engagement",
+    eng_toward: 'Vers',
+    eng_pick_hint: 'Choisissez vos produits prioritaires ({min}+). Le GMV cumulé débloque les niveaux suivants automatiquement.',
+    eng_save: 'Enregistrer mon engagement', eng_saved: '✓ Enregistré',
+    eng_check_to_commit: 'Cocher pour engager',
+    eng_sold: 'Vendu', eng_gmv: 'GMV',
+    eng_no_focus: 'Aucun produit focus défini', eng_no_focus_creator: 'Téléverser le fichier de produits focus ci-dessus pour configurer la période.',
+    eng_no_focus_seller: 'Demander au créateur de téléverser le fichier de produits focus.',
+    eng_signin_seller: 'Connectez-vous comme vendeur pour vous engager et suivre vos produits focus.',
+    eng_save_warn: "Seulement {n} produit(s) sélectionné(s). Le minimum est {min}. Sauvegarder quand même ?",
+    eng_lvl_1: 'Niveau Engagé', eng_lvl_2: 'Niveau Confirmé', eng_lvl_3: 'Niveau Performant', eng_lvl_4: 'Niveau Élite', eng_lvl_5: 'Niveau Champion',
+    eng_not_l1: 'Pas encore au niveau 1', eng_continue: 'Continuer la progression',
+    eng_ref_min: 'min. ref.',
+  },
+  en: {
+    eng_title: 'Engagement', eng_period: 'Period', eng_seller: 'Seller',
+    eng_committed: 'Products committed', eng_min_ok: '✓ Minimum reached',
+    eng_select_more: 'Pick {n} more', eng_min_short: 'min.',
+    eng_total_gmv: 'Cumulative GMV (selected products)',
+    eng_next_challenge: 'Next challenge', eng_all_done: '🎉 All reached!',
+    eng_remaining: '{n} MAD remaining', eng_path: 'Engagement path',
+    eng_toward: 'Toward',
+    eng_pick_hint: 'Pick your priority products ({min}+). Cumulative GMV automatically unlocks the next tier.',
+    eng_save: 'Save my commitment', eng_saved: '✓ Saved',
+    eng_check_to_commit: 'Check to commit',
+    eng_sold: 'Sold', eng_gmv: 'GMV',
+    eng_no_focus: 'No focus products yet', eng_no_focus_creator: 'Upload the focus products file above to set up the period.',
+    eng_no_focus_seller: 'Ask the creator to upload the focus products file.',
+    eng_signin_seller: 'Sign in as a seller to commit and track focus products.',
+    eng_save_warn: 'Only {n} product(s) selected. Minimum is {min}. Save anyway?',
+    eng_lvl_1: 'Engaged tier', eng_lvl_2: 'Confirmed tier', eng_lvl_3: 'Performer tier', eng_lvl_4: 'Elite tier', eng_lvl_5: 'Champion tier',
+    eng_not_l1: 'Not at tier 1 yet', eng_continue: 'Keep going',
+    eng_ref_min: 'ref. min.',
+  },
+  ar: {
+    eng_title: 'الالتزام', eng_period: 'الفترة', eng_seller: 'البائع',
+    eng_committed: 'المنتجات الملتزم بها', eng_min_ok: '✓ تم بلوغ الحد الأدنى',
+    eng_select_more: 'اختر {n} إضافي', eng_min_short: 'الحد الأدنى',
+    eng_total_gmv: 'GMV التراكمي (المنتجات المختارة)',
+    eng_next_challenge: 'التحدي التالي', eng_all_done: '🎉 تم بلوغ كل المستويات !',
+    eng_remaining: 'المتبقي {n} درهم', eng_path: 'مسار الالتزام',
+    eng_toward: 'نحو',
+    eng_pick_hint: 'اختر منتجاتك الأولوية ({min}+). GMV التراكمي يفتح المستويات التالية تلقائياً.',
+    eng_save: 'حفظ التزامي', eng_saved: '✓ تم الحفظ',
+    eng_check_to_commit: 'حدد للالتزام',
+    eng_sold: 'المباع', eng_gmv: 'GMV',
+    eng_no_focus: 'لا توجد منتجات مستهدفة بعد', eng_no_focus_creator: 'رفع ملف المنتجات المستهدفة لإعداد الفترة.',
+    eng_no_focus_seller: 'اطلب من المالك رفع ملف المنتجات المستهدفة.',
+    eng_signin_seller: 'سجل الدخول كبائع للالتزام وتتبع منتجاتك.',
+    eng_save_warn: 'تم اختيار {n} منتج فقط. الحد الأدنى هو {min}. الحفظ على أي حال ؟',
+    eng_lvl_1: 'مستوى ملتزم', eng_lvl_2: 'مستوى مؤكد', eng_lvl_3: 'مستوى متميز', eng_lvl_4: 'مستوى نخبة', eng_lvl_5: 'مستوى البطل',
+    eng_not_l1: 'لم يصل بعد إلى المستوى 1', eng_continue: 'استمر في التقدم',
+    eng_ref_min: 'الحد الأدنى المرجعي',
+  },
+};
+function engLang() {
+  if (typeof fulfill !== 'undefined' && fulfill && fulfill.lang) return fulfill.lang;
+  try { return localStorage.getItem('rihab_ff_lang_v1') || 'fr'; } catch (_) { return 'fr'; }
+}
+function engT(key, vars) {
+  const lang = engLang();
+  let s = (ENG_I18N[lang] && ENG_I18N[lang][key]) || (ENG_I18N.en[key]) || (ENG_I18N.fr[key]) || key;
+  if (vars) Object.entries(vars).forEach(([k, v]) => { s = s.replace('{' + k + '}', v); });
+  return s;
+}
+
 // Compute the seller's combined GMV from the selected focus products.
 function gmvSelectedGmv(seller, period, selectedCodes) {
   const sold = gmvComputeSoldForSeller(seller, period);
@@ -19360,17 +19435,18 @@ function gmvNextThreshold(totalGmv) {
 function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
   if (!panel) return;
   const codes = Object.keys(gmvEngagement.focusProducts);
+  panel.setAttribute('dir', engLang() === 'ar' ? 'rtl' : 'ltr');
   if (!codes.length) {
     panel.innerHTML = `
       <div style="padding:48px 32px; text-align:center; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px;">
         <div style="font-size:32px; margin-bottom:8px;">📋</div>
-        <div style="font-size:14px; color:#0f172a; font-weight:600; margin-bottom:4px;">No focus products yet</div>
-        <div style="font-size:12px; color:#64748b;">${isCreator ? 'Upload the focus products file above to set up the period.' : 'Ask the creator to upload the focus products file.'}</div>
+        <div style="font-size:14px; color:#0f172a; font-weight:600; margin-bottom:4px;">${engT('eng_no_focus')}</div>
+        <div style="font-size:12px; color:#64748b;">${isCreator ? engT('eng_no_focus_creator') : engT('eng_no_focus_seller')}</div>
       </div>`;
     return;
   }
   if (!mySeller && !isCreator) {
-    panel.innerHTML = '<div style="padding:48px; text-align:center; color:#94a3b8; font-size:13px;">Sign in as a seller to commit and track focus products.</div>';
+    panel.innerHTML = `<div style="padding:48px; text-align:center; color:#94a3b8; font-size:13px;">${engT('eng_signin_seller')}</div>`;
     return;
   }
   const period = gmvCurrentPeriodKey();
@@ -19409,31 +19485,31 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
   const headerHtml = `
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:16px;">
       <div style="padding:18px 20px; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; border-radius:14px;">
-        <div style="font-size:11px; opacity:.7; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Période · Vendeur</div>
+        <div style="font-size:11px; opacity:.7; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">${engT('eng_period')} · ${engT('eng_seller')}</div>
         <div style="font-size:18px; font-weight:700; line-height:1.2;">${period}</div>
         <div style="font-size:13px; opacity:.85; margin-top:2px;">${gmvEscapeHtmlEng(seller)}</div>
       </div>
       <div style="padding:18px 20px; background:#fff; border:1px solid #e2e8f0; border-radius:14px;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Produits engagés</div>
-        <div style="font-size:28px; font-weight:700; color:${minOk ? '#16a34a' : '#dc2626'};">${selectedCodes.length}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${ENG_MIN_PRODUCTS} min.</span></div>
-        <div style="font-size:11px; color:${minOk ? '#16a34a' : '#dc2626'}; margin-top:4px;">${minOk ? '✓ Minimum atteint' : `Sélectionner ${ENG_MIN_PRODUCTS - selectedCodes.length} de plus`}</div>
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">${engT('eng_committed')}</div>
+        <div style="font-size:28px; font-weight:700; color:${minOk ? '#16a34a' : '#dc2626'};">${selectedCodes.length}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${ENG_MIN_PRODUCTS} ${engT('eng_min_short')}</span></div>
+        <div style="font-size:11px; color:${minOk ? '#16a34a' : '#dc2626'}; margin-top:4px;">${minOk ? engT('eng_min_ok') : engT('eng_select_more', { n: ENG_MIN_PRODUCTS - selectedCodes.length })}</div>
       </div>
       <div style="padding:18px 20px; background:#fff; border:1px solid #e2e8f0; border-radius:14px;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">GMV cumulé (produits choisis)</div>
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">${engT('eng_total_gmv')}</div>
         <div style="font-size:28px; font-weight:700; color:${curColor};">${fmt(total)} <span style="font-size:14px; color:#94a3b8;">MAD</span></div>
-        <div style="font-size:11px; color:${cur ? cur.color : '#94a3b8'}; margin-top:4px; font-weight:600;">${cur ? '🏆 ' + cur.label : 'Pas encore au niveau 1'}</div>
+        <div style="font-size:11px; color:${cur ? cur.color : '#94a3b8'}; margin-top:4px; font-weight:600;">${cur ? '🏆 ' + engLevelLabel(cur) : engT('eng_not_l1')}</div>
       </div>
       <div style="padding:18px 20px; background:#fff; border:1px solid #e2e8f0; border-radius:14px;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Prochain défi</div>
-        <div style="font-size:18px; font-weight:700; color:${next ? next.color : '#16a34a'};">${next ? next.label : '🎉 Tous atteints !'}</div>
-        <div style="font-size:11px; color:#64748b; margin-top:4px;">${next ? `${fmt(next.threshold - total)} MAD restants` : `Tous les niveaux atteints`}</div>
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">${engT('eng_next_challenge')}</div>
+        <div style="font-size:18px; font-weight:700; color:${next ? next.color : '#16a34a'};">${next ? engLevelLabel(next) : engT('eng_all_done')}</div>
+        <div style="font-size:11px; color:#64748b; margin-top:4px;">${next ? engT('eng_remaining', { n: fmt(next.threshold - total) }) : ''}</div>
       </div>
     </div>`;
 
   // ── Threshold ladder ──────────────────────────────────────────────
   const ladderHtml = `
     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px 20px; margin-bottom:18px;">
-      <div style="font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; font-weight:700; margin-bottom:14px;">Parcours d'engagement</div>
+      <div style="font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; font-weight:700; margin-bottom:14px;">${engT('eng_path')}</div>
       <div style="display:flex; align-items:stretch; gap:0; position:relative;">
         ${ENG_THRESHOLDS.map((t, i) => {
           const reached = total >= t.threshold;
@@ -19444,7 +19520,7 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
           return `
             <div style="flex:1; ${border} background:${bg}; color:${fg}; padding:12px 8px; border-radius:8px; ${i > 0 ? 'margin-left:6px;' : ''} text-align:center; transition:.3s;">
               <div style="font-size:18px; margin-bottom:4px;">${reached ? '🏆' : (isNext ? '🎯' : '🔒')}</div>
-              <div style="font-size:11px; font-weight:700; letter-spacing:.04em;">${t.label.toUpperCase()}</div>
+              <div style="font-size:11px; font-weight:700; letter-spacing:.04em;">${engLevelLabel(t).toUpperCase()}</div>
               <div style="font-size:13px; font-weight:700; margin-top:4px;">${fmt(t.threshold)}</div>
               <div style="font-size:10px; opacity:.85; margin-top:1px;">MAD</div>
             </div>`;
@@ -19453,7 +19529,7 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
       ${next ? `
         <div style="margin-top:14px;">
           <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
-            <span style="color:#64748b;">Vers <b style="color:${next.color};">${next.label}</b></span>
+            <span style="color:#64748b;">${engT('eng_toward')} <b style="color:${next.color};">${engLevelLabel(next)}</b></span>
             <span style="color:${next.color}; font-weight:700;">${segPct.toFixed(0)}% · ${fmt(total)} / ${fmt(next.threshold)}</span>
           </div>
           <div style="height:8px; background:#f1f5f9; border-radius:99px; overflow:hidden;">
@@ -19485,22 +19561,22 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
             <input type="checkbox" data-eng-sel="${gmvEscapeHtmlEng(code)}" ${isSel ? 'checked' : ''} style="width:18px; height:18px; accent-color:${curColor}; cursor:pointer; flex-shrink:0; margin-top:2px;">
             <div style="flex:1; min-width:0;">
               <div style="font-size:13px; font-weight:600; color:#0f172a; line-height:1.3;">${gmvEscapeHtmlEng(meta.name || code)}</div>
-              <div style="font-size:10px; color:#94a3b8; font-family:monospace; margin-top:2px;">${gmvEscapeHtmlEng(code)} · min. ${minQ.toLocaleString()}</div>
+              <div style="font-size:10px; color:#94a3b8; font-family:monospace; margin-top:2px;">${gmvEscapeHtmlEng(code)} · ${engT('eng_min_short')} ${minQ.toLocaleString()}</div>
             </div>
           </div>
           ${isSel ? `
             <div style="margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9;">
               <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
-                <span style="color:#64748b;">Vendu <b style="color:#0f172a;">${s.qty.toLocaleString()}</b> / ${minQ.toLocaleString()}</span>
+                <span style="color:#64748b;">${engT('eng_sold')} <b style="color:#0f172a;">${s.qty.toLocaleString()}</b> / ${minQ.toLocaleString()}</span>
                 <span style="color:${qPct >= 100 ? '#16a34a' : '#64748b'}; font-weight:700;">${qPct.toFixed(0)}%</span>
               </div>
               <div style="height:4px; background:#f1f5f9; border-radius:99px; overflow:hidden;">
                 <div style="height:100%; width:${qPct}%; background:${qPct >= 100 ? '#16a34a' : curColor}; transition:width .4s;"></div>
               </div>
-              <div style="margin-top:8px; font-size:11px; color:#475569;">GMV : <b style="color:#0f172a;">${fmt(s.gmv)}</b> MAD</div>
+              <div style="margin-top:8px; font-size:11px; color:#475569;">${engT('eng_gmv')} : <b style="color:#0f172a;">${fmt(s.gmv)}</b> MAD</div>
             </div>
           ` : `
-            <div style="margin-top:8px; font-size:11px; color:#94a3b8;">Cocher pour engager</div>
+            <div style="margin-top:8px; font-size:11px; color:#94a3b8;">${engT('eng_check_to_commit')}</div>
           `}
         </div>
         </label>`;
@@ -19512,8 +19588,8 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
     ${headerHtml}
     ${ladderHtml}
     <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px;">
-      <span style="font-size:12px; color:#64748b;">Choisissez vos produits prioritaires (${ENG_MIN_PRODUCTS}+). Le GMV cumulé débloque les niveaux suivants automatiquement.</span>
-      <button type="button" id="engSaveFocus" style="margin-left:auto; padding:9px 18px; background:#0f172a; color:#fff; border:0; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Enregistrer mon engagement</button>
+      <span style="font-size:12px; color:#64748b;">${engT('eng_pick_hint', { min: ENG_MIN_PRODUCTS })}</span>
+      <button type="button" id="engSaveFocus" style="margin-left:auto; padding:9px 18px; background:#0f172a; color:#fff; border:0; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">${engT('eng_save')}</button>
     </div>
     ${cardsHtml}`;
 
@@ -19530,12 +19606,12 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
   if (saveBtn) saveBtn.addEventListener('click', async () => {
     const sel = Object.values(commitment).filter(v => v && v.selected).length;
     if (sel < ENG_MIN_PRODUCTS) {
-      if (!confirm(`Seulement ${sel} produit(s) sélectionné(s). Le minimum est ${ENG_MIN_PRODUCTS}. Sauvegarder quand même ?`)) return;
+      if (!confirm(engT('eng_save_warn', { n: sel, min: ENG_MIN_PRODUCTS }))) return;
     }
     try {
       await gmvSaveEngagementCommitment(seller, period, { focus: commitment });
-      saveBtn.textContent = '✓ Enregistré';
-      setTimeout(() => { saveBtn.textContent = 'Enregistrer mon engagement'; }, 1500);
+      saveBtn.textContent = engT('eng_saved');
+      setTimeout(() => { saveBtn.textContent = engT('eng_save'); }, 1500);
     } catch (e) { alert('Save failed: ' + (e.message || e)); }
   });
 }
@@ -22658,6 +22734,38 @@ async function fulfillInit() {
     /* GMV page tab bar — scroll on mobile */
     .gmv-pagebar { overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
     .gmv-pagebtn { white-space:nowrap; flex-shrink:0; padding:10px 14px; font-size:13px; }
+  }
+  /* ---------- Mobile creator views (Settings + GMV Tracker + Engagement) ---------- */
+  @media (max-width: 768px) {
+    .settings-app { padding:14px 12px; }
+    .settings-app h1 { font-size:18px; }
+    .st-card { padding:14px 16px; border-radius:10px; }
+    .st-card h2 { font-size:14px; }
+    .st-row { flex-direction:column; align-items:flex-start; gap:4px; padding:10px 0; }
+    .st-row .value { font-size:11px; word-break:break-all; }
+    .st-btn { padding:10px 14px; font-size:14px; min-height:42px; }
+    .invite-item { flex-wrap:wrap; gap:8px; }
+    .invite-info { width:100%; min-width:0; }
+    .invite-tag { font-size:9px; }
+    .st-modal { max-width:calc(100vw - 24px) !important; padding:20px !important; }
+    .st-form-row input, .st-form-row select, .st-form-row textarea { padding:11px 12px; font-size:14px; min-height:44px; }
+    .st-role-grid { grid-template-columns:1fr !important; }
+    .st-role-card { padding:14px; }
+    .st-form-actions { flex-direction:column-reverse; gap:8px; }
+    .st-form-actions .st-btn { width:100%; }
+    .gmv-app { padding:14px 10px; max-width:none; }
+    .gmv-hero { flex-direction:column; gap:12px; padding:14px; }
+    .gmv-hero .hero-value { font-size:32px; }
+    .gmv-mini-strip { flex-wrap:wrap; gap:8px; }
+    .gmv-pagebar { overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; padding-bottom:4px; }
+    .gmv-pagebtn { white-space:nowrap; flex-shrink:0; padding:10px 14px; font-size:13px; }
+    .gmv-ds-strip { font-size:12px; }
+    .gmv-ds-summary { flex-wrap:wrap; gap:8px; }
+    #gmvResultsWrap table { font-size:11.5px; }
+    #gmvResultsWrap > div { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    #setPwModal .st-modal { max-width:calc(100vw - 24px) !important; padding:20px !important; }
+    #impersonationBanner { font-size:11px !important; padding:8px 10px !important; flex-wrap:wrap; gap:6px !important; }
+    #impersonationStop { padding:6px 10px !important; font-size:11px !important; }
   }
   /* RTL fine-tuning for Arabic */
   #featureFulfill[dir="rtl"] .ff-table { direction:rtl; }
