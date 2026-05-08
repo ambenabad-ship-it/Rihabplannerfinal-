@@ -19277,6 +19277,7 @@ const fulfill = {
   search: '',
   expandedOrders: {},  // orderCode -> bool (line-detail toggle)
   allocStrategy: (typeof localStorage !== 'undefined' && localStorage.getItem('rihab_ff_strategy_v1')) || 'dp', // 'dp' | 'max100'
+  decisions: {},       // orderCode -> { status, delivery_date, note, decided_by_email, decided_by_seller, decided_at }
   inited: false,
 };
 
@@ -19641,10 +19642,12 @@ function fulfillRenderOrdersTable(list, hostId) {
           <td>${fulfillFmtMad(l.amount || 0)}</td>
         </tr>`;
       }).join('');
+      const decisionHtml = fulfillRenderDecision(ord.code, ord);
       detail = `
         <tr class="lines-row">
           <td colspan="8">
             <div class="lines-inner">
+              ${decisionHtml}
               <table>
                 <thead><tr><th>Product code</th><th>Product name</th><th>Qty</th><th>Deliverable</th><th>Line amount</th></tr></thead>
                 <tbody>${lineRows}</tbody>
@@ -19664,12 +19667,15 @@ function fulfillRenderOrdersTable(list, hostId) {
       <tbody>${rows}</tbody>
     </table>`;
   host.querySelectorAll('tr.ord-row').forEach(tr => {
-    tr.addEventListener('click', () => {
+    tr.addEventListener('click', e => {
+      // Don't toggle expansion when clicking inside the decision panel.
+      if (e.target.closest('[data-ffdecision-host]') || e.target.closest('[data-ffdec-action]')) return;
       const code = tr.dataset.ffcode;
       fulfill.expandedOrders[code] = !fulfill.expandedOrders[code];
       fulfillRenderAll();
     });
   });
+  fulfillWireDecisionButtons(host);
 }
 
 function fulfillTopClients() {
@@ -19766,10 +19772,12 @@ function fulfillRenderTopClients(hostId) {
                 <td>${fulfillFmtMad(l.amount || 0)}</td>
               </tr>`;
           }).join('');
+          const decisionHtml = fulfillRenderDecision(ord.code, ord);
           lineDetail = `
             <tr class="lines-row">
               <td colspan="4">
                 <div class="lines-inner" style="padding-left:48px;">
+                  ${decisionHtml}
                   <table>
                     <thead><tr>
                       <th>Product code</th><th>Product name</th>
@@ -19804,6 +19812,7 @@ function fulfillRenderTopClients(hostId) {
     </table>`;
   host.querySelectorAll('tr.ord-row[data-ffclient]').forEach(tr => {
     tr.addEventListener('click', e => {
+      if (e.target.closest('[data-ffdecision-host]') || e.target.closest('[data-ffdec-action]')) return;
       e.stopPropagation();
       const phone = tr.dataset.ffclient;
       fulfill.expandedTopClients[phone] = !fulfill.expandedTopClients[phone];
@@ -19812,10 +19821,132 @@ function fulfillRenderTopClients(hostId) {
   });
   host.querySelectorAll('tr.ord-row[data-ffcode]').forEach(tr => {
     tr.addEventListener('click', e => {
+      if (e.target.closest('[data-ffdecision-host]') || e.target.closest('[data-ffdec-action]')) return;
       e.stopPropagation();
       const code = tr.dataset.ffcode;
       fulfill.expandedOrders[code] = !fulfill.expandedOrders[code];
       fulfillRenderAll();
+    });
+  });
+  fulfillWireDecisionButtons(host);
+}
+
+// ---- Order decisions (confirm / cancel with date + note) ----------
+async function fulfillLoadDecisions() {
+  if (typeof sb === 'undefined' || !sb) return;
+  try {
+    const { data, error } = await sb.from('order_decisions').select('*');
+    if (error) { console.warn('load decisions:', error.message); return; }
+    const map = {};
+    (data || []).forEach(d => { map[d.order_code] = d; });
+    fulfill.decisions = map;
+  } catch (e) { console.warn('load decisions failed:', e); }
+}
+
+async function fulfillSaveDecision(orderCode, decision) {
+  if (typeof sb === 'undefined' || !sb || !sbUser) throw new Error('Not signed in.');
+  const sellerName = (typeof gmvSellerName === 'function') ? gmvSellerName() : '';
+  const row = {
+    order_code: orderCode,
+    status: decision.status || null,
+    delivery_date: decision.delivery_date || null,
+    note: decision.note || null,
+    decided_by_email: sbUser.email || null,
+    decided_by_seller: sellerName || null,
+    decided_at: new Date().toISOString(),
+  };
+  const { error } = await sb.from('order_decisions').upsert(row, { onConflict: 'order_code' });
+  if (error) throw new Error(error.message || String(error));
+  fulfill.decisions[orderCode] = row;
+}
+
+async function fulfillClearDecision(orderCode) {
+  if (typeof sb === 'undefined' || !sb || !sbUser) throw new Error('Not signed in.');
+  const { error } = await sb.from('order_decisions').delete().eq('order_code', orderCode);
+  if (error) throw new Error(error.message || String(error));
+  delete fulfill.decisions[orderCode];
+}
+
+// Render the decision panel inside an expanded order. Sellers can edit
+// only their own orders; creator can edit any; viewers read-only.
+function fulfillRenderDecision(orderCode, ord) {
+  const d = fulfill.decisions[orderCode] || null;
+  const isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
+  const sellerLock = (typeof gmvSellerName === 'function') ? gmvSellerName() : '';
+  const isOwnSeller = sellerLock && ord && ord.seller === sellerLock;
+  const canEdit = isCreator || isOwnSeller;
+
+  let badge = '';
+  if (d) {
+    const statusCls = d.status === 'confirmed' ? '#166534' : d.status === 'canceled' ? '#7f1d1d' : '#475569';
+    const statusBg  = d.status === 'confirmed' ? '#dcfce7' : d.status === 'canceled' ? '#fee2e2' : '#e2e8f0';
+    const statusLabel = d.status === 'confirmed' ? '✓ Confirmed' : d.status === 'canceled' ? '✕ Canceled' : 'Decision';
+    const dateStr = d.delivery_date || '';
+    const noteStr = d.note || '';
+    const by = d.decided_by_seller || d.decided_by_email || '?';
+    const when = d.decided_at ? new Date(d.decided_at).toLocaleString() : '';
+    badge = `
+      <div style="margin:8px 0; padding:10px 12px; background:${statusBg}; color:${statusCls}; border-radius:8px; font-size:12px;">
+        <b>${statusLabel}</b>
+        ${dateStr ? `· delivery: <b>${fulfillEscapeHtml(dateStr)}</b>` : ''}
+        ${noteStr ? `<div style="margin-top:4px; color:#0f172a;">"${fulfillEscapeHtml(noteStr)}"</div>` : ''}
+        <div style="margin-top:4px; font-size:10px; color:#475569;">by ${fulfillEscapeHtml(by)} · ${fulfillEscapeHtml(when)}</div>
+      </div>`;
+  }
+
+  if (!canEdit) {
+    return badge || '<div style="margin:8px 0; padding:8px 12px; background:#f8fafc; color:#94a3b8; font-size:11px; border-radius:6px;">No decision yet.</div>';
+  }
+
+  // Editor UI for sellers/creator.
+  const todayDefault = (d && d.delivery_date) || '';
+  const noteDefault = (d && d.note) || '';
+  return `${badge}
+    <div data-ffdecision-host="${fulfillEscapeHtml(orderCode)}" style="margin:8px 0; padding:12px; background:#fff; border:1px solid #e2e8f0; border-radius:8px;">
+      <div style="font-size:12px; font-weight:600; color:#0f172a; margin-bottom:8px;">Update decision</div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px;">
+        <label style="font-size:11px; color:#475569;">Delivery date
+          <input type="date" data-ffdec-date value="${fulfillEscapeHtml(todayDefault)}" style="padding:4px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; margin-left:4px;">
+        </label>
+        <label style="font-size:11px; color:#475569; flex:1; min-width:200px;">Note
+          <input type="text" data-ffdec-note value="${fulfillEscapeHtml(noteDefault)}" placeholder="Optional note (or required if canceling)" style="padding:4px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; width:100%; margin-top:2px;">
+        </label>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button type="button" data-ffdec-action="confirmed" data-ffdec-code="${fulfillEscapeHtml(orderCode)}" style="padding:6px 14px; background:#16a34a; color:#fff; border:0; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">✓ Confirm delivery</button>
+        <button type="button" data-ffdec-action="canceled" data-ffdec-code="${fulfillEscapeHtml(orderCode)}" style="padding:6px 14px; background:#dc2626; color:#fff; border:0; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">✕ Cancel</button>
+        ${d ? `<button type="button" data-ffdec-action="clear" data-ffdec-code="${fulfillEscapeHtml(orderCode)}" style="padding:6px 14px; background:transparent; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; cursor:pointer;">Clear decision</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function fulfillWireDecisionButtons(host) {
+  if (!host) return;
+  host.querySelectorAll('[data-ffdec-action]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const code = btn.dataset.ffdecCode;
+      const action = btn.dataset.ffdecAction;
+      const wrap = host.querySelector(`[data-ffdecision-host="${code.replace(/"/g, '\\"')}"]`);
+      const dateInput = wrap && wrap.querySelector('[data-ffdec-date]');
+      const noteInput = wrap && wrap.querySelector('[data-ffdec-note]');
+      const dateVal = dateInput ? dateInput.value : '';
+      const noteVal = noteInput ? noteInput.value.trim() : '';
+      try {
+        if (action === 'clear') {
+          if (!confirm('Clear the decision for ' + code + '?')) return;
+          await fulfillClearDecision(code);
+        } else if (action === 'confirmed') {
+          if (!dateVal) { alert('Pick a delivery date first.'); return; }
+          await fulfillSaveDecision(code, { status: 'confirmed', delivery_date: dateVal, note: noteVal });
+        } else if (action === 'canceled') {
+          if (!noteVal) { alert('Please enter a note explaining why this order is canceled.'); return; }
+          await fulfillSaveDecision(code, { status: 'canceled', delivery_date: null, note: noteVal });
+        }
+        fulfillRenderAll();
+      } catch (err) {
+        alert('Save failed: ' + (err && err.message ? err.message : err));
+      }
     });
   });
 }
@@ -19997,6 +20128,123 @@ function fulfillShowTestReport() {
        · Stock initial: <b>${s.stockSumInitial.toLocaleString()}</b>
        · Stock remaining: <b>${s.stockSumRemaining.toLocaleString()}</b>
     </div>`;
+}
+
+// Export the currently-filtered orders/clients in a tab to an .xlsx file.
+function fulfillExportTab(tab) {
+  if (typeof XLSX === 'undefined') { alert('XLSX library not available.'); return; }
+  const today = new Date().toISOString().slice(0, 10);
+  const sellerLock = (typeof gmvSellerName === 'function') ? gmvSellerName() : '';
+  const sellerSuffix = sellerLock ? ('_' + sellerLock.replace(/\W+/g, '_')) : '';
+
+  let sheets = [];
+  let filename = '';
+
+  if (tab === 'full' || tab === 'partial' || tab === 'waiting') {
+    const a = fulfill.allocations || { full: [], partial: [], waiting: [] };
+    const list = fulfillFilterOrders(a[tab] || []);
+    if (!list.length) { alert('Nothing to export — no orders in this view.'); return; }
+    // 1) Order summary sheet.
+    const summaryRows = list.map(o => ({
+      'Order code': o.code,
+      'Client': o.name || '(no name)',
+      'Phone': o.phone || '',
+      'Seller': o.seller || '',
+      'Ordered units': o.totalQty,
+      'Deliverable units': o.deliverableTotal || 0,
+      'Fulfillment %': Math.round((o.fulfillPct || 0) * 100) / 100,
+      'Total amount (MAD)': Math.round((o.totalAmt || 0) * 100) / 100,
+      'Deliverable amount (MAD)': Math.round((o.totalAmt || 0) * ((o.deliverableTotal || 0) / (o.totalQty || 1)) * 100) / 100,
+    }));
+    sheets.push({ name: 'Orders', rows: summaryRows });
+    // 2) Line-detail sheet.
+    const lineRows = [];
+    list.forEach(o => {
+      o.lines.forEach(l => {
+        let pname = l.productName || '';
+        if (!pname && typeof gmv !== 'undefined' && gmv && gmv.productCategories) {
+          const cat = gmv.productCategories[l.productCode];
+          if (cat && cat.description) pname = cat.description;
+        }
+        lineRows.push({
+          'Order code': o.code,
+          'Client': o.name || '(no name)',
+          'Phone': o.phone || '',
+          'Seller': o.seller || '',
+          'Product code': l.productCode,
+          'Product name': pname || '',
+          'Ordered qty': l.qty,
+          'Deliverable qty': l.deliverable || 0,
+          'Stock initial': (fulfill.stock && fulfill.stock[l.productCode]) || 0,
+          'Stock remaining': (fulfill.remainingStock && fulfill.remainingStock[l.productCode]) || 0,
+          'Line amount (MAD)': Math.round((l.amount || 0) * 100) / 100,
+        });
+      });
+    });
+    sheets.push({ name: 'Line details', rows: lineRows });
+    const labels = { full: '100_pct', partial: '80_to_99_pct', waiting: 'waiting_list' };
+    filename = `OF_${labels[tab]}${sellerSuffix}_${today}.xlsx`;
+  } else if (tab === 'top') {
+    let list = fulfillTopClients();
+    if (fulfill.sellerFilter) list = list.filter(c => c.seller === fulfill.sellerFilter);
+    if (fulfill.search) {
+      const q = fulfill.search.toLowerCase();
+      list = list.filter(c => (c.name + ' ' + c.phone).toLowerCase().includes(q));
+    }
+    if (!list.length) { alert('Nothing to export — no clients in this view.'); return; }
+    // 1) Top clients summary.
+    sheets.push({
+      name: 'High GMV clients',
+      rows: list.map(c => ({
+        'Client': c.name,
+        'Phone': c.phone || '',
+        'Seller': c.seller,
+        'AMA-GMV (MAD)': Math.round(c.gmv * 100) / 100,
+        'Order count': c.orders.length,
+      }))
+    });
+    // 2) One row per (client, order, line) for full traceability.
+    const allOrders = {};
+    fulfill.allocations.full.concat(fulfill.allocations.partial, fulfill.allocations.waiting)
+      .forEach(o => { allOrders[o.code] = o; });
+    const detail = [];
+    list.forEach(c => {
+      c.orders.forEach(oRef => {
+        const ord = allOrders[oRef.code];
+        if (!ord) return;
+        const statusLabel = oRef.status === 'full' ? '100%' : oRef.status === 'partial' ? '≥80%' : oRef.status === 'wait' ? 'Waiting' : '?';
+        ord.lines.forEach(l => {
+          let pname = l.productName || '';
+          if (!pname && typeof gmv !== 'undefined' && gmv && gmv.productCategories) {
+            const cat = gmv.productCategories[l.productCode];
+            if (cat && cat.description) pname = cat.description;
+          }
+          detail.push({
+            'Client': c.name,
+            'Phone': c.phone || '',
+            'Seller': c.seller,
+            'Order code': ord.code,
+            'Order status': statusLabel,
+            'Order fulfill %': Math.round((ord.fulfillPct || 0) * 100) / 100,
+            'Product code': l.productCode,
+            'Product name': pname || '',
+            'Ordered qty': l.qty,
+            'Deliverable qty': l.deliverable || 0,
+            'Line amount (MAD)': Math.round((l.amount || 0) * 100) / 100,
+          });
+        });
+      });
+    });
+    sheets.push({ name: 'Orders & lines', rows: detail });
+    filename = `OF_high_gmv_clients${sellerSuffix}_${today}.xlsx`;
+  } else { return; }
+
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(s => {
+    const ws = XLSX.utils.json_to_sheet(s.rows);
+    XLSX.utils.book_append_sheet(wb, ws, s.name);
+  });
+  XLSX.writeFile(wb, filename);
 }
 
 function fulfillRenderAll() {
@@ -20227,6 +20475,9 @@ async function fulfillInit() {
 
   const testBtn = document.getElementById('ffTestBtn');
   if (testBtn) testBtn.addEventListener('click', () => fulfillShowTestReport());
+  document.querySelectorAll('button[data-ffexport]').forEach(btn => {
+    btn.addEventListener('click', () => fulfillExportTab(btn.dataset.ffexport));
+  });
   const verifyInput = document.getElementById('ffVerifyOrdersFile');
   if (verifyInput) verifyInput.addEventListener('change', e => {
     const f = e.target.files && e.target.files[0];
@@ -20248,6 +20499,7 @@ async function fulfillInit() {
   // Pull whatever the creator has already pushed (works for both
   // creator and viewers — viewers read via gmvReadShared).
   await fulfillPullFromCloud();
+  await fulfillLoadDecisions();
   fulfillTryAutoRun();
   fulfillRenderAll();
   // Re-apply role UI now that data is in.
@@ -20521,20 +20773,32 @@ async function fulfillInit() {
 
   <!-- Panels -->
   <div class="ff-panel active" data-ffpanel="full">
-    <div class="ff-summary" id="ffSummaryFull"></div>
-    <div class="ff-table-wrap" id="ffTableFull"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div class="ff-summary" id="ffSummaryFull" style="margin-bottom:0;"></div>
+      <button type="button" class="btn" data-ffexport="full" style="font-size:12px;">⇓ Export to Excel</button>
+    </div>
+    <div class="ff-table-wrap" id="ffTableFull" style="margin-top:8px;"></div>
   </div>
   <div class="ff-panel" data-ffpanel="partial">
-    <div class="ff-summary" id="ffSummaryPartial"></div>
-    <div class="ff-table-wrap" id="ffTablePartial"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div class="ff-summary" id="ffSummaryPartial" style="margin-bottom:0;"></div>
+      <button type="button" class="btn" data-ffexport="partial" style="font-size:12px;">⇓ Export to Excel</button>
+    </div>
+    <div class="ff-table-wrap" id="ffTablePartial" style="margin-top:8px;"></div>
   </div>
   <div class="ff-panel" data-ffpanel="waiting">
-    <div class="ff-summary" id="ffSummaryWaiting"></div>
-    <div class="ff-table-wrap" id="ffTableWaiting"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div class="ff-summary" id="ffSummaryWaiting" style="margin-bottom:0;"></div>
+      <button type="button" class="btn" data-ffexport="waiting" style="font-size:12px;">⇓ Export to Excel</button>
+    </div>
+    <div class="ff-table-wrap" id="ffTableWaiting" style="margin-top:8px;"></div>
   </div>
   <div class="ff-panel" data-ffpanel="top">
-    <div class="ff-summary" id="ffSummaryTop"></div>
-    <div class="ff-table-wrap" id="ffTableTop"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div class="ff-summary" id="ffSummaryTop" style="margin-bottom:0;"></div>
+      <button type="button" class="btn" data-ffexport="top" style="font-size:12px;">⇓ Export to Excel</button>
+    </div>
+    <div class="ff-table-wrap" id="ffTableTop" style="margin-top:8px;"></div>
   </div>
 </div>
 
