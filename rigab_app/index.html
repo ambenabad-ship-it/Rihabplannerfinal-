@@ -19239,6 +19239,56 @@ function gmvEscapeHtmlEng(s) {
 // ---- Renderers ----
 async function gmvRenderEngagement(wrap) {
   if (wrap) wrap.setAttribute('dir', engLang() === 'ar' ? 'rtl' : 'ltr');
+  // Sellers see only Engagement — hide unrelated GMV chrome (period chip,
+  // data-sources strip, auth banner) so the page is clean.
+  try {
+    const isSeller = (typeof gmvIsSeller === 'function') && gmvIsSeller();
+    const hide = el => { if (el) el.style.display = isSeller ? 'none' : ''; };
+    hide(document.getElementById('gmvDsStrip'));
+    hide(document.getElementById('gmvPeriodBtn'));
+    hide(document.getElementById('gmvAuthChip'));
+    // Translate the sidebar "Features" heading.
+    document.querySelectorAll('.as-section-title').forEach(s => {
+      if (s.textContent.trim() === 'Features' || s.dataset._tr === '1') {
+        s.dataset._tr = '1';
+        s.textContent = engLang() === 'ar' ? 'الميزات' : (engLang() === 'fr' ? 'Fonctionnalités' : 'Features');
+      }
+    });
+    // Translate sidebar feature labels.
+    const sidebarMap = {
+      ar: { planner: 'مخطط التوصيل', gmv: 'متتبع GMV', fulfill: 'تنفيذ الطلبيات', settings: 'الإعدادات' },
+      fr: { planner: 'Delivery Planner', gmv: 'GMV Tracker', fulfill: 'Exécution des commandes', settings: 'Paramètres' },
+      en: { planner: 'Delivery Planner', gmv: 'GMV Tracker', fulfill: 'Order Fulfillment', settings: 'Settings' },
+    };
+    const m = sidebarMap[engLang()] || sidebarMap.en;
+    document.querySelectorAll('.as-feature[data-feature]').forEach(b => {
+      const f = b.dataset.feature;
+      const txt = b.querySelector('span:not(.as-icon)') || b.querySelector('span:last-child');
+      if (txt && m[f]) txt.textContent = m[f];
+    });
+    // Translate the "GMV Tracker" command-bar title.
+    const cmdTitle = document.querySelector('.cmd-title');
+    if (cmdTitle) {
+      const titles = { ar: 'متتبع GMV', fr: 'GMV Tracker', en: 'GMV Tracker' };
+      cmdTitle.textContent = titles[engLang()] || 'GMV Tracker';
+    }
+    // Translate the GMV pagebar Engagement tab label.
+    document.querySelectorAll('.gmv-pagebtn[data-gpage]').forEach(b => {
+      const labelMap = {
+        ar: { performance: 'الأداء', targets: 'الأهداف', clients: 'زبنائي', engagement: engT('eng_title') },
+        fr: { performance: 'Performance', targets: 'Cibles', clients: 'Mes clients', engagement: 'Engagement' },
+        en: { performance: 'Performance', targets: 'Targets', clients: 'My clients', engagement: 'Engagement' },
+      };
+      const dict = labelMap[engLang()] || labelMap.en;
+      const key = b.dataset.gpage;
+      const label = dict[key];
+      if (!label) return;
+      // Replace the trailing text node (after the icon).
+      let last = b.lastChild;
+      while (last && last.nodeType !== Node.TEXT_NODE) last = last.previousSibling;
+      if (last) last.textContent = ' ' + label; else b.appendChild(document.createTextNode(' ' + label));
+    });
+  } catch (_) {}
   if (!gmvEngagement.loaded) {
     wrap.innerHTML = '<div style="padding:24px; color:#64748b; font-size:13px;">Loading engagement…</div>';
     await gmvLoadEngagement();
@@ -19268,7 +19318,7 @@ async function gmvRenderEngagement(wrap) {
 
   wrap.innerHTML = `
     <div style="margin:0 0 14px;">
-      <h2 style="margin:0 0 4px; font-size:18px; font-weight:700;">Engagement</h2>
+      <h2 style="margin:0 0 4px; font-size:18px; font-weight:700;">${engT('eng_title')}</h2>
       <div style="font-size:12px; color:#64748b;">${engT('eng_period_label')} <b>${gmvCurrentPeriodKey()}</b>${mySeller ? ` · ${engT('eng_seller_label')} <b>${gmvEscapeHtmlEng(mySeller)}</b>` : ''}</div>
     </div>
     ${uploadsHtml}
@@ -19307,18 +19357,17 @@ async function gmvRenderEngagement(wrap) {
   else gmvRenderEngagementScoreboard(panel, mySeller, isCreator);
 }
 
-// 5 cumulative-GMV thresholds. Seller must pick 5+ focus products. The
-// total GMV they generate across the selected products unlocks the next
-// threshold once it crosses the previous one.
-const ENG_THRESHOLDS = [
-  { id: 1, key: 'eng_lvl_1', threshold:  100000, color: '#0f766e' },
-  { id: 2, key: 'eng_lvl_2', threshold:  250000, color: '#0369a1' },
-  { id: 3, key: 'eng_lvl_3', threshold:  500000, color: '#7c3aed' },
-  { id: 4, key: 'eng_lvl_4', threshold: 1000000, color: '#c026d3' },
-  { id: 5, key: 'eng_lvl_5', threshold: 2000000, color: '#dc2626' },
-];
-function engLevelLabel(t) { return engT(t.key); }
-const ENG_MIN_PRODUCTS = 5;
+// Engagement campaign — May/June 2026.
+// Seller picks at least ENG_MIN_PRODUCTS focus SKUs. Achievement is
+// per-product: a SKU is "achieved" when delivered qty ≥ its min.
+//   Milestone 1: ENG_MILESTONE_M1 SKUs achieved by end of May.
+//   Milestone 2: ENG_MILESTONE_BOTH SKUs achieved with cumulative
+//                May+June qty by end of June.
+const ENG_PERIOD_M1 = '2026-05';
+const ENG_PERIOD_M2 = '2026-06';
+const ENG_MIN_PRODUCTS = 10;     // minimum products to pick
+const ENG_MILESTONE_M1 = 5;      // products that must hit min qty by end of May
+const ENG_MILESTONE_BOTH = 10;   // products that must hit min qty by end of June (cumulative)
 
 function gmvComputeSoldForSeller(seller, period) {
   // Returns { code: { qty, gmv } } per focus product — uses line.qty/amount
@@ -19378,6 +19427,12 @@ const ENG_I18N = {
     sc_palier_hit: 'Paliers', sc_score: 'Score',
     sc_no_data: "Pas encore de données — engagez-vous sur des produits pour voir vos performances.",
     sc_great: 'Excellent !', sc_good: 'Bonne progression', sc_keep: 'Continuez',
+    eng_milestone_m1: 'Cible mai 2026', eng_milestone_both: 'Cible mai+juin 2026',
+    eng_milestone_m1_hint: '5 produits doivent atteindre leur min. en mai',
+    eng_milestone_both_hint: '10 produits cumulés sur mai+juin',
+    eng_milestone_done: '🎯 Cible atteinte',
+    eng_campaign: 'Règles de la campagne mai/juin 2026',
+    eng_campaign_rule: 'Sélectionner au moins 10 produits. Atteindre la quantité minimale pour 5 produits d\'ici fin mai, et pour 10 produits cumulés d\'ici fin juin.',
   },
   en: {
     eng_title: 'Engagement', eng_period: 'Period', eng_seller: 'Seller',
@@ -19412,6 +19467,12 @@ const ENG_I18N = {
     sc_palier_hit: 'Tiers', sc_score: 'Score',
     sc_no_data: "No data yet — commit to products to see your performance.",
     sc_great: 'Excellent!', sc_good: 'Good progress', sc_keep: 'Keep going',
+    eng_milestone_m1: 'May 2026 target', eng_milestone_both: 'May+June 2026 target',
+    eng_milestone_m1_hint: '5 products must reach their min in May',
+    eng_milestone_both_hint: '10 products cumulative across May+June',
+    eng_milestone_done: '🎯 Target reached',
+    eng_campaign: 'May/June 2026 campaign rules',
+    eng_campaign_rule: 'Pick at least 10 products. Reach minimum qty for 5 products by end of May, and for 10 products cumulative by end of June.',
   },
   ar: {
     eng_title: 'الالتزام', eng_period: 'الفترة', eng_seller: 'البائع',
@@ -19446,6 +19507,12 @@ const ENG_I18N = {
     sc_palier_hit: 'المستويات', sc_score: 'النتيجة',
     sc_no_data: 'لا توجد بيانات بعد — التزم بمنتجات لرؤية أدائك.',
     sc_great: '🔥 ممتاز !', sc_good: 'تقدم جيد', sc_keep: 'واصل',
+    eng_milestone_m1: 'هدف ماي 2026', eng_milestone_both: 'هدف ماي+يونيو 2026',
+    eng_milestone_m1_hint: '5 منتجات يجب أن تبلغ حدها الأدنى في ماي',
+    eng_milestone_both_hint: '10 منتجات تراكميا في ماي + يونيو',
+    eng_milestone_done: '🎯 تم بلوغ الهدف',
+    eng_campaign: 'قواعد حملة ماي/يونيو 2026',
+    eng_campaign_rule: 'اختر على الأقل 10 منتجات. بلوغ الحد الأدنى للكمية في 5 منتجات قبل نهاية ماي، و في 10 منتجات تراكميا قبل نهاية يونيو.',
   },
 };
 function engLang() {
@@ -19459,20 +19526,34 @@ function engT(key, vars) {
   return s;
 }
 
-// Compute the seller's combined GMV from the selected focus products.
+// Compute the seller's combined GMV + count achieved products for a period.
 function gmvSelectedGmv(seller, period, selectedCodes) {
   const sold = gmvComputeSoldForSeller(seller, period);
   let total = 0;
-  selectedCodes.forEach(code => { total += (sold[code] && sold[code].gmv) || 0; });
-  return { sold, total };
+  let achieved = 0;
+  selectedCodes.forEach(code => {
+    const meta = gmvEngagement.focusProducts[code] || {};
+    const s = sold[code] || { qty: 0, gmv: 0 };
+    total += s.gmv;
+    if (meta.min && s.qty >= meta.min) achieved++;
+  });
+  return { sold, total, achieved };
 }
-function gmvCurrentThreshold(totalGmv) {
-  let cur = null;
-  ENG_THRESHOLDS.forEach(t => { if (totalGmv >= t.threshold) cur = t; });
-  return cur; // null if below first threshold
-}
-function gmvNextThreshold(totalGmv) {
-  return ENG_THRESHOLDS.find(t => totalGmv < t.threshold) || null; // null if all unlocked
+
+// Combined sold qty across May+June for one seller. Achieved = combined qty ≥ product's min.
+function gmvAchievedAcrossBothMonths(seller, selectedCodes) {
+  const m1 = gmvComputeSoldForSeller(seller, ENG_PERIOD_M1);
+  const m2 = gmvComputeSoldForSeller(seller, ENG_PERIOD_M2);
+  let achieved = 0;
+  let totalGmv = 0;
+  selectedCodes.forEach(code => {
+    const meta = gmvEngagement.focusProducts[code] || {};
+    const q = ((m1[code] && m1[code].qty) || 0) + ((m2[code] && m2[code].qty) || 0);
+    const g = ((m1[code] && m1[code].gmv) || 0) + ((m2[code] && m2[code].gmv) || 0);
+    totalGmv += g;
+    if (meta.min && q >= meta.min) achieved++;
+  });
+  return { achieved, totalGmv };
 }
 
 function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
@@ -19505,11 +19586,15 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
     else if (commitment[c] && typeof commitment[c] === 'object') commitment[c] = { selected: !!commitment[c].selected };
   });
   const selectedCodes = Object.keys(commitment).filter(c => commitment[c] && commitment[c].selected);
+  // Sold qty for the CURRENT period (matches old behaviour for per-card progress).
   const { sold, total } = gmvSelectedGmv(seller, period, selectedCodes);
-  const cur = gmvCurrentThreshold(total);
-  const next = gmvNextThreshold(total);
+  // Milestone tracking: achievement against per-product min qty.
+  const m1Stats = gmvSelectedGmv(seller, ENG_PERIOD_M1, selectedCodes);
+  const both = gmvAchievedAcrossBothMonths(seller, selectedCodes);
   const minOk = selectedCodes.length >= ENG_MIN_PRODUCTS;
   const fmt = n => Math.round(n || 0).toLocaleString('en-US');
+  // Choose accent color based on selection minimum / current milestone.
+  const curColor = minOk ? '#16a34a' : '#dc2626';
 
   // Group products by family.
   const families = {};
@@ -19519,16 +19604,16 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
     families[f].push(c);
   });
 
-  // ── Header KPIs ─────────────────────────────────────────────────────
-  const curColor = cur ? cur.color : '#64748b';
-  const nextThr = next ? next.threshold : (cur ? cur.threshold : ENG_THRESHOLDS[0].threshold);
-  const baseThr = cur ? cur.threshold : 0;
-  const segPct = next ? Math.min(100, Math.max(0, (total - baseThr) / (next.threshold - baseThr) * 100)) : 100;
+  // ── Header KPIs + milestone tracker ───────────────────────────────
+  const m1Pct = Math.min(100, (m1Stats.achieved / ENG_MILESTONE_M1) * 100);
+  const bothPct = Math.min(100, (both.achieved / ENG_MILESTONE_BOTH) * 100);
+  const m1Done = m1Stats.achieved >= ENG_MILESTONE_M1;
+  const bothDone = both.achieved >= ENG_MILESTONE_BOTH;
 
   const headerHtml = `
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:16px;">
       <div style="padding:18px 20px; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; border-radius:14px;">
-        <div style="font-size:11px; opacity:.7; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">${engT('eng_period')} · ${engT('eng_seller')}</div>
+        <div style="font-size:11px; opacity:.7; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">${engT('eng_period_label')} · ${engT('eng_seller_label')}</div>
         <div style="font-size:18px; font-weight:700; line-height:1.2;">${period}</div>
         <div style="font-size:13px; opacity:.85; margin-top:2px;">${gmvEscapeHtmlEng(seller)}</div>
       </div>
@@ -19538,47 +19623,29 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
         <div style="font-size:11px; color:${minOk ? '#16a34a' : '#dc2626'}; margin-top:4px;">${minOk ? engT('eng_min_ok') : engT('eng_select_more', { n: ENG_MIN_PRODUCTS - selectedCodes.length })}</div>
       </div>
       <div style="padding:18px 20px; background:#fff; border:1px solid #e2e8f0; border-radius:14px;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">${engT('eng_total_gmv')}</div>
-        <div style="font-size:28px; font-weight:700; color:${curColor};">${fmt(total)} <span style="font-size:14px; color:#94a3b8;">MAD</span></div>
-        <div style="font-size:11px; color:${cur ? cur.color : '#94a3b8'}; margin-top:4px; font-weight:600;">${cur ? '🏆 ' + engLevelLabel(cur) : engT('eng_not_l1')}</div>
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">${engT('eng_milestone_m1')}</div>
+        <div style="font-size:28px; font-weight:700; color:${m1Done ? '#16a34a' : '#0369a1'};">${m1Stats.achieved}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${ENG_MILESTONE_M1}</span></div>
+        <div style="height:6px; background:#f1f5f9; border-radius:99px; overflow:hidden; margin-top:8px;">
+          <div style="height:100%; width:${m1Pct}%; background:${m1Done ? '#16a34a' : '#0369a1'}; transition:width .4s;"></div>
+        </div>
+        <div style="font-size:11px; color:${m1Done ? '#16a34a' : '#64748b'}; margin-top:6px; font-weight:600;">${m1Done ? engT('eng_milestone_done') : engT('eng_milestone_m1_hint')}</div>
       </div>
       <div style="padding:18px 20px; background:#fff; border:1px solid #e2e8f0; border-radius:14px;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">${engT('eng_next_challenge')}</div>
-        <div style="font-size:18px; font-weight:700; color:${next ? next.color : '#16a34a'};">${next ? engLevelLabel(next) : engT('eng_all_done')}</div>
-        <div style="font-size:11px; color:#64748b; margin-top:4px;">${next ? engT('eng_remaining', { n: fmt(next.threshold - total) }) : ''}</div>
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">${engT('eng_milestone_both')}</div>
+        <div style="font-size:28px; font-weight:700; color:${bothDone ? '#16a34a' : '#7c3aed'};">${both.achieved}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${ENG_MILESTONE_BOTH}</span></div>
+        <div style="height:6px; background:#f1f5f9; border-radius:99px; overflow:hidden; margin-top:8px;">
+          <div style="height:100%; width:${bothPct}%; background:${bothDone ? '#16a34a' : '#7c3aed'}; transition:width .4s;"></div>
+        </div>
+        <div style="font-size:11px; color:${bothDone ? '#16a34a' : '#64748b'}; margin-top:6px; font-weight:600;">${bothDone ? engT('eng_milestone_done') : engT('eng_milestone_both_hint')}</div>
       </div>
     </div>`;
 
   // ── Threshold ladder ──────────────────────────────────────────────
   const ladderHtml = `
     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px 20px; margin-bottom:18px;">
-      <div style="font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; font-weight:700; margin-bottom:14px;">${engT('eng_path')}</div>
-      <div style="display:flex; align-items:stretch; gap:0; position:relative;">
-        ${ENG_THRESHOLDS.map((t, i) => {
-          const reached = total >= t.threshold;
-          const isNext = next && next.id === t.id;
-          const bg = reached ? t.color : (isNext ? '#f1f5f9' : '#f8fafc');
-          const fg = reached ? '#fff' : (isNext ? '#0f172a' : '#94a3b8');
-          const border = isNext ? `border:2px dashed ${t.color};` : 'border:1px solid #e2e8f0;';
-          return `
-            <div style="flex:1; ${border} background:${bg}; color:${fg}; padding:12px 8px; border-radius:8px; ${i > 0 ? 'margin-left:6px;' : ''} text-align:center; transition:.3s;">
-              <div style="font-size:18px; margin-bottom:4px;">${reached ? '🏆' : (isNext ? '🎯' : '🔒')}</div>
-              <div style="font-size:11px; font-weight:700; letter-spacing:.04em;">${engLevelLabel(t).toUpperCase()}</div>
-              <div style="font-size:13px; font-weight:700; margin-top:4px;">${fmt(t.threshold)}</div>
-              <div style="font-size:10px; opacity:.85; margin-top:1px;">MAD</div>
-            </div>`;
-        }).join('')}
-      </div>
-      ${next ? `
-        <div style="margin-top:14px;">
-          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
-            <span style="color:#64748b;">${engT('eng_toward')} <b style="color:${next.color};">${engLevelLabel(next)}</b></span>
-            <span style="color:${next.color}; font-weight:700;">${segPct.toFixed(0)}% · ${fmt(total)} / ${fmt(next.threshold)}</span>
-          </div>
-          <div style="height:8px; background:#f1f5f9; border-radius:99px; overflow:hidden;">
-            <div style="height:100%; width:${segPct}%; background:linear-gradient(90deg, ${cur ? cur.color : '#cbd5e1'}, ${next.color}); transition:width .5s;"></div>
-          </div>
-        </div>` : ''}
+      <div style="font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; font-weight:700; margin-bottom:10px;">${engT('eng_campaign')}</div>
+      <div style="font-size:13px; color:#475569; line-height:1.6;">${engT('eng_campaign_rule')}</div>
+      <div style="margin-top:10px; font-size:13px; color:#0f172a;">${engT('eng_total_gmv')} : <b>${fmt(total)} MAD</b> ${period === ENG_PERIOD_M1 ? '· ' + ENG_PERIOD_M1 : ''}</div>
     </div>`;
 
   // ── Product picker ────────────────────────────────────────────────
@@ -19756,9 +19823,11 @@ function gmvRenderEngagementScoreboard(panel, mySeller, isCreator) {
       focusGmv += s.gmv;
       if (meta.min && s.qty >= meta.min) focusHit++;
     });
-    // Tier score based on cumulative GMV.
-    const curTier = gmvCurrentThreshold(focusGmv);
-    const tierIdx = curTier ? curTier.id : 0;
+    // Milestone progress for the May/June campaign.
+    const m1 = gmvSelectedGmv(seller, ENG_PERIOD_M1, focusSelected);
+    const both = gmvAchievedAcrossBothMonths(seller, focusSelected);
+    const m1Done = m1.achieved >= ENG_MILESTONE_M1;
+    const bothDone = both.achieved >= ENG_MILESTONE_BOTH;
     // Client tiers progress.
     const ca = gmvComputeCaPerClient();
     let palierHit = 0;
@@ -19771,7 +19840,7 @@ function gmvRenderEngagementScoreboard(panel, mySeller, isCreator) {
     const focusScore = focusTotal ? focusHit / focusTotal : 0;
     const palierScore = palierTotal ? palierHit / palierTotal : 0;
     const blend = Math.round(((focusScore + palierScore) / 2) * 100);
-    return { seller, focusSelected, focusHit, focusTotal, focusGmv, curTier, tierIdx, palierHit, palierTotal, focusScorePct: Math.round(focusScore * 100), palierScorePct: Math.round(palierScore * 100), score: blend };
+    return { seller, focusSelected, focusHit, focusTotal, focusGmv, m1Achieved: m1.achieved, m1Done, bothAchieved: both.achieved, bothDone, palierHit, palierTotal, focusScorePct: Math.round(focusScore * 100), palierScorePct: Math.round(palierScore * 100), score: blend };
   };
 
   // Donut helper: SVG circular progress.
@@ -19801,8 +19870,10 @@ function gmvRenderEngagementScoreboard(panel, mySeller, isCreator) {
     const scoreColor = me.score >= 75 ? '#16a34a' : me.score >= 40 ? '#f59e0b' : '#dc2626';
     const moodEmoji = me.score >= 75 ? '🔥' : me.score >= 40 ? '👍' : '💪';
     const moodTxt = me.score >= 75 ? engT('sc_great') : me.score >= 40 ? engT('sc_good') : engT('sc_keep');
-    const tierLabel = me.curTier ? engLevelLabel(me.curTier) : engT('eng_not_l1');
-    const tierColor = me.curTier ? me.curTier.color : '#94a3b8';
+    const m1Color = me.m1Done ? '#16a34a' : '#3b82f6';
+    const bothColor = me.bothDone ? '#16a34a' : '#a855f7';
+    const m1Pct = Math.min(100, Math.round((me.m1Achieved / ENG_MILESTONE_M1) * 100));
+    const bothPct = Math.min(100, Math.round((me.bothAchieved / ENG_MILESTONE_BOTH) * 100));
     panel.innerHTML = `
       <div style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius:18px; padding:28px 24px; color:#fff; margin-bottom:14px; position:relative; overflow:hidden;">
         <div style="position:absolute; top:-30px; right:-30px; width:160px; height:160px; background:radial-gradient(circle, ${scoreColor}40 0%, transparent 70%); border-radius:50%;"></div>
@@ -19831,11 +19902,22 @@ function gmvRenderEngagementScoreboard(panel, mySeller, isCreator) {
 
         <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
           <div style="display:flex; align-items:center; gap:14px;">
-            <div style="width:64px; height:64px; border-radius:50%; background:${tierColor}20; color:${tierColor}; display:flex; align-items:center; justify-content:center; font-size:24px;">🏆</div>
+            ${donut(m1Pct, m1Color, 64, 8, '')}
             <div style="flex:1; min-width:0;">
-              <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em;">${engT('sc_gmv_tier')}</div>
-              <div style="font-size:18px; font-weight:700; color:${tierColor}; margin-top:2px;">${tierLabel}</div>
-              <div style="font-size:11px; color:#64748b; margin-top:2px;">${engT('sc_gmv_total')} : <b style="color:#0f172a;">${fmt(me.focusGmv)}</b> MAD</div>
+              <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em;">${engT('eng_milestone_m1')}</div>
+              <div style="font-size:20px; font-weight:700; color:#0f172a; margin-top:2px;">${me.m1Achieved}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${ENG_MILESTONE_M1}</span></div>
+              <div style="font-size:11px; color:${me.m1Done ? '#16a34a' : '#64748b'}; margin-top:2px; font-weight:600;">${me.m1Done ? engT('eng_milestone_done') : engT('eng_milestone_m1_hint')}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            ${donut(bothPct, bothColor, 64, 8, '')}
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em;">${engT('eng_milestone_both')}</div>
+              <div style="font-size:20px; font-weight:700; color:#0f172a; margin-top:2px;">${me.bothAchieved}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${ENG_MILESTONE_BOTH}</span></div>
+              <div style="font-size:11px; color:${me.bothDone ? '#16a34a' : '#64748b'}; margin-top:2px; font-weight:600;">${me.bothDone ? engT('eng_milestone_done') : engT('eng_milestone_both_hint')}</div>
             </div>
           </div>
         </div>
