@@ -12115,7 +12115,7 @@ function renderReviewDone(allocs, stats) {
     ${(() => {
       // Sub-Orders gate banner. Renders only while the gate is closed.
       const dl = !!reviewState.subOrdersDownloaded;
-      const ok = !!reviewState.subOrdersConfirmed || (typeof gmvIsCreator === 'function' && gmvIsCreator());
+      const ok = !!reviewState.subOrdersConfirmed || (typeof userHasPermission === 'function' && userHasPermission('delivery.skip_sub_orders'));
       if (ok) return '';
       return `<div id="subOrdersGateBanner" style="padding:14px 16px; background:#fef3c7; border:1px solid #f59e0b; border-radius:10px; margin:6px 0 10px; color:#78350f; font-size:13px; line-height:1.6;">
         <b>Exports locked until Sub-Orders is processed.</b><br>
@@ -12143,7 +12143,7 @@ function renderReviewDone(allocs, stats) {
       // grey out the locked buttons via existing :disabled styling.
       return `<div style="display:flex; flex-wrap:wrap; gap:8px;">`;
     })()}
-      ${(() => { window.__subLocked = !reviewState.subOrdersConfirmed && !(typeof gmvIsCreator === 'function' && gmvIsCreator()); return ''; })()}
+      ${(() => { window.__subLocked = !reviewState.subOrdersConfirmed && !(typeof userHasPermission === 'function' && userHasPermission('delivery.skip_sub_orders')); return ''; })()}
       <button class="btn btn-primary btn-lg" id="exportConfirmedBtn"${window.__subLocked ? ' disabled title="Locked — download Sub-Orders first, then confirm."' : ''}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download confirmed deliveries (.xlsx)
@@ -15741,6 +15741,60 @@ function gmvSetImpersonatedSeller(seller) {
   } catch (_) {}
 }
 // True only when the signed-in user is the creator AND not impersonating.
+let appPermissions = {};
+const APP_PERMS_KEY = 'app_permissions';
+function userHasPermission(key) {
+  if (typeof gmvIsCreator === 'function' && gmvIsCreator()) return true;
+  if (!sbUser || !sbUser.email) return false;
+  const p = appPermissions[sbUser.email.toLowerCase()];
+  return !!(p && p[key]);
+}
+async function loadAppPermissions() {
+  try {
+    let cloud = null;
+    if (typeof gmvReadShared === 'function') cloud = await gmvReadShared(APP_PERMS_KEY);
+    else if (typeof sbReadKey === 'function') cloud = await sbReadKey(APP_PERMS_KEY);
+    if (cloud && typeof cloud === 'object') appPermissions = cloud;
+  } catch (e) { console.warn('loadAppPermissions', e); }
+}
+async function saveAppPermissions() {
+  if (!gmvIsCreator()) { alert('Only the creator can edit permissions.'); return false; }
+  try { if (typeof sbWriteKey !== 'function') return false; return await sbWriteKey(APP_PERMS_KEY, appPermissions); }
+  catch (e) { return false; }
+}
+function renderPermissionsPanel() {
+  const host = document.getElementById('permissionsPanelHost');
+  if (!host) return;
+  host.innerHTML = '';
+  if (!gmvIsCreator()) return;
+  const wrap = document.createElement('details');
+  wrap.style.cssText = 'margin:12px 0; border:1px solid var(--border); border-radius:6px; padding:10px 14px; background:var(--bg-elev);';
+  wrap.innerHTML =
+    '<summary style="cursor:pointer; font-weight:600; user-select:none;">\ud83d\udd11 User permissions (creator only)</summary>' +
+    '<p style="font-size:12px; color:var(--text-soft); margin:8px 0;">Grant per-user permissions. Keys: <code>delivery.skip_sub_orders</code>.</p>' +
+    '<textarea id="permsTextarea" rows="8" style="width:100%; font-family:monospace; font-size:12px;"></textarea>' +
+    '<div style="margin-top:8px; display:flex; gap:8px; align-items:center;">' +
+      '<button type="button" class="btn btn-primary" id="permsSaveBtn">Save</button>' +
+      '<span id="permsStatus" style="font-size:12px;"></span>' +
+    '</div>';
+  host.appendChild(wrap);
+  const ta = document.getElementById('permsTextarea');
+  ta.value = JSON.stringify(appPermissions, null, 2);
+  document.getElementById('permsSaveBtn').addEventListener('click', async () => {
+    const status = document.getElementById('permsStatus');
+    try {
+      const parsed = JSON.parse(ta.value);
+      if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Must be an object');
+      const norm = {};
+      Object.keys(parsed).forEach(k => { norm[k.toLowerCase().trim()] = parsed[k] || {}; });
+      appPermissions = norm;
+      status.textContent = 'Saving\u2026';
+      const ok = await saveAppPermissions();
+      status.innerHTML = ok ? '<span style="color:var(--success);">\u2713 Saved</span>' : '<span style="color:var(--danger);">Failed</span>';
+    } catch (e) { status.innerHTML = '<span style="color:var(--danger);">Invalid JSON: ' + (e.message || e) + '</span>'; }
+  });
+}
+
 function gmvIsCreator() {
   if (gmvImpersonatedSeller()) return false;
   return !!(sbUser && sbUser.email && sbUser.email.toLowerCase() === GMV_CREATOR_EMAIL.toLowerCase());
@@ -15761,6 +15815,7 @@ function gmvIsSeller() { return !!gmvSellerName(); }
 // Hide the upload tiles + sync controls for viewers. Re-run on auth change.
 function gmvApplyRoleUI() {
   const isCreator = gmvIsCreator();
+  try { renderPermissionsPanel(); } catch (_) {}
   const strip = document.getElementById('gmvDsStrip');
   if (strip) strip.style.display = isCreator ? '' : 'none';
   // Creator: show their UUID so they can paste it into GMV_CREATOR_USER_ID + the SQL policy.
@@ -15804,7 +15859,8 @@ function gmvApplyRoleUI() {
     }
     badge.textContent = _txt;
     badge.setAttribute('dir', _lang === 'ar' ? 'rtl' : 'ltr');
-    // Mount inside the GMV feature pane, not <body>.
+    // Mount inside the GMV feature pane, not <body>
+<div id="permissionsPanelHost"></div>.
     const _gmv = document.getElementById('featureGmvMaker');
     const _inner = _gmv ? _gmv.querySelector('.gmv-inner') : null;
     const _host = _inner || _gmv || document.getElementById('gmvWrap') || document.querySelector('.gmv-wrap') || document.body;
@@ -16421,6 +16477,7 @@ async function gmvInit() {
   await gmvPullOrdersFromSupabaseIfNeeded();
   await gmvPullCategoriesFromSupabaseIfNeeded();
   await gmvPullRangeFromSupabaseIfNeeded();
+  try { await loadAppPermissions(); } catch (_) {}
   // Single render entry point.
   gmvRenderAll();
   gmvRenderAuthChip();
