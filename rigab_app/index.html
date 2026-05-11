@@ -4284,6 +4284,7 @@
 </style>
 </head>
 <body class="is-locked">
+<div id="permissionsPanelHost"></div>
 <!-- ============================================================
      Auth gate — full-screen login. Hidden once a Supabase session
      is established. The body's .is-locked class hides the app
@@ -15859,8 +15860,7 @@ function gmvApplyRoleUI() {
     }
     badge.textContent = _txt;
     badge.setAttribute('dir', _lang === 'ar' ? 'rtl' : 'ltr');
-    // Mount inside the GMV feature pane, not <body>
-<div id="permissionsPanelHost"></div>.
+    // Mount inside the GMV feature pane, not <body>.
     const _gmv = document.getElementById('featureGmvMaker');
     const _inner = _gmv ? _gmv.querySelector('.gmv-inner') : null;
     const _host = _inner || _gmv || document.getElementById('gmvWrap') || document.querySelector('.gmv-wrap') || document.body;
