@@ -15763,91 +15763,93 @@ async function saveAppPermissions() {
   try { if (typeof sbWriteKey !== 'function') return false; return await sbWriteKey(APP_PERMS_KEY, appPermissions); }
   catch (e) { return false; }
 }
-// Catalog of permission keys — extend this to add more permissions.
+// Catalog of permission keys, grouped by feature.
 const APP_PERMISSIONS = [
-  {
-    id: 'delivery.skip_sub_orders',
-    label: 'Skip Sub-Orders check',
-    desc: 'Download the 5 gated exports without re-uploading the Sub-Orders file.'
-  }
+  // ---- Delivery Planner ----
+  { id: 'delivery.skip_sub_orders',    group: 'Delivery Planner', label: 'Skip Sub-Orders check',     desc: 'Download the 5 gated exports without re-uploading the Sub-Orders file.' },
+  // ---- GMV Tracker ----
+  { id: 'gmv.upload_clients',          group: 'GMV Tracker',      label: 'Upload clients file',       desc: 'Upload the clients file (phones + sellers).' },
+  { id: 'gmv.upload_orders',           group: 'GMV Tracker',      label: 'Upload orders file',        desc: 'Upload the orders / GMV data file.' },
+  { id: 'gmv.upload_categories',       group: 'GMV Tracker',      label: 'Upload categories file',    desc: 'Upload the product categories file.' },
+  // ---- App-wide ----
+  { id: 'app.impersonate_sellers',     group: 'App',              label: 'Impersonate sellers',       desc: 'Use the seller-impersonation panel to view the app as another seller.' },
+  { id: 'app.manage_permissions',      group: 'App',              label: 'Manage user permissions',   desc: 'See and edit this permissions panel (use with care).' }
 ];
+
 
 function renderPermissionsPanel() {
   const host = document.getElementById('permissionsPanelHost');
   if (!host) return;
   host.innerHTML = '';
-  if (!gmvIsCreator()) return;
-  // Build the panel.
-  const det = document.createElement('details');
-  det.style.cssText = 'margin:12px auto; max-width:980px; border:1px solid var(--border); border-radius:10px; background:var(--bg-elev); box-shadow:0 1px 2px rgba(0,0,0,0.04);';
-  let userRowsHtml = '';
+  // Visible to creator AND to users with manage_permissions permission.
+  if (!gmvIsCreator() && !(sbUser && appPermissions[(sbUser.email||'').toLowerCase()] && appPermissions[(sbUser.email||'').toLowerCase()]['app.manage_permissions'])) return;
+  // Group permissions by category.
+  const groups = {};
+  APP_PERMISSIONS.forEach(p => { (groups[p.group] = groups[p.group] || []).push(p); });
+  const groupNames = Object.keys(groups);
   const emails = Object.keys(appPermissions || {}).sort();
-  emails.forEach(email => {
-    const perms = appPermissions[email] || {};
-    let cells = '<td style="padding:10px 12px; font-size:13px; color:var(--text); border-top:1px solid var(--border);">' + escapeHtml(email) + '</td>';
-    APP_PERMISSIONS.forEach(p => {
-      const on = !!perms[p.id];
-      cells += '<td style="padding:10px 12px; text-align:center; border-top:1px solid var(--border);"><label class="perms-switch" style="display:inline-flex; align-items:center; cursor:pointer;"><input type="checkbox" data-perms-email="' + escapeHtml(email) + '" data-perms-key="' + p.id + '"' + (on ? ' checked' : '') + ' style="appearance:none; -webkit-appearance:none; width:36px; height:20px; background:' + (on ? 'var(--success, #10b981)' : '#d1d5db') + '; border-radius:10px; position:relative; cursor:pointer; transition:background 0.15s;"><span style="position:absolute; left:' + (on ? '18px' : '2px') + '; top:2px; width:16px; height:16px; background:white; border-radius:50%; transition:left 0.15s; pointer-events:none; box-shadow:0 1px 2px rgba(0,0,0,0.2);"></span></label></td>';
+  const det = document.createElement('details');
+  det.style.cssText = 'margin:12px auto; max-width:1100px; border:1px solid var(--border); border-radius:10px; background:var(--bg-elev); box-shadow:0 1px 3px rgba(0,0,0,0.05);';
+  // Build header.
+  let header = '<summary style="cursor:pointer; user-select:none; padding:14px 18px; font-weight:600; font-size:14px;">\ud83d\udd11 User permissions <span style="color:var(--text-soft); font-weight:500; font-size:12px; margin-left:8px;">(creator only \u2014 ' + emails.length + ' user' + (emails.length === 1 ? '' : 's') + ', ' + APP_PERMISSIONS.length + ' permissions)</span></summary>';
+  // Add bar.
+  let addBar = '<div style="display:flex; gap:8px; align-items:center; padding:12px 0 16px;">' +
+    '<input type="email" id="permsAddEmail" placeholder="user@email.com" style="flex:1; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px;">' +
+    '<button type="button" id="permsAddBtn" class="btn btn-primary" style="padding:8px 14px; font-size:13px;">+ Add user</button>' +
+    '<span id="permsStatus" style="font-size:12px; color:var(--text-soft);"></span>' +
+  '</div>';
+  // Build per-group section.
+  let groupsHtml = '';
+  groupNames.forEach((gName, gi) => {
+    const gPerms = groups[gName];
+    if (!emails.length) return;
+    let head = '<th style="padding:10px 12px; text-align:left; font-size:11px; color:var(--text-soft); font-weight:600; text-transform:uppercase; letter-spacing:0.05em; background:#f9fafb;">User</th>';
+    gPerms.forEach(p => {
+      head += '<th title="' + escapeHtml(p.desc) + '" style="padding:10px 12px; text-align:center; font-size:11px; color:var(--text-soft); font-weight:600; text-transform:uppercase; letter-spacing:0.05em; cursor:help; background:#f9fafb;">' + escapeHtml(p.label) + '</th>';
     });
-    cells += '<td style="padding:10px 12px; text-align:center; border-top:1px solid var(--border);"><button type="button" data-perms-remove="' + escapeHtml(email) + '" style="border:none; background:transparent; color:var(--danger, #ef4444); cursor:pointer; font-size:13px; font-weight:600;">Remove</button></td>';
-    userRowsHtml += '<tr>' + cells + '</tr>';
+    head += '<th style="width:80px; background:#f9fafb;"></th>';
+    let body = '';
+    emails.forEach(email => {
+      const perms = appPermissions[email] || {};
+      let cells = '<td style="padding:10px 12px; font-size:13px; color:var(--text); border-top:1px solid var(--border);">' + escapeHtml(email) + '</td>';
+      gPerms.forEach(p => {
+        const on = !!perms[p.id];
+        cells += '<td style="padding:10px 12px; text-align:center; border-top:1px solid var(--border);"><label style="display:inline-flex; align-items:center; cursor:pointer; position:relative; width:36px; height:20px;"><input type="checkbox" data-perms-email="' + escapeHtml(email) + '" data-perms-key="' + p.id + '"' + (on ? ' checked' : '') + ' style="appearance:none; -webkit-appearance:none; width:36px; height:20px; background:' + (on ? '#10b981' : '#d1d5db') + '; border-radius:10px; position:absolute; left:0; top:0; cursor:pointer; transition:background 0.15s; margin:0;"><span style="position:absolute; left:' + (on ? '18px' : '2px') + '; top:2px; width:16px; height:16px; background:white; border-radius:50%; transition:left 0.15s; pointer-events:none; box-shadow:0 1px 2px rgba(0,0,0,0.25);"></span></label></td>';
+      });
+      cells += '<td style="padding:10px 12px; text-align:center; border-top:1px solid var(--border);">' + (gi === 0 ? '<button type="button" data-perms-remove="' + escapeHtml(email) + '" style="border:none; background:transparent; color:#ef4444; cursor:pointer; font-size:13px; font-weight:600;">Remove</button>' : '') + '</td>';
+      body += '<tr>' + cells + '</tr>';
+    });
+    groupsHtml += '<div style="margin-top:18px;"><div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6366f1; margin-bottom:8px;">' + escapeHtml(gName) + '</div>' +
+      '<table style="width:100%; border-collapse:collapse; background:white; border:1px solid var(--border); border-radius:6px; overflow:hidden;"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>';
   });
-  let headerRow = '<th style="padding:10px 12px; text-align:left; font-size:11px; color:var(--text-soft); font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">User</th>';
-  APP_PERMISSIONS.forEach(p => {
-    headerRow += '<th title="' + escapeHtml(p.desc) + '" style="padding:10px 12px; text-align:center; font-size:11px; color:var(--text-soft); font-weight:600; text-transform:uppercase; letter-spacing:0.05em; cursor:help;">' + escapeHtml(p.label) + '</th>';
-  });
-  headerRow += '<th style="width:80px;"></th>';
   const emptyMsg = emails.length ? '' : '<div style="padding:24px; text-align:center; color:var(--text-soft); font-size:13px;">No users yet. Add one above to grant access.</div>';
-  det.innerHTML =
-    '<summary style="cursor:pointer; user-select:none; padding:14px 18px; font-weight:600; font-size:14px;">\ud83d\udd11 User permissions <span style="color:var(--text-soft); font-weight:500; font-size:12px; margin-left:8px;">(creator only \u2014 ' + emails.length + ' user' + (emails.length === 1 ? '' : 's') + ')</span></summary>' +
-    '<div style="padding:0 18px 18px;">' +
-      '<div style="display:flex; gap:8px; align-items:center; padding:12px 0;">' +
-        '<input type="email" id="permsAddEmail" placeholder="user@email.com" style="flex:1; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px;">' +
-        '<button type="button" id="permsAddBtn" class="btn btn-primary" style="padding:8px 14px; font-size:13px;">+ Add user</button>' +
-        '<span id="permsStatus" style="font-size:12px; color:var(--text-soft);"></span>' +
-      '</div>' +
-      (emails.length
-        ? '<table style="width:100%; border-collapse:collapse; background:white; border:1px solid var(--border); border-radius:6px; overflow:hidden;"><thead style="background:#f9fafb;"><tr>' + headerRow + '</tr></thead><tbody>' + userRowsHtml + '</tbody></table>'
-        : emptyMsg) +
-    '</div>';
+  det.innerHTML = header + '<div style="padding:0 18px 18px;">' + addBar + groupsHtml + emptyMsg + '</div>';
   host.appendChild(det);
-  // Wire add button.
   document.getElementById('permsAddBtn').addEventListener('click', async () => {
     const inp = document.getElementById('permsAddEmail');
     const email = (inp.value || '').trim().toLowerCase();
     const status = document.getElementById('permsStatus');
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      status.innerHTML = '<span style="color:var(--danger);">Enter a valid email.</span>';
-      return;
-    }
-    if (appPermissions[email]) {
-      status.innerHTML = '<span style="color:var(--warning, #d97706);">Already in list.</span>';
-      return;
-    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { status.innerHTML = '<span style="color:#ef4444;">Enter a valid email.</span>'; return; }
+    if (appPermissions[email]) { status.innerHTML = '<span style="color:#d97706;">Already in list.</span>'; return; }
     appPermissions[email] = {};
     inp.value = '';
     status.textContent = 'Saving\u2026';
     const ok = await saveAppPermissions();
     renderPermissionsPanel();
-    const s = document.getElementById('permsStatus');
-    if (s) s.innerHTML = ok ? '<span style="color:var(--success);">\u2713 Added</span>' : '<span style="color:var(--danger);">Failed to save</span>';
+    const s = document.getElementById('permsStatus'); if (s) s.innerHTML = ok ? '<span style="color:#10b981;">\u2713 Added</span>' : '<span style="color:#ef4444;">Failed</span>';
   });
-  // Wire toggle changes.
   host.querySelectorAll('input[type="checkbox"][data-perms-email]').forEach(cb => {
     cb.addEventListener('change', async () => {
       const email = cb.dataset.permsEmail;
       const key = cb.dataset.permsKey;
       if (!appPermissions[email]) appPermissions[email] = {};
       appPermissions[email][key] = cb.checked;
-      const status = document.getElementById('permsStatus');
-      if (status) status.textContent = 'Saving\u2026';
+      const status = document.getElementById('permsStatus'); if (status) status.textContent = 'Saving\u2026';
       const ok = await saveAppPermissions();
       renderPermissionsPanel();
-      const s = document.getElementById('permsStatus');
-      if (s) s.innerHTML = ok ? '<span style="color:var(--success);">\u2713 Saved</span>' : '<span style="color:var(--danger);">Failed</span>';
+      const s = document.getElementById('permsStatus'); if (s) s.innerHTML = ok ? '<span style="color:#10b981;">\u2713 Saved</span>' : '<span style="color:#ef4444;">Failed</span>';
     });
   });
-  // Wire remove buttons.
   host.querySelectorAll('button[data-perms-remove]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const email = btn.dataset.permsRemove;
@@ -15855,14 +15857,11 @@ function renderPermissionsPanel() {
       delete appPermissions[email];
       const ok = await saveAppPermissions();
       renderPermissionsPanel();
-      const s = document.getElementById('permsStatus');
-      if (s) s.innerHTML = ok ? '<span style="color:var(--success);">\u2713 Removed</span>' : '<span style="color:var(--danger);">Failed</span>';
+      const s = document.getElementById('permsStatus'); if (s) s.innerHTML = ok ? '<span style="color:#10b981;">\u2713 Removed</span>' : '<span style="color:#ef4444;">Failed</span>';
     });
   });
-  // Enter key submits.
-  document.getElementById('permsAddEmail').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') document.getElementById('permsAddBtn').click();
-  });
+  const addInp = document.getElementById('permsAddEmail');
+  if (addInp) addInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('permsAddBtn').click(); });
 }
 
 function gmvIsCreator() {
@@ -15887,7 +15886,8 @@ function gmvApplyRoleUI() {
   const isCreator = gmvIsCreator();
   try { renderPermissionsPanel(); } catch (_) {}
   const strip = document.getElementById('gmvDsStrip');
-  if (strip) strip.style.display = isCreator ? '' : 'none';
+  const canUploadAny = isCreator || userHasPermission('gmv.upload_clients') || userHasPermission('gmv.upload_orders') || userHasPermission('gmv.upload_categories');
+  if (strip) strip.style.display = canUploadAny ? '' : 'none';
   // Creator: show their UUID so they can paste it into GMV_CREATOR_USER_ID + the SQL policy.
   if (isCreator && sbUser && !GMV_CREATOR_USER_ID) {
     let cBanner = document.getElementById('gmvCreatorIdBanner');
@@ -16699,7 +16699,7 @@ function gmvSetSummary(id, html) {
 
 async function gmvOnUploadClients(e) {
   const f = e.target.files && e.target.files[0]; if (!f) return;
-  if (!gmvIsCreator()) { alert('Only the creator can upload files. You\u2019re in viewer mode.'); try { e.target.value = ''; } catch (_) {} return; }
+  if (!gmvIsCreator() && !userHasPermission('gmv.upload_clients')) { alert('You do not have permission to upload this file.'); try { e.target.value = ''; } catch (_) {} return; }
 
   try {
     const rows = await readXlsx(f);
@@ -16748,7 +16748,7 @@ async function gmvOnUploadClients(e) {
 
 async function gmvOnUploadCategories(e) {
   const f = e.target.files && e.target.files[0]; if (!f) return;
-  if (!gmvIsCreator()) { alert('Only the creator can upload files. You\u2019re in viewer mode.'); try { e.target.value = ''; } catch (_) {} return; }
+  if (!gmvIsCreator() && !userHasPermission('gmv.upload_orders')) { alert('You do not have permission to upload this file.'); try { e.target.value = ''; } catch (_) {} return; }
 
   try {
     const rows = await readXlsx(f);
@@ -16790,7 +16790,7 @@ async function gmvOnUploadCategories(e) {
 
 async function gmvOnUploadOrders(e) {
   const f = e.target.files && e.target.files[0]; if (!f) return;
-  if (!gmvIsCreator()) { alert('Only the creator can upload files. You\u2019re in viewer mode.'); try { e.target.value = ''; } catch (_) {} return; }
+  if (!gmvIsCreator() && !userHasPermission('gmv.upload_categories')) { alert('You do not have permission to upload this file.'); try { e.target.value = ''; } catch (_) {} return; }
 
   try {
     if (!gmv.clients || !Object.keys(gmv.clients).length) {
