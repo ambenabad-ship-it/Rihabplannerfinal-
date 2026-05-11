@@ -1,0 +1,2845 @@
+<!DOCTYPE html>
+<!-- saved from url=(0138)file:///C:/Users/KAMALS~1/AppData/Local/Packages/CLAUDE~1/LOCALC~1/Roaming/Claude/LOCAL-~1/8C7000~1/FA2E9C~1/LOA3B1~1/outputs/ORDER-~1.HTM -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Order Fulfillment — Preview v5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+<link href="./order-fulfillment-v2_files/css2" rel="stylesheet">
+<style>
+  :root{
+    /* Refined palette */
+    --bg:#f6f7f9;
+    --bg-elev:#ffffff;
+    --bg-muted:#f1f3f6;
+    --bg-soft:#fafbfc;
+    --border:#e8eaef;
+    --border-soft:#f0f2f5;
+    --border-strong:#d4d8df;
+    --text:#0a0e1a;
+    --text-muted:#3f4858;
+    --text-soft:#6a7280;
+    --text-faint:#9aa1ac;
+
+    /* Brand — warm coral spectrum */
+    --primary:#F7624A;
+    --primary-600:#E04A2F;
+    --primary-700:#BF3A22;
+    --primary-50:#FEF1ED;
+    --primary-100:#FCD5C9;
+    --primary-glow:rgba(247,98,74,.35);
+
+    /* Warm dark spectrum (replaces black/ink) — deep terracotta */
+    --warm-950:#2a0c05;
+    --warm-900:#4a1408;
+    --warm-800:#7d2510;
+    --warm-700:#9c3415;
+    --warm-600:#BF3A22;
+    --gold:#FAD388;
+    --gold-warm:#F9B87A;
+
+    /* Legacy ink — kept only for phone hardware bezel */
+    --ink-950:#08090c;
+    --ink-900:#11141c;
+    --ink-800:#1a1e29;
+
+    /* Status — muted, sophisticated */
+    --success:#0b9870; --success-50:#e6f7f0; --success-100:#c4ecd9;
+    --warning:#d97706; --warning-50:#fef6e3;
+    --danger:#dc2626; --danger-50:#fef2f2;
+    --info:#0284c7; --info-50:#eff7fd;
+
+    /* Shadows — depth-aware */
+    --shadow-xs:0 1px 2px rgba(10,14,26,.04),0 0 0 .5px rgba(10,14,26,.04);
+    --shadow-sm:0 1px 3px rgba(10,14,26,.06),0 1px 2px rgba(10,14,26,.04);
+    --shadow-md:0 6px 18px rgba(10,14,26,.08),0 2px 6px rgba(10,14,26,.04);
+    --shadow-lg:0 20px 40px rgba(10,14,26,.12),0 6px 14px rgba(10,14,26,.06);
+    --shadow-orange:0 10px 30px rgba(247,98,74,.32),0 2px 6px rgba(247,98,74,.22);
+    --shadow-orange-deep:0 14px 40px rgba(191,58,34,.4),0 4px 10px rgba(191,58,34,.2);
+    --shadow-green:0 10px 30px rgba(11,152,112,.28);
+
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-ar:'Tajawal','Cairo','Noto Sans Arabic','Inter',sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+
+    --ease-out:cubic-bezier(0.16,1,0.3,1);
+    --ease-spring:cubic-bezier(0.34,1.56,0.64,1);
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{
+    font-family:var(--font-sans);font-size:14px;line-height:1.5;color:var(--text);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%,rgba(247,98,74,.12),transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 100%,rgba(250,211,136,.08),transparent 60%),
+      #faeee5;
+    -webkit-font-smoothing:antialiased;
+    font-feature-settings:'cv11','ss01','ss03';
+    letter-spacing:-0.005em;
+    min-height:100vh;
+  }
+  button,input,select{font-family:inherit}
+  button{touch-action:manipulation;border:none;cursor:pointer;background:none;color:inherit;padding:0}
+
+  /* Tabular numerals utility for stats / amounts */
+  .tnum{font-feature-settings:'tnum' on,'lnum' on;font-variant-numeric:tabular-nums lining-nums}
+
+  /* Preview banner */
+  .preview-banner{
+    background:linear-gradient(90deg,#fef3c7,#fde68a);
+    border-bottom:1px solid rgba(245,158,11,.5);
+    padding:9px 18px;font-size:12px;color:#7c4a03;font-weight:600;
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    backdrop-filter:blur(8px);
+  }
+  .preview-banner .ctrls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .preview-banner select,.preview-banner input{padding:5px 9px;border:1px solid rgba(245,158,11,.6);background:#fff;border-radius:7px;font-size:12px;font-family:inherit;color:#7c4a03;font-weight:600}
+  .preview-banner label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+
+  /* ============================================================== */
+  /*  PHONE FRAME — refined iPhone 14 Pro w/ Dynamic Island          */
+  /* ============================================================== */
+  .phone-stage{
+    padding:48px 16px 80px;
+    display:flex;justify-content:center;align-items:flex-start;
+    min-height:calc(100vh - 60px);
+  }
+  .phone-wrap{position:relative}
+  .phone-wrap::before{
+    /* Ambient orange glow behind the phone */
+    content:'';position:absolute;
+    inset:-80px -140px;
+    background:radial-gradient(closest-side,rgba(247,98,74,.28),transparent 70%);
+    filter:blur(60px);
+    z-index:-1;
+  }
+  .phone-frame{
+    width:402px;
+    background:linear-gradient(180deg,#1a1d24,#0d1015);
+    border-radius:54px;
+    padding:13px;
+    box-shadow:
+      0 50px 120px rgba(10,14,26,.4),
+      0 20px 40px rgba(10,14,26,.2),
+      inset 0 0 0 .5px rgba(255,255,255,.05),
+      inset 0 1px 0 rgba(255,255,255,.08);
+    position:relative;
+  }
+  .phone-screen{
+    background:var(--bg);
+    border-radius:42px;
+    overflow:hidden;
+    height:800px;
+    display:flex;flex-direction:column;
+    position:relative;
+    box-shadow:inset 0 0 0 .5px rgba(255,255,255,.04);
+  }
+  /* Dynamic Island */
+  .dynamic-island{
+    position:absolute;top:12px;left:50%;transform:translateX(-50%);
+    width:122px;height:36px;
+    background:#000;border-radius:20px;
+    z-index:50;pointer-events:none;
+    box-shadow:inset 0 0 0 .5px rgba(255,255,255,.04);
+  }
+  .phone-label{text-align:center;margin-top:18px;font-size:11px;color:#5e6675;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .phone-side-note{max-width:402px;margin:8px auto 0;font-size:12px;color:#6a7280;text-align:center;line-height:1.6}
+
+  /* Status bar */
+  .status-bar{
+    height:46px;display:flex;justify-content:space-between;align-items:center;
+    padding:0 32px;font-size:14px;font-weight:600;color:var(--text);flex-shrink:0;
+    padding-top:6px;
+  }
+  .status-bar .right{display:flex;gap:6px;align-items:center}
+  .status-bar svg{width:15px;height:11px;color:var(--text)}
+
+  /* App content */
+  .ff-mobile{flex:1;overflow:hidden;display:flex;flex-direction:column;background:var(--bg);position:relative}
+
+  /* ============================================================== */
+  /*  HERO — sophisticated warm orange with depth                    */
+  /* ============================================================== */
+  .m-hero{
+    background:
+      radial-gradient(ellipse 90% 60% at top right,rgba(255,235,210,.28),transparent 55%),
+      radial-gradient(ellipse 70% 50% at bottom left,rgba(255,255,255,.08),transparent 60%),
+      linear-gradient(170deg,var(--primary) 0%,var(--primary-600) 60%,var(--primary-700) 100%);
+    padding:12px 18px 14px;
+    color:#fff;
+    position:relative;
+    flex-shrink:0;
+    overflow:hidden;
+  }
+  .m-hero::before{
+    /* Top edge — soft white sheen */
+    content:'';position:absolute;top:0;left:0;right:0;height:1.5px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);
+    opacity:.8;
+  }
+  .m-hero::after{
+    /* Subtle grain texture */
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='3'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/></svg>");
+    opacity:.05;mix-blend-mode:overlay;
+  }
+  .m-hero > *{position:relative}
+
+  .m-hero .top-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+  .m-hero .hello{font-size:10px;color:rgba(255,255,255,.55);font-weight:600;letter-spacing:.06em;text-transform:uppercase;line-height:1}
+  .m-hero h1{
+    margin:3px 0 0;font-size:19px;font-weight:700;
+    letter-spacing:-0.024em;line-height:1.1;
+    background:linear-gradient(180deg,#fff,#fde9d3);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .m-hero .menu-btn{
+    width:34px;height:34px;border-radius:10px;
+    background:rgba(255,255,255,.08);
+    border:.5px solid rgba(255,255,255,.12);
+    color:#fff;display:grid;place-items:center;
+    backdrop-filter:blur(10px);
+    transition:.15s var(--ease-out);
+    flex-shrink:0;
+  }
+  .m-hero .menu-btn:active{background:rgba(255,255,255,.16);transform:scale(.92)}
+
+  /* Phase pill */
+  .m-phase-pill{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:6px 14px 6px 8px;border-radius:999px;
+    font-size:11.5px;font-weight:600;letter-spacing:.01em;
+    background:rgba(255,255,255,.06);
+    border:.5px solid rgba(255,255,255,.12);
+    backdrop-filter:blur(10px);
+  }
+  .m-phase-pill .led{
+    width:14px;height:14px;border-radius:50%;
+    background:rgba(255,255,255,.1);
+    display:grid;place-items:center;
+    position:relative;
+  }
+  .m-phase-pill .led::after{
+    content:'';width:6px;height:6px;border-radius:50%;
+    background:currentColor;
+    box-shadow:0 0 6px currentColor,0 0 12px currentColor;
+    animation:pulse 1.8s ease-in-out infinite;
+  }
+  .m-phase-pill.p1{color:#7dd3fc}
+  .m-phase-pill.p2{color:#fcd34d}
+  .m-phase-pill.p3{color:#6ee7b7}
+  .m-phase-pill.p4{color:#cbd5e1}
+  .m-phase-pill.p4 .led::after{animation:none;box-shadow:none;opacity:.6}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+
+  .m-hero .ph-line{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .m-hero .countdown{
+    font-family:var(--font-mono);font-size:13px;font-weight:700;
+    background:rgba(0,0,0,.22);border:.5px solid rgba(255,255,255,.14);
+    padding:4px 10px;border-radius:7px;color:#fff;letter-spacing:.04em;
+    backdrop-filter:blur(10px);
+    font-variant-numeric:tabular-nums slashed-zero;
+    display:inline-flex;align-items:center;gap:1px;
+    min-width:78px;justify-content:center;
+  }
+  .m-hero .countdown .sep{color:rgba(255,255,255,.55);font-weight:600;animation:colon-blink 1s steps(1) infinite;margin:0 1px}
+  @keyframes colon-blink{50%{opacity:.35}}
+  .m-hero .phase-detail{
+    font-size:11.5px;color:rgba(255,255,255,.7);margin-top:8px;line-height:1.4;
+    font-weight:400;
+  }
+  .m-hero .phase-detail strong{color:rgba(255,255,255,.95);font-weight:600}
+
+  /* Live phase progress bar at hero bottom */
+  .hero-progress{
+    position:absolute;bottom:0;left:0;right:0;
+    height:2.5px;background:rgba(255,255,255,.14);
+    overflow:hidden;
+    display:flex;
+  }
+  .hero-progress-fill{
+    height:100%;
+    background:linear-gradient(90deg,rgba(255,255,255,.85),#fff);
+    box-shadow:0 0 10px rgba(255,255,255,.55);
+    width:0;
+    transition:width 1s linear;
+  }
+  /* In RTL, fill grows from the right edge */
+  .ff-mobile[dir="rtl"] .hero-progress{justify-content:flex-end}
+  .ff-mobile[dir="rtl"] .hero-progress-fill{background:linear-gradient(270deg,rgba(255,255,255,.85),#fff)}
+  .m-hero .countdown.urgent{
+    background:rgba(255,255,255,.95);
+    color:var(--primary-700);
+    animation:pulse-urgent 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse-urgent{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.4)}50%{box-shadow:0 0 0 6px rgba(255,255,255,0)}}
+
+  /* Dispatch countdown card — Phase 4 hero */
+  .dispatch-card{
+    background:
+      radial-gradient(ellipse 80% 60% at top right,rgba(255,235,210,.32),transparent 55%),
+      linear-gradient(135deg,var(--primary),var(--primary-600) 50%,var(--primary-700));
+    color:#fff;
+    border-radius:16px;
+    padding:18px 20px 16px;
+    box-shadow:var(--shadow-orange-deep);
+    margin:0 0 12px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .dispatch-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent)}
+  .dispatch-card .dl{
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.14em;
+    font-weight:700;color:rgba(255,255,255,.85);margin-bottom:5px;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .dispatch-card .dl .pulse-dot{
+    width:7px;height:7px;border-radius:50%;background:#fff;
+    box-shadow:0 0 0 0 rgba(255,255,255,.7);
+    animation:pulse-dot 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse-dot{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}50%{box-shadow:0 0 0 6px rgba(255,255,255,0)}}
+  .dispatch-card .dv{
+    font-size:42px;font-weight:800;letter-spacing:-0.02em;line-height:1;
+    font-family:var(--font-mono);
+    font-variant-numeric:tabular-nums slashed-zero;
+    text-shadow:0 2px 12px rgba(0,0,0,.18);
+    display:inline-flex;align-items:baseline;justify-content:center;gap:1px;
+  }
+  .dispatch-card .dv .sep{
+    color:rgba(255,255,255,.55);font-weight:600;
+    animation:colon-blink 1s steps(1) infinite;margin:0 2px;
+  }
+  .dispatch-card .dlbls{
+    display:flex;justify-content:center;gap:32px;
+    font-size:9.5px;letter-spacing:.18em;font-weight:700;
+    color:rgba(255,255,255,.6);text-transform:uppercase;
+    margin-top:4px;
+  }
+  .dispatch-card .dp{
+    height:4px;background:rgba(255,255,255,.22);
+    border-radius:4px;margin:12px auto 10px;max-width:220px;
+    overflow:hidden;display:flex;
+  }
+  .ff-mobile[dir="rtl"] .dispatch-card .dp{justify-content:flex-end}
+  .dispatch-card .dp-fill{
+    height:100%;background:#fff;border-radius:4px;
+    box-shadow:0 0 8px rgba(255,255,255,.6);
+    width:0;transition:width 1s linear;
+  }
+  .dispatch-card .ds{
+    font-size:11.5px;color:rgba(255,255,255,.85);font-weight:500;
+  }
+  .dispatch-card .ds b{font-weight:700;color:#fff}
+
+  /* ============================================================== */
+  /*  STATS — editorial, large numbers                               */
+  /* ============================================================== */
+  .m-stats{
+    background:linear-gradient(180deg,var(--primary-700),#962a13);
+    padding:0 18px 14px;
+    display:flex;gap:8px;flex-shrink:0;
+    position:relative;
+  }
+  .m-stat{
+    flex:1;
+    background:rgba(255,255,255,.06);
+    border:.5px solid rgba(255,255,255,.1);
+    border-radius:11px;padding:8px 11px;
+    position:relative;overflow:hidden;
+    display:flex;align-items:baseline;gap:8px;
+  }
+  .m-stat.hl{background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.06));border-color:rgba(255,255,255,.35)}
+  .m-stat .v{
+    font-size:17px;font-weight:700;color:#fff;
+    line-height:1;letter-spacing:-0.025em;
+    font-feature-settings:'tnum' on;
+  }
+  .m-stat.hl .v{color:#fff}
+  .m-stat .l{
+    font-size:10px;color:rgba(255,255,255,.6);
+    text-transform:uppercase;letter-spacing:.06em;font-weight:600;
+    line-height:1.1;
+  }
+  .m-stat .delta{font-size:10px;color:#6ee7b7;font-weight:700;margin-top:3px}
+
+  /* ============================================================== */
+  /*  TAB SWITCHER — segmented control                               */
+  /* ============================================================== */
+  .m-tabs-wrap{padding:10px 14px 0;background:var(--bg);flex-shrink:0}
+  .m-tabs{
+    display:flex;background:var(--bg-muted);
+    border-radius:11px;padding:3px;gap:2px;
+    position:relative;
+    box-shadow:inset 0 0 0 .5px rgba(10,14,26,.04);
+  }
+  .m-tab{
+    flex:1;padding:8px 8px;
+    font-size:13px;font-weight:600;color:var(--text-soft);
+    border-radius:9px;position:relative;z-index:1;
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    transition:color .2s var(--ease-out);
+  }
+  .m-tab.active{color:var(--text)}
+  .m-tab-indicator{
+    position:absolute;top:3px;bottom:3px;
+    background:#fff;border-radius:9px;
+    box-shadow:0 1px 2px rgba(10,14,26,.06),0 2px 6px rgba(10,14,26,.04);
+    transition:left .3s var(--ease-out),width .3s var(--ease-out);
+    z-index:0;
+  }
+  .m-tab .cnt{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:20px;padding:0 6px;height:18px;border-radius:9px;
+    background:var(--bg-muted);color:var(--text-soft);
+    font-size:11px;font-weight:700;font-feature-settings:'tnum' on;
+  }
+  .m-tab.active .cnt{background:var(--primary-50);color:var(--primary-700)}
+
+  /* ============================================================== */
+  /*  SEARCH BAR                                                     */
+  /* ============================================================== */
+  .m-search{
+    padding:10px 14px 0;background:var(--bg);
+    position:sticky;top:0;z-index:5;flex-shrink:0;
+  }
+  .m-search-inner{position:relative}
+  .m-search input{
+    width:100%;padding:11px 42px 11px 40px;
+    border:1px solid var(--border);border-radius:12px;
+    font-size:14.5px;font-weight:500;font-family:inherit;
+    background:#fff;
+    color:var(--text);
+    transition:all .2s var(--ease-out);
+    -webkit-appearance:none;
+    box-shadow:var(--shadow-xs);
+  }
+  .m-search input::placeholder{color:var(--text-faint);font-weight:400}
+  .m-search input:focus{
+    outline:none;border-color:var(--primary);
+    box-shadow:0 0 0 4px var(--primary-glow),var(--shadow-sm);
+  }
+  .m-search .ico-l{
+    position:absolute;left:15px;top:50%;transform:translateY(-50%);
+    color:var(--text-faint);pointer-events:none;
+    transition:color .15s;
+  }
+  .m-search input:focus + .ico-l,.m-search.has-value .ico-l{color:var(--primary)}
+  .m-search .clear{
+    position:absolute;right:12px;top:50%;transform:translateY(-50%);
+    background:var(--bg-muted);width:26px;height:26px;border-radius:50%;
+    display:none;align-items:center;justify-content:center;color:var(--text-soft);
+    transition:.12s;
+  }
+  .m-search.has-value .clear{display:inline-flex}
+  .m-search .clear:active{transform:translateY(-50%) scale(.85);background:var(--border)}
+  .m-search-hint{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:5px 4px 0;font-size:11px;color:var(--text-soft);font-weight:500;
+  }
+  .m-search-hint b{color:var(--text-muted);font-weight:700}
+  .m-search-hint .count{
+    background:var(--bg-muted);color:var(--text-muted);
+    padding:2px 7px;border-radius:5px;
+    font-size:10px;font-weight:700;letter-spacing:.02em;
+  }
+
+  /* ============================================================== */
+  /*  Client cards — premium                                         */
+  /* ============================================================== */
+  .m-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .m-scroll::-webkit-scrollbar{width:0}
+  .m-clients{padding:10px 14px 130px;display:flex;flex-direction:column;gap:6px}
+
+  .m-client-card{
+    background:#fff;
+    border:.5px solid var(--border);
+    border-radius:14px;overflow:hidden;
+    transition:all .25s var(--ease-out);
+    box-shadow:var(--shadow-xs);
+  }
+  .m-client-card.expanded{
+    border-color:var(--primary-100);
+    box-shadow:var(--shadow-md);
+    transform:translateZ(0);
+  }
+
+  .m-client-head{
+    display:grid;grid-template-columns:40px 1fr auto;gap:11px;align-items:center;
+    padding:10px 12px;user-select:none;
+    min-height:60px;
+  }
+  .m-client-head:active{background:var(--bg-soft)}
+
+  /* Initials avatar */
+  .m-avatar{
+    width:40px;height:40px;border-radius:11px;
+    display:grid;place-items:center;
+    font-weight:700;font-size:13px;
+    background:linear-gradient(135deg,#f0f3f7,#e5e9f0);
+    color:var(--text-muted);
+    border:.5px solid var(--border);
+    position:relative;
+    flex-shrink:0;
+    letter-spacing:0;
+  }
+  .m-client-card[data-color="0"] .m-avatar{background:linear-gradient(135deg,#ffe5e0,#fdd0c5);color:#9c2d18}
+  .m-client-card[data-color="1"] .m-avatar{background:linear-gradient(135deg,#e0e9ff,#cbd9fb);color:#1d3a8a}
+  .m-client-card[data-color="2"] .m-avatar{background:linear-gradient(135deg,#dff5ed,#c4ecda);color:#075b46}
+  .m-client-card[data-color="3"] .m-avatar{background:linear-gradient(135deg,#fcefd8,#f9deb0);color:#7a430a}
+  .m-client-card[data-color="4"] .m-avatar{background:linear-gradient(135deg,#ecd9fb,#d8b8f5);color:#5b1d8a}
+  .m-client-card[data-color="5"] .m-avatar{background:linear-gradient(135deg,#d9f1fb,#a8e1f5);color:#0c5c80}
+
+  .m-client-card.has-added .m-avatar::after{
+    content:'';position:absolute;top:-2px;right:-2px;
+    width:12px;height:12px;border-radius:50%;
+    background:var(--success);
+    border:2px solid #fff;
+  }
+
+  .m-client-info{min-width:0}
+  .m-client-name{
+    font-size:14px;font-weight:600;color:var(--text);line-height:1.2;
+    letter-spacing:-0.012em;
+    display:flex;align-items:center;gap:5px;
+  }
+  .m-client-name .chev{width:12px;height:12px;color:var(--text-faint);transition:transform .25s var(--ease-out);flex-shrink:0;margin-left:-2px}
+  .m-client-card.expanded .m-client-name .chev{transform:rotate(90deg);color:var(--primary)}
+  .m-client-name .hl{background:linear-gradient(180deg,transparent 60%,#fde68a 60%);padding:0 1px}
+  .m-client-meta{
+    font-size:11.5px;color:var(--text-soft);margin-top:2px;
+    display:flex;align-items:center;flex-wrap:wrap;
+    font-feature-settings:'tnum' on;
+  }
+  .m-client-meta .phone{font-family:var(--font-mono);font-weight:600;color:var(--text-muted);font-size:11.5px;letter-spacing:-.01em}
+  .m-client-meta .phone .hl{background:#fef3c7;padding:0 2px;border-radius:3px;color:#7c4a03}
+  .m-client-meta .sep{margin:0 6px;width:2px;height:2px;border-radius:50%;background:var(--border-strong)}
+  .m-client-meta .amt{font-weight:700;color:var(--text);font-feature-settings:'tnum' on}
+
+  .m-add-all{
+    height:38px;padding:0 12px;
+    background:linear-gradient(135deg,var(--primary),var(--primary-600));
+    color:#fff;
+    border-radius:10px;font-size:12px;font-weight:600;
+    display:flex;align-items:center;gap:5px;
+    transition:all .15s var(--ease-out);
+    flex-shrink:0;letter-spacing:-.005em;
+    box-shadow:var(--shadow-orange);
+  }
+  .m-add-all:active{transform:scale(.94)}
+  .m-add-all svg{width:13px;height:13px}
+  .m-add-all.all-added{background:linear-gradient(135deg,var(--success),#0d8c63);box-shadow:var(--shadow-green)}
+  .m-add-all.partial{background:#fff;color:var(--primary);border:1px solid var(--primary);box-shadow:var(--shadow-xs)}
+
+  /* Orders inside expanded client */
+  .m-orders{padding:2px 10px 10px;background:linear-gradient(180deg,#fbfcfd,#fff);border-top:.5px solid var(--border-soft)}
+
+  .m-order-row{
+    background:#fff;
+    border:.5px solid var(--border);
+    border-radius:11px;
+    margin-top:6px;
+    overflow:hidden;
+    transition:all .2s var(--ease-out);
+  }
+  .m-order-row.is-added{
+    background:linear-gradient(180deg,#f0faf5,#fff);
+    border-color:var(--success-100);
+    box-shadow:0 2px 6px rgba(11,152,112,.08);
+  }
+  .m-order-row.expanded{border-color:var(--primary-100);box-shadow:var(--shadow-xs)}
+
+  .m-order-head{
+    display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;
+    padding:9px 11px;user-select:none;min-height:48px;
+  }
+  .m-order-head:active{background:var(--bg-soft)}
+
+  .m-order-info{min-width:0}
+  .m-order-line1{display:flex;align-items:center;gap:7px;margin-bottom:2px}
+  .m-order-chev{width:10px;height:10px;color:var(--text-faint);transition:transform .2s var(--ease-out);flex-shrink:0}
+  .m-order-row.expanded .m-order-chev{transform:rotate(90deg);color:var(--primary)}
+  .m-order-code{
+    font-family:var(--font-mono);font-size:10.5px;font-weight:600;color:var(--text-muted);
+    background:var(--bg-muted);padding:2px 7px;border-radius:6px;
+    letter-spacing:-.01em;
+  }
+  .m-order-amt{
+    margin-left:auto;
+    font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--text);
+    letter-spacing:-.02em;font-feature-settings:'tnum' on;
+  }
+  .m-order-amt .cur{font-size:9px;color:var(--text-soft);margin-left:2px;font-weight:500}
+  .m-order-line2{font-size:11.5px;color:var(--text-soft);font-feature-settings:'tnum' on}
+  .m-order-line2 .b{font-weight:600;color:var(--text-muted)}
+
+  .m-add-order{
+    width:38px;height:38px;
+    border:1.5px solid var(--primary);background:#fff;color:var(--primary);
+    border-radius:10px;font-size:16px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+    transition:all .12s var(--ease-spring);
+  }
+  .m-add-order:active{transform:scale(.88);background:var(--primary-50)}
+  .m-add-order svg{width:16px;height:16px}
+  .m-add-order.is-added{
+    background:var(--success);color:#fff;border-color:var(--success);
+    box-shadow:0 4px 14px rgba(11,152,112,.3);
+  }
+
+  /* Product list */
+  .m-products{
+    padding:4px 11px 10px;background:#fbfcfd;
+    border-top:.5px solid var(--border-soft);
+  }
+  .m-products-head{
+    padding:6px 0 5px;font-size:9.5px;color:var(--text-faint);
+    text-transform:uppercase;letter-spacing:.08em;font-weight:700;
+    display:grid;grid-template-columns:1fr 40px 64px;gap:8px;
+  }
+  .m-prod{
+    display:grid;grid-template-columns:1fr 40px 64px;gap:8px;align-items:center;
+    padding:7px 0;border-top:.5px solid var(--border-soft);font-size:12px;
+  }
+  .m-prod.inactive{opacity:.42}
+  .m-prod .pn{min-width:0;color:var(--text);font-weight:500;letter-spacing:-.005em;display:flex;align-items:center;gap:5px}
+  .m-prod .pn .active-dot{
+    width:6px;height:6px;border-radius:50%;background:var(--success);
+    box-shadow:0 0 0 2px rgba(11,152,112,.18);flex-shrink:0;
+  }
+  .m-prod.inactive .pn .active-dot{display:none}
+  .m-prod .pc{
+    font-family:var(--font-mono);font-size:10px;color:var(--text-soft);
+    background:#fff;padding:2px 6px;border-radius:5px;margin-right:6px;
+    border:.5px solid var(--border);font-weight:500;
+  }
+  .m-prod .qty{
+    font-family:var(--font-mono);font-weight:700;text-align:right;
+    color:var(--text);font-feature-settings:'tnum' on;letter-spacing:-.02em;
+  }
+  .m-prod .tot{
+    font-family:var(--font-mono);text-align:right;color:var(--text-muted);
+    font-size:12px;font-feature-settings:'tnum' on;letter-spacing:-.01em;
+  }
+
+  /* ============================================================== */
+  /*  Empty states                                                   */
+  /* ============================================================== */
+  .m-empty{padding:60px 24px;text-align:center;color:var(--text-soft)}
+  .m-empty .ico{margin-bottom:16px;color:var(--text-faint);opacity:.5}
+  .m-empty .ico svg{filter:drop-shadow(0 4px 8px rgba(10,14,26,.06))}
+  .m-empty .t{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;letter-spacing:-.01em}
+  .m-empty .s{font-size:13px;max-width:260px;margin:0 auto;line-height:1.55}
+
+  /* ============================================================== */
+  /*  My list (ranking)                                              */
+  /* ============================================================== */
+  .m-list{padding:10px 14px 130px;display:flex;flex-direction:column;gap:5px}
+  .m-group-head{
+    font-size:10.5px;color:var(--text-soft);font-weight:700;
+    margin:8px 6px 3px;text-transform:uppercase;letter-spacing:.08em;
+    display:flex;align-items:center;gap:8px;
+  }
+  .m-group-head:first-child{margin-top:0}
+  .m-group-head .phn{
+    font-family:var(--font-mono);color:var(--text-faint);font-weight:600;
+    text-transform:none;letter-spacing:-.01em;font-size:10.5px;
+  }
+
+  .m-rank-card{
+    background:#fff;border:.5px solid var(--border);border-radius:12px;
+    padding:9px 11px 9px 14px;display:grid;grid-template-columns:32px 1fr auto;gap:10px;
+    align-items:center;min-height:54px;
+    box-shadow:var(--shadow-xs);
+    transition:all .2s var(--ease-out);
+    position:relative;overflow:hidden;
+  }
+  .m-rank-card::before{
+    content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:linear-gradient(180deg,var(--primary),var(--primary-600));
+    border-radius:0 3px 3px 0;
+  }
+  .m-rank-card.locked::before{background:linear-gradient(180deg,var(--success),#077a5a)}
+  .m-rank-card .pri{
+    width:32px;height:32px;border-radius:9px;
+    background:linear-gradient(135deg,#fff,var(--primary-50));
+    color:var(--primary-700);
+    display:grid;place-items:center;
+    font-weight:800;font-size:13px;font-feature-settings:'tnum' on;
+    letter-spacing:-.02em;
+    box-shadow:0 1px 3px rgba(247,98,74,.12),inset 0 0 0 .5px rgba(247,98,74,.2);
+  }
+  .m-rank-card.locked .pri{
+    background:linear-gradient(135deg,#fff,#dff5ed);
+    color:#0b6e4f;
+    box-shadow:0 1px 3px rgba(11,152,112,.12),inset 0 0 0 .5px rgba(11,152,112,.2);
+  }
+  .m-rank-card .info{min-width:0}
+  .m-rank-card .info .code{
+    font-family:var(--font-mono);font-size:11px;font-weight:700;
+    color:var(--text);background:var(--bg-muted);
+    padding:2px 6px;border-radius:5px;letter-spacing:-.015em;
+  }
+  .m-rank-card .info .m{
+    font-size:11.5px;color:var(--text-soft);margin-top:3px;
+    display:flex;align-items:center;gap:6px;
+    font-feature-settings:'tnum' on;
+  }
+  .m-rank-card .info .m .b{font-weight:700;color:var(--text);letter-spacing:-.02em}
+
+  .m-rank-actions{display:flex;align-items:center;gap:5px}
+  .arrows{display:flex;flex-direction:column;gap:2px}
+  .arrow-btn{
+    width:28px;height:22px;border:.5px solid var(--border);background:#fff;
+    border-radius:6px;color:var(--text-muted);
+    display:flex;align-items:center;justify-content:center;
+    transition:all .12s var(--ease-out);
+    box-shadow:var(--shadow-xs);
+  }
+  .arrow-btn:active{transform:scale(.88);background:var(--bg-muted)}
+  .arrow-btn:disabled{opacity:.3}
+  .rm-btn{
+    width:28px;height:28px;border:.5px solid var(--border);background:#fff;
+    border-radius:7px;color:var(--danger);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:var(--shadow-xs);
+    transition:.12s var(--ease-out);
+  }
+  .rm-btn:active{transform:scale(.88);background:var(--danger-50)}
+
+  /* ============================================================== */
+  /*  Allocation cards (Phase 3) — premium                          */
+  /* ============================================================== */
+  .m-alloc{padding:10px 14px 130px;display:flex;flex-direction:column;gap:9px}
+  .alloc-card{
+    background:#fff;
+    border:.5px solid var(--border);border-radius:14px;
+    padding:13px;
+    box-shadow:var(--shadow-sm);
+    position:relative;overflow:hidden;
+    transition:all .2s var(--ease-out);
+  }
+  .alloc-card.full::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--success),#0db983);
+  }
+  .alloc-card.partial::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,#f59e0b,#fbbf24);
+  }
+  .alloc-card.none::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--danger),#ef4444);
+  }
+  .alloc-card.confirmed{
+    box-shadow:0 0 0 2px var(--success),var(--shadow-sm);
+    background:linear-gradient(180deg,#f0faf5,#fff);
+  }
+  .alloc-card.skipped{opacity:.6}
+
+  .alloc-card .top{
+    display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+    margin-bottom:10px;
+  }
+  .alloc-card .name{
+    font-size:14.5px;font-weight:700;line-height:1.2;letter-spacing:-.015em;
+    color:var(--text);
+  }
+  .alloc-card .meta{
+    font-size:11px;color:var(--text-soft);margin-top:3px;
+    font-family:var(--font-mono);letter-spacing:-.01em;
+  }
+  .alloc-card .badge{
+    font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:999px;
+    white-space:nowrap;letter-spacing:.03em;
+  }
+  .badge.full{background:linear-gradient(135deg,var(--success-50),#d4f0e3);color:#075b46;box-shadow:inset 0 0 0 .5px rgba(7,91,70,.15)}
+  .badge.partial{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#7c4a03;box-shadow:inset 0 0 0 .5px rgba(124,74,3,.15)}
+  .badge.none{background:linear-gradient(135deg,#fecaca,#fca5a5);color:#7f1d1d;box-shadow:inset 0 0 0 .5px rgba(127,29,29,.15)}
+  .badge.confirmed{background:var(--success);color:#fff}
+  .badge.skipped{background:#fecaca;color:#7f1d1d}
+
+  /* Circular progress */
+  .alloc-ring{
+    display:flex;align-items:center;gap:14px;margin-bottom:14px;
+  }
+  .ring{
+    width:72px;height:72px;flex-shrink:0;position:relative;
+  }
+  .ring svg{
+    width:100%;height:100%;transform:rotate(-90deg);
+    display:block;
+  }
+  .ring circle.bg{fill:none;stroke:var(--bg-muted);stroke-width:7}
+  .ring circle.fg{fill:none;stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset 0.6s var(--ease-out)}
+  .alloc-card.full .ring circle.fg{stroke:url(#g-success)}
+  .alloc-card.partial .ring circle.fg{stroke:url(#g-warning)}
+  .alloc-card.none .ring circle.fg{stroke:url(#g-danger)}
+  .ring .label{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    text-align:center;
+  }
+  .ring .label .pct{
+    font-size:19px;font-weight:800;letter-spacing:-.04em;
+    font-feature-settings:'tnum' on;line-height:1;
+  }
+  .ring .label .sub{font-size:8.5px;color:var(--text-soft);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-top:3px}
+  .alloc-card.full .ring .label .pct{color:#0b6e4f}
+  .alloc-card.partial .ring .label .pct{color:#a85806}
+  .alloc-card.none .ring .label .pct{color:#9c1414}
+
+  .alloc-details{flex:1;min-width:0}
+  .alloc-details .lbl{font-size:11px;color:var(--text-soft);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+  .alloc-details .lines{display:flex;flex-wrap:wrap;gap:4px}
+  .line-pill{
+    font-size:11px;padding:3px 8px;border-radius:6px;
+    font-family:var(--font-mono);font-weight:600;letter-spacing:-.01em;
+  }
+  .line-pill.ok{background:var(--success-50);color:#075b46;border:.5px solid rgba(7,91,70,.12)}
+  .line-pill.miss{background:#fef2f2;color:#9c1414;text-decoration:line-through;border:.5px solid rgba(156,20,20,.12)}
+
+  .alloc-actions{display:flex;gap:8px}
+  .big-btn{
+    flex:1;padding:11px;border-radius:11px;font-size:13.5px;font-weight:700;
+    border:1.5px solid;display:flex;align-items:center;justify-content:center;gap:6px;
+    min-height:44px;
+    transition:all .15s var(--ease-out);
+    letter-spacing:-.005em;
+  }
+  .big-btn:active{transform:scale(.97)}
+  .big-btn.confirm{background:var(--success);color:#fff;border-color:var(--success);box-shadow:var(--shadow-green)}
+  .big-btn.confirm.is-off{background:#fff;color:var(--success);box-shadow:var(--shadow-xs)}
+  .big-btn.skip{background:#fff;color:var(--text-muted);border-color:var(--border-strong);box-shadow:var(--shadow-xs)}
+  .big-btn.skip.is-on{background:var(--danger);color:#fff;border-color:var(--danger);box-shadow:0 8px 22px rgba(220,38,38,.28)}
+  .big-btn svg{width:16px;height:16px}
+
+  /* ============================================================== */
+  /*  Locked phase 2                                                 */
+  /* ============================================================== */
+  .m-locked{padding:14px 16px 140px;display:flex;flex-direction:column;gap:8px}
+  .m-locked-note{
+    background:linear-gradient(135deg,#fef9e7,#fdf3cf);
+    border:.5px solid #f9d264;
+    border-radius:14px;padding:14px 16px;
+    font-size:13px;color:#7c4a03;font-weight:600;
+    margin-bottom:12px;
+    display:flex;align-items:center;gap:10px;
+    box-shadow:0 2px 8px rgba(249,210,100,.2);
+  }
+  .m-locked-note .ico{flex-shrink:0;color:#a85806}
+
+  /* ============================================================== */
+  /*  Bottom action bar — frosted glass                              */
+  /* ============================================================== */
+  .m-bottom{
+    position:absolute;bottom:0;left:0;right:0;
+    background:rgba(255,255,255,.85);
+    backdrop-filter:blur(24px) saturate(180%);
+    -webkit-backdrop-filter:blur(24px) saturate(180%);
+    border-top:.5px solid rgba(10,14,26,.08);
+    padding:9px 16px calc(12px + env(safe-area-inset-bottom));
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    z-index:6;
+  }
+  .m-bottom .info{min-width:0}
+  .m-bottom .info .n{
+    font-size:13.5px;font-weight:700;letter-spacing:-.015em;
+    color:var(--text);
+  }
+  .m-bottom .info .s{font-size:11.5px;color:var(--text-soft);margin-top:2px;font-feature-settings:'tnum' on}
+  .m-bottom-btn{
+    padding:10px 16px;
+    background:linear-gradient(135deg,var(--primary),var(--primary-600));
+    color:#fff;
+    border-radius:10px;font-size:13px;font-weight:600;
+    display:inline-flex;align-items:center;gap:6px;
+    min-height:40px;letter-spacing:-.005em;
+    box-shadow:var(--shadow-orange);
+    transition:all .15s var(--ease-out);
+  }
+  .m-bottom-btn:active{transform:scale(.95)}
+  .m-bottom-btn.primary{
+    background:linear-gradient(135deg,var(--primary),var(--primary-600));
+    box-shadow:var(--shadow-orange-deep);
+  }
+  .m-bottom-btn.locked{background:var(--bg-muted);color:var(--text-soft);box-shadow:none}
+
+  /* ============================================================== */
+  /*  Creator desktop view (kept simple)                             */
+  /* ============================================================== */
+  .desktop-stage{max-width:1200px;margin:0 auto;padding:32px 24px 80px}
+  .creator-hero{
+    background:
+      radial-gradient(ellipse 90% 60% at top right,rgba(255,235,210,.28),transparent 55%),
+      radial-gradient(ellipse 70% 50% at bottom left,rgba(255,255,255,.08),transparent 60%),
+      linear-gradient(170deg,var(--primary) 0%,var(--primary-600) 60%,var(--primary-700) 100%);
+    border-radius:20px;padding:28px;color:#fff;margin-bottom:18px;
+    position:relative;overflow:hidden;box-shadow:var(--shadow-lg);
+  }
+  .creator-hero::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);opacity:.8}
+  .creator-hero h1{margin:0 0 8px;font-size:26px;font-weight:700;letter-spacing:-.025em;display:flex;align-items:center;gap:12px}
+  .creator-hero .tag{color:rgba(255,255,255,.7);font-size:14px;max-width:600px}
+  .creator-hero .role-chip{padding:5px 12px;border-radius:999px;background:rgba(247,98,74,.4);border:.5px solid rgba(247,98,74,.6);color:#fff;font-size:11.5px;font-weight:600;margin-left:8px}
+  .creator-hero .ph-stepper{display:flex;gap:0;margin-top:22px;background:rgba(0,0,0,.25);border-radius:14px;padding:5px;border:.5px solid rgba(255,255,255,.04)}
+  .creator-hero .ph-step{flex:1;display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:10px;color:rgba(255,255,255,.5);font-size:12.5px;transition:.2s var(--ease-out)}
+  .creator-hero .ph-step.active{background:rgba(255,255,255,.08);color:#fff;font-weight:600}
+  .creator-hero .ph-step.done{color:rgba(255,255,255,.85)}
+  .creator-hero .ph-step .num{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.12);display:grid;place-items:center;font-family:var(--font-mono);font-weight:700;font-size:11px;flex-shrink:0}
+  .creator-hero .ph-step.active .num{background:var(--primary);box-shadow:0 0 0 4px rgba(247,98,74,.2)}
+  .creator-hero .ph-step.done .num{background:var(--success)}
+  .creator-hero .ph-step .lbl{display:flex;flex-direction:column;line-height:1.25}
+  .creator-hero .ph-step .lbl .t{font-weight:600;letter-spacing:-.01em}
+  .creator-hero .ph-step .lbl .h{font-size:10.5px;opacity:.6;font-family:var(--font-mono);margin-top:1px;letter-spacing:-.01em}
+
+  .c-card{background:#fff;border:.5px solid var(--border);border-radius:18px;padding:24px;margin-bottom:16px;box-shadow:var(--shadow-xs)}
+  .c-card h3{margin:0 0 6px;font-size:16px;font-weight:700;letter-spacing:-.02em}
+  .c-card .sub{font-size:13px;color:var(--text-soft);margin-bottom:18px;line-height:1.55}
+
+  .c-grid{display:grid;grid-template-columns:1fr 320px;gap:18px}
+  @media (max-width:980px){.c-grid{grid-template-columns:1fr}}
+
+  .gp-card{display:grid;grid-template-columns:24px 36px 1fr auto auto auto;gap:12px;align-items:center;padding:12px 14px;background:#fff;border:.5px solid var(--border);border-radius:12px;margin-bottom:6px;cursor:grab;user-select:none;transition:all .15s var(--ease-out);box-shadow:var(--shadow-xs)}
+  .gp-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow-sm)}
+  .gp-card.dragging{opacity:.4;cursor:grabbing}
+  .gp-card.drag-over{border-color:var(--primary);background:var(--primary-50)}
+  .gp-card .h{color:var(--text-soft);display:grid;place-items:center}
+  .gp-card .pri{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#fff,var(--primary-50));color:var(--primary-700);display:grid;place-items:center;font-weight:800;font-size:14px;font-feature-settings:'tnum' on;letter-spacing:-.02em;box-shadow:inset 0 0 0 .5px rgba(247,98,74,.2)}
+  .gp-card .seller-chip{font-size:11px;padding:3px 10px;border-radius:999px;background:linear-gradient(135deg,#e5f1f1,#cfe3e3);color:#1e4e51;font-weight:700;letter-spacing:.01em}
+
+  .stock-panel{background:linear-gradient(135deg,#fafbfc,#f5f7fa);border:.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+  .stock-panel h4{margin:0 0 12px;font-size:13px;font-weight:700;letter-spacing:-.01em}
+  .upload-zone{border:1.5px dashed var(--border);border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:#fff;transition:.2s var(--ease-out)}
+  .upload-zone:hover{border-color:var(--primary);background:var(--primary-50);transform:translateY(-1px)}
+  .upload-zone.has-file{border-style:solid;border-color:var(--success);background:var(--success-50)}
+
+  .creator-btn{display:inline-flex;align-items:center;gap:7px;padding:11px 18px;border-radius:11px;border:.5px solid var(--border);background:#fff;color:var(--text);font-size:13.5px;font-weight:600;font-family:inherit;transition:.15s var(--ease-out);letter-spacing:-.005em;box-shadow:var(--shadow-xs)}
+  .creator-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+  .creator-btn.dark{background:linear-gradient(135deg,var(--primary),var(--primary-600));color:#fff;border-color:transparent;box-shadow:var(--shadow-orange)}
+  .creator-btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary-600));color:#fff;border-color:transparent;box-shadow:var(--shadow-orange)}
+  .creator-btn:disabled{opacity:.5;cursor:not-allowed}
+
+  .exp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .exp-card{padding:22px;border:.5px solid var(--border);border-radius:14px;background:linear-gradient(135deg,#fff,#fafbfc);display:flex;flex-direction:column;gap:10px;transition:.2s var(--ease-out)}
+  .exp-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+  .exp-card h4{margin:0;font-size:15px;font-weight:700;letter-spacing:-.015em}
+  .exp-card .desc{font-size:12.5px;color:var(--text-soft);line-height:1.55}
+
+  .hidden{display:none !important}
+
+  /* ============================================================== */
+  /*  TAP-TO-CALL — phone number link                                */
+  /* ============================================================== */
+  .phone-call{
+    display:inline-flex;align-items:center;gap:5px;
+    text-decoration:none;color:var(--text-muted);
+    font-family:var(--font-mono);font-weight:600;font-size:11.5px;
+    padding:3px 8px;border-radius:7px;
+    background:var(--bg-muted);
+    border:.5px solid var(--border);
+    transition:all .12s var(--ease-out);
+    -webkit-tap-highlight-color:transparent;
+    direction:ltr;unicode-bidi:isolate;
+    letter-spacing:-.01em;
+    cursor:pointer;
+  }
+  .phone-call:hover{border-color:var(--success);background:var(--success-50);color:var(--success)}
+  .phone-call:active{
+    background:var(--success);color:#fff;
+    border-color:var(--success);transform:scale(.94);
+  }
+  .phone-call .ico{
+    width:11px;height:11px;color:var(--success);
+    flex-shrink:0;transition:color .12s;
+  }
+  .phone-call:active .ico{color:#fff}
+  .phone-call .hl{background:#fef3c7;color:#7c4a03;padding:0 2px;border-radius:3px}
+  .phone-call:active .hl{background:rgba(255,255,255,.3);color:#fff}
+  /* Bigger variant for the rank list group head */
+  .phone-call.lg{font-size:12px;padding:4px 10px}
+  .phone-call.lg .ico{width:12px;height:12px}
+
+  /* ============================================================== */
+  /*  RTL ARABIC — seller mobile view                                */
+  /* ============================================================== */
+  .ff-mobile[dir="rtl"]{font-family:var(--font-ar);text-align:right}
+  .ff-mobile[dir="rtl"] *{letter-spacing:0}
+  .ff-mobile[dir="rtl"] .tnum,
+  .ff-mobile[dir="rtl"] [class*="font-mono"]{font-family:var(--font-mono);direction:ltr;unicode-bidi:plaintext}
+  .ff-mobile[dir="rtl"] .m-hero h1{letter-spacing:-0.005em;font-weight:700}
+  .ff-mobile[dir="rtl"] .m-hero .hello{letter-spacing:.04em}
+  .ff-mobile[dir="rtl"] .countdown,
+  .ff-mobile[dir="rtl"] .m-stat .v,
+  .ff-mobile[dir="rtl"] .dispatch-mini .val,
+  .ff-mobile[dir="rtl"] .dispatch-card .dv,
+  .ff-mobile[dir="rtl"] .ring .label .pct,
+  .ff-mobile[dir="rtl"] .m-order-amt,
+  .ff-mobile[dir="rtl"] .m-order-code,
+  .ff-mobile[dir="rtl"] .m-rank-card .info .code,
+  .ff-mobile[dir="rtl"] .m-rank-card .pri,
+  .ff-mobile[dir="rtl"] .m-client-meta .phone,
+  .ff-mobile[dir="rtl"] .alloc-card .meta,
+  .ff-mobile[dir="rtl"] .m-prod .pc,
+  .ff-mobile[dir="rtl"] .m-prod .qty,
+  .ff-mobile[dir="rtl"] .m-prod .tot,
+  .ff-mobile[dir="rtl"] .m-tab .cnt,
+  .ff-mobile[dir="rtl"] .m-search-hint .count{direction:ltr;unicode-bidi:plaintext;font-feature-settings:'tnum' on,'lnum' on}
+  /* Bottom bar — ensure button has room in RTL */
+  .ff-mobile[dir="rtl"] .m-bottom{gap:10px}
+  .ff-mobile[dir="rtl"] .m-bottom .info{min-width:0;flex:1 1 auto}
+  .ff-mobile[dir="rtl"] .m-bottom-btn{flex-shrink:0;white-space:nowrap}
+  /* Search bar — flip icon side */
+  .ff-mobile[dir="rtl"] .m-search input{padding:11px 40px 11px 42px;text-align:right}
+  .ff-mobile[dir="rtl"] .m-search .ico-l{left:auto;right:13px}
+  .ff-mobile[dir="rtl"] .m-search .clear{right:auto;left:10px}
+  /* Chevrons flip in RTL */
+  .ff-mobile[dir="rtl"] .m-client-name .chev,
+  .ff-mobile[dir="rtl"] .m-order-chev{transform:scaleX(-1)}
+  .ff-mobile[dir="rtl"] .m-client-card.expanded .m-client-name .chev,
+  .ff-mobile[dir="rtl"] .m-order-row.expanded .m-order-chev{transform:rotate(90deg) scaleX(-1)}
+  /* Avatar added-dot — stay at the outer-top corner of the avatar (top-right in RTL is outer) */
+  .ff-mobile[dir="rtl"] .m-client-card.has-added .m-avatar::after{right:auto;left:-3px;top:-3px}
+  /* Rank card accent stripe — right side in RTL */
+  .ff-mobile[dir="rtl"] .m-rank-card{padding:9px 14px 9px 11px}
+  .ff-mobile[dir="rtl"] .m-rank-card::before{left:auto;right:0;border-radius:3px 0 0 3px}
+  /* Alloc card accent stripe stays at top, fine */
+  /* Tab indicator works as-is */
+  /* Bottom bar arrow icons — many SVG arrows will look natural; the arrow in btn could flip if needed */
+  .ff-mobile[dir="rtl"] .m-bottom-btn svg{transform:scaleX(-1)}
+  /* Locked-note SVG fine */
+  /* Dispatch mini icon (paper plane) — keep direction */
+  /* Help sheet RTL */
+  .ff-mobile[dir="rtl"] .help-sheet-header{text-align:right}
+  .ff-mobile[dir="rtl"] .help-phase{grid-template-columns:1fr 38px}
+  .ff-mobile[dir="rtl"] .help-phase .ph-num{order:2}
+  .ff-mobile[dir="rtl"] .help-phase .ph-body{order:1}
+  .ff-mobile[dir="rtl"] .help-tips-block li{padding-left:0;padding-right:18px}
+  .ff-mobile[dir="rtl"] .help-tips-block li::before{left:auto;right:0}
+  /* Help-phase tip line — SVG icon flips for natural rtl flow */
+  .ff-mobile[dir="rtl"] .help-phase .tip svg{transform:scaleX(-1)}
+  /* Group head dividers */
+  .ff-mobile[dir="rtl"] .m-group-head{justify-content:flex-end}
+
+  /* ============================================================== */
+  /*  HELP SHEET — self-education                                    */
+  /* ============================================================== */
+  .hero-btns{display:flex;gap:6px;flex-shrink:0}
+  .help-pulse{
+    position:relative;
+  }
+  .help-pulse::after{
+    content:'';position:absolute;top:-2px;right:-2px;
+    width:8px;height:8px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 0 2px rgba(247,98,74,1);
+    animation:pulse-dot 1.8s ease-in-out infinite;
+  }
+  .help-pulse.seen::after{display:none}
+
+  .help-sheet{
+    position:absolute;inset:46px 0 0 0;
+    background:var(--bg);z-index:60;
+    display:flex;flex-direction:column;
+    transform:translateY(100%);transition:transform .4s var(--ease-out);
+    pointer-events:none;
+  }
+  .help-sheet.open{transform:translateY(0);pointer-events:auto}
+  .help-sheet-header{
+    padding:14px 16px 16px;
+    background:
+      radial-gradient(ellipse 90% 60% at top right,rgba(255,235,210,.28),transparent 55%),
+      linear-gradient(170deg,var(--primary) 0%,var(--primary-600) 100%);
+    color:#fff;flex-shrink:0;position:relative;overflow:hidden;
+  }
+  .help-sheet-header::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:1.5px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);
+  }
+  .help-sheet-header-row{display:flex;justify-content:space-between;align-items:center;gap:10px;position:relative}
+  .help-sheet-header .lbl{
+    font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    font-weight:700;color:rgba(255,255,255,.7);line-height:1;
+  }
+  .help-sheet-header h2{
+    margin:4px 0 0;font-size:20px;font-weight:700;letter-spacing:-0.025em;
+    line-height:1.15;color:#fff;
+  }
+  .help-close{
+    width:34px;height:34px;border-radius:10px;
+    background:rgba(255,255,255,.16);
+    border:.5px solid rgba(255,255,255,.22);
+    color:#fff;display:grid;place-items:center;
+    backdrop-filter:blur(10px);transition:.15s var(--ease-out);
+    flex-shrink:0;
+  }
+  .help-close:active{transform:scale(.92);background:rgba(255,255,255,.24)}
+
+  .help-content{flex:1;overflow-y:auto;padding:14px 14px 40px;-webkit-overflow-scrolling:touch}
+  .help-content::-webkit-scrollbar{width:0}
+
+  /* Compact timeline */
+  .htimeline{
+    background:#fff;border:.5px solid var(--border);border-radius:14px;
+    padding:14px 8px 10px;margin-bottom:14px;
+    box-shadow:var(--shadow-xs);
+    position:relative;
+  }
+  .htimeline-row{display:flex;align-items:flex-start;justify-content:space-between;gap:0}
+  .htimeline .step{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;
+    position:relative;padding:0 2px;
+  }
+  .htimeline .step::after{
+    content:'';position:absolute;top:12px;left:50%;width:100%;height:2px;
+    background:var(--border-soft);z-index:0;
+  }
+  .htimeline .step:last-child::after{display:none}
+  .htimeline .step.done::after,.htimeline .step.current::after{background:linear-gradient(90deg,var(--primary),var(--primary-600))}
+  .htimeline .step .dot{
+    width:26px;height:26px;border-radius:50%;
+    background:#fff;border:2px solid var(--border);
+    z-index:1;display:grid;place-items:center;
+    font-weight:800;font-size:11px;color:var(--text-soft);
+    font-family:var(--font-mono);
+  }
+  .htimeline .step.done .dot{background:linear-gradient(135deg,var(--primary),var(--primary-600));border-color:var(--primary);color:#fff}
+  .htimeline .step.current .dot{
+    background:linear-gradient(135deg,var(--primary),var(--primary-600));border-color:var(--primary);color:#fff;
+    box-shadow:0 0 0 4px var(--primary-100),var(--shadow-orange);
+    transform:scale(1.08);
+  }
+  .htimeline .step .lbl{
+    font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--text-soft);text-align:center;line-height:1.25;
+  }
+  .htimeline .step.current .lbl{color:var(--primary-700)}
+  .htimeline .step.done .lbl{color:var(--text-muted)}
+
+  /* Phase cards */
+  .help-phase{
+    background:#fff;border:.5px solid var(--border);border-radius:14px;
+    padding:14px;margin-bottom:10px;
+    box-shadow:var(--shadow-xs);
+    display:grid;grid-template-columns:38px 1fr;gap:12px;align-items:flex-start;
+    transition:all .2s var(--ease-out);
+  }
+  .help-phase.current{
+    border-color:var(--primary);
+    box-shadow:0 0 0 1.5px var(--primary),var(--shadow-sm);
+    background:linear-gradient(180deg,#fff,#fef9f6);
+  }
+  .help-phase .ph-num{
+    width:38px;height:38px;border-radius:11px;
+    background:linear-gradient(135deg,#f3f4f7,#e5e7eb);
+    color:var(--text-soft);
+    display:grid;place-items:center;
+    font-weight:800;font-size:16px;font-family:var(--font-mono);
+    letter-spacing:-.02em;flex-shrink:0;
+  }
+  .help-phase.current .ph-num{
+    background:linear-gradient(135deg,var(--primary),var(--primary-600));
+    color:#fff;box-shadow:var(--shadow-orange);
+  }
+  .help-phase .ph-body{min-width:0}
+  .help-phase h3{
+    margin:0;font-size:15px;font-weight:700;letter-spacing:-0.015em;
+    color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  }
+  .help-phase .ph-now{
+    font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    background:var(--primary);color:#fff;padding:3px 8px;border-radius:5px;
+    margin-inline-start:8px;flex-shrink:0;
+    box-shadow:0 1px 3px rgba(247,98,74,.25);
+  }
+  /* Tip line bold tags — ensure spacing around them in Arabic */
+  .ff-mobile[dir="rtl"] .help-phase .tip strong,
+  .ff-mobile[dir="rtl"] .help-phase .ph-do strong{
+    margin:0 2px;
+  }
+  .help-phase .ph-time{
+    font-family:var(--font-mono);font-size:11.5px;font-weight:600;
+    color:var(--text-soft);margin-top:4px;letter-spacing:-.01em;
+    line-height:1.45;
+  }
+  /* In RTL, use Arabic font for the prose and keep numbers monospace via bdi */
+  .ff-mobile[dir="rtl"] .help-phase .ph-time{font-family:var(--font-ar)}
+  .ff-mobile[dir="rtl"] .help-phase .ph-time bdi{font-family:var(--font-mono);font-feature-settings:'tnum' on,'lnum' on;font-weight:700}
+  .help-phase .ph-do{
+    font-size:13px;color:var(--text-muted);line-height:1.5;margin-top:9px;
+  }
+  .help-phase .ph-do strong{color:var(--text);font-weight:600}
+  .help-phase .ph-tips{
+    margin-top:10px;padding-top:10px;border-top:.5px dashed var(--border);
+    display:flex;flex-direction:column;gap:7px;
+  }
+  .help-phase .tip{
+    font-size:12px;color:var(--text-muted);
+    display:flex;align-items:flex-start;gap:8px;line-height:1.55;
+  }
+  .help-phase .tip svg{
+    width:14px;height:14px;color:var(--success);flex-shrink:0;margin-top:3px;
+  }
+  .help-phase .tip > span{flex:1;min-width:0}
+
+  /* Quick tips card */
+  .help-tips-block{
+    background:linear-gradient(135deg,#fef0ec,#fff);
+    border:.5px solid var(--primary-100);
+    border-radius:14px;padding:14px 16px;
+    margin-top:6px;
+    box-shadow:var(--shadow-xs);
+  }
+  .help-tips-block h4{
+    margin:0 0 10px;font-size:13px;font-weight:700;
+    color:var(--primary-700);letter-spacing:-.01em;
+    display:flex;align-items:center;gap:7px;
+  }
+  .help-tips-block ul{
+    margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;
+  }
+  .help-tips-block li{
+    font-size:12.5px;color:var(--text-muted);line-height:1.5;
+    padding-left:18px;position:relative;
+  }
+  .help-tips-block li::before{
+    content:'';position:absolute;left:0;top:7px;
+    width:7px;height:7px;border-radius:50%;
+    background:linear-gradient(135deg,var(--primary),var(--primary-600));
+  }
+  .help-tips-block li strong{color:var(--text);font-weight:700}
+
+  /* [patch: embedded_mode] When loaded with #role=seller|creator via iframe,
+     strip the preview-banner, the iPhone frame chrome, the labels, and pick
+     the right stage so it looks like a native feature, not a preview. */
+  body[data-embed] { background: var(--bg) !important; min-height: 100vh; }
+  body[data-embed] .preview-banner,
+  body[data-embed] .phone-label,
+  body[data-embed] .phone-side-note,
+  body[data-embed] .dynamic-island,
+  body[data-embed] .status-bar { display: none !important; }
+  body[data-embed] .phone-stage,
+  body[data-embed] .phone-wrap,
+  body[data-embed] .phone-frame,
+  body[data-embed] .phone-screen { display: contents !important; }
+  body[data-embed="creator"] #sellerStage { display: none !important; }
+  body[data-embed="seller"]  #creatorStage { display: none !important; }
+  body[data-embed="seller"] .ff-mobile { max-width: 100%; min-height: 100vh; border-radius: 0; }
+</style>
+</head>
+<body>
+<script>
+  // [patch: embedded_mode] If loaded with hash #role=seller|creator (from
+  // the parent app's iframe mount), mark the body so the CSS strips the
+  // preview chrome and picks the right stage.
+  (function () {
+    try {
+      var m = (location.hash || '').match(/role=(seller|creator)/);
+      if (m) document.body.setAttribute('data-embed', m[1]);
+    } catch (_) {}
+  })();
+</script>
+
+<!-- SVG gradient definitions for circular rings -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <lineargradient id="g-success" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0b9870"></stop>
+      <stop offset="100%" stop-color="#10b981"></stop>
+    </lineargradient>
+    <lineargradient id="g-warning" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b"></stop>
+      <stop offset="100%" stop-color="#fbbf24"></stop>
+    </lineargradient>
+    <lineargradient id="g-danger" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#dc2626"></stop>
+      <stop offset="100%" stop-color="#ef4444"></stop>
+    </lineargradient>
+  </defs>
+</svg>
+
+<div class="preview-banner">
+  <div>Preview v21 — tap-to-call clients</div>
+  <div class="ctrls">
+    <label><input type="radio" name="role" value="seller" checked=""> Seller (mobile)</label>
+    <label><input type="radio" name="role" value="creator"> Creator (desktop)</label>
+    <select id="simPhase">
+      <option value="p1">Phase 1: Select &amp; rank (15:00)</option>
+      <option value="p2">Phase 2: Stock distribution (20:30)</option>
+      <option value="p3">Phase 3: Confirm allocation (21:30)</option>
+      <option value="p4">Phase 4: Locked &amp; export (12:00 next day)</option>
+    </select>
+  </div>
+</div>
+
+<!-- ====================== SELLER (MOBILE) ====================== -->
+<div class="phone-stage" id="sellerStage">
+  <div class="phone-wrap">
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <div class="dynamic-island"></div>
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <span class="tnum">9:41</span>
+          <span class="right">
+            <svg viewBox="0 0 18 11" fill="currentColor"><rect x="0" y="6" width="3" height="5" rx="1"></rect><rect x="5" y="4" width="3" height="7" rx="1"></rect><rect x="10" y="2" width="3" height="9" rx="1"></rect><rect x="15" y="0" width="3" height="11" rx="1"></rect></svg>
+            <svg viewBox="0 0 16 12" fill="currentColor"><path d="M2 4c2-2.5 5-4 7-4s5 1.5 7 4l-1.4 1.4C12.8 3.5 10.5 2.4 8 2.4S3.2 3.5 1.4 5.4L2 4z"></path><path d="M5 7c1-1.2 2.2-1.9 3.4-1.9S10.4 5.8 11.4 7l-1.4 1.4C9.4 7.7 8.7 7.3 8 7.3S6.6 7.7 6 8.4L5 7z"></path><circle cx="8" cy="10" r="1.5"></circle></svg>
+            <svg viewBox="0 0 27 12" fill="currentColor"><rect x="0" y="0" width="22" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1"></rect><rect x="2" y="2" width="18" height="6" rx="1.5"></rect><rect x="23" y="3.5" width="1.5" height="3" rx=".5"></rect></svg>
+          </span>
+        </div>
+
+        <div class="ff-mobile" dir="rtl" lang="ar">
+          <!-- HERO -->
+          <div class="m-hero">
+            <div class="top-row">
+              <div>
+                <div class="hello">كريم · الثلاثاء 12 ماي</div>
+                <h1>توصيل الغد</h1>
+              </div>
+              <div class="hero-btns">
+                <button class="menu-btn help-pulse" id="helpBtn" aria-label="How it works">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </button>
+                <button class="menu-btn" aria-label="Menu">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="ph-line">
+              <span class="m-phase-pill p1" id="phasePill">
+                <span class="led"></span>
+                <span id="phasePillLabel">المرحلة 1 · اختر و رتب</span>
+              </span>
+              <span class="countdown" id="phaseCountdown">04<span class="sep">:</span>17<span class="sep">:</span>30</span>
+            </div>
+            <div class="hero-progress"><div class="hero-progress-fill" id="phaseProgress" style="width: 46.2422%;"></div></div>
+          </div>
+
+          <!-- STATS -->
+          <div class="m-stats">
+            <div class="m-stat hl">
+              <div class="v tnum" id="statSelected">3</div>
+              <div class="l" id="lblSelected">طلبيات مختارة</div>
+            </div>
+            <div class="m-stat">
+              <div class="v tnum" id="statClients">2</div>
+              <div class="l">كليانات</div>
+            </div>
+            <div class="m-stat">
+              <div class="v tnum" id="statValue">37,970</div>
+              <div class="l">درهم</div>
+            </div>
+          </div>
+
+          <!-- TABS -->
+          <div class="m-tabs-wrap" id="tabsWrap">
+            <div class="m-tabs">
+              <span class="m-tab-indicator" id="tabIndicator" style="left: 175px; width: 170px;"></span>
+              <button class="m-tab active" data-tab="find">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+                بحث الكليانات
+              </button>
+              <button class="m-tab" data-tab="mylist">
+                قائمتي <span class="cnt tnum" id="myListCnt">3</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- ====== FIND VIEW ====== -->
+          <div class="m-view view-find" id="viewFind">
+            <div class="m-search" id="searchWrap">
+              <div class="m-search-inner">
+                <input type="search" id="clientSearch" placeholder="أرقام التيليفون أو الاسم..." autocomplete="off" inputmode="search" dir="rtl">
+                <span class="ico-l"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg></span>
+                <button class="clear" id="clearSearch" aria-label="Clear"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+              </div>
+              <div class="m-search-hint">
+                <span><svg id="filterIcon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; color: var(--text-soft); margin-left: 4px;"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg><b id="filterHint">1 مخفي — ما عندهومش منتوجات متوفرة</b></span>
+                <span class="count tnum" id="searchCount">7</span>
+              </div>
+            </div>
+            <div class="m-scroll"><div class="m-clients" id="clientResults">
+    <div class="m-client-card  has-added" data-client="C001" data-color="0">
+      <div class="m-client-head">
+        <div class="m-avatar">SB</div>
+        <div class="m-client-info">
+          <div class="m-client-name">
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            Said Belhaj
+          </div>
+          <div class="m-client-meta">
+            <a class="phone-call" href="tel:0661234567" onclick="event.stopPropagation()" aria-label="عيط للكليان">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              0661234567
+            </a>
+            <span class="sep"></span>
+            <span>2 طلبيات</span>
+            <span class="sep"></span>
+            <span class="amt">25,270 درهم</span>
+          </div>
+        </div>
+        <button class="m-add-all all-added" data-action="add-client"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> مزاد</button>
+      </div>
+      
+    </div>
+  
+    <div class="m-client-card  has-added" data-client="C002" data-color="1">
+      <div class="m-client-head">
+        <div class="m-avatar">BA</div>
+        <div class="m-client-info">
+          <div class="m-client-name">
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            Boutique Aziz
+          </div>
+          <div class="m-client-meta">
+            <a class="phone-call" href="tel:0672111223" onclick="event.stopPropagation()" aria-label="عيط للكليان">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              0672111223
+            </a>
+            <span class="sep"></span>
+            <span>1 طلبية</span>
+            <span class="sep"></span>
+            <span class="amt">12,700 درهم</span>
+          </div>
+        </div>
+        <button class="m-add-all all-added" data-action="add-client"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> مزاد</button>
+      </div>
+      
+    </div>
+  
+    <div class="m-client-card  " data-client="C003" data-color="2">
+      <div class="m-client-head">
+        <div class="m-avatar">HE</div>
+        <div class="m-client-info">
+          <div class="m-client-name">
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            Hanout El Bahja
+          </div>
+          <div class="m-client-meta">
+            <a class="phone-call" href="tel:0698874455" onclick="event.stopPropagation()" aria-label="عيط للكليان">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              0698874455
+            </a>
+            <span class="sep"></span>
+            <span>1 طلبية</span>
+            <span class="sep"></span>
+            <span class="amt">9,850 درهم</span>
+          </div>
+        </div>
+        <button class="m-add-all " data-action="add-client">+ الكل</button>
+      </div>
+      
+    </div>
+  
+    <div class="m-client-card  " data-client="C004" data-color="3">
+      <div class="m-client-head">
+        <div class="m-avatar">CL</div>
+        <div class="m-client-info">
+          <div class="m-client-name">
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            Chez Latifa
+          </div>
+          <div class="m-client-meta">
+            <a class="phone-call" href="tel:0612346677" onclick="event.stopPropagation()" aria-label="عيط للكليان">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              0612346677
+            </a>
+            <span class="sep"></span>
+            <span>1 طلبية</span>
+            <span class="sep"></span>
+            <span class="amt">7,320 درهم</span>
+          </div>
+        </div>
+        <button class="m-add-all " data-action="add-client">+ الكل</button>
+      </div>
+      
+    </div>
+  
+    <div class="m-client-card  " data-client="C005" data-color="4">
+      <div class="m-client-head">
+        <div class="m-avatar">SM</div>
+        <div class="m-client-info">
+          <div class="m-client-name">
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            Souk Maarif Mini
+          </div>
+          <div class="m-client-meta">
+            <a class="phone-call" href="tel:0688771122" onclick="event.stopPropagation()" aria-label="عيط للكليان">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              0688771122
+            </a>
+            <span class="sep"></span>
+            <span>1 طلبية</span>
+            <span class="sep"></span>
+            <span class="amt">4,290 درهم</span>
+          </div>
+        </div>
+        <button class="m-add-all " data-action="add-client">+ الكل</button>
+      </div>
+      
+    </div>
+  
+    <div class="m-client-card  " data-client="C006" data-color="5">
+      <div class="m-client-head">
+        <div class="m-avatar">EA</div>
+        <div class="m-client-info">
+          <div class="m-client-name">
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            Epicerie Anouar
+          </div>
+          <div class="m-client-meta">
+            <a class="phone-call" href="tel:0660042330" onclick="event.stopPropagation()" aria-label="عيط للكليان">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              0660042330
+            </a>
+            <span class="sep"></span>
+            <span>1 طلبية</span>
+            <span class="sep"></span>
+            <span class="amt">5,750 درهم</span>
+          </div>
+        </div>
+        <button class="m-add-all " data-action="add-client">+ الكل</button>
+      </div>
+      
+    </div>
+  
+    <div class="m-client-card  " data-client="C007" data-color="0">
+      <div class="m-client-head">
+        <div class="m-avatar">HS</div>
+        <div class="m-client-info">
+          <div class="m-client-name">
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            Hanout Si Mohamed
+          </div>
+          <div class="m-client-meta">
+            <a class="phone-call" href="tel:0666123888" onclick="event.stopPropagation()" aria-label="عيط للكليان">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              0666123888
+            </a>
+            <span class="sep"></span>
+            <span>1 طلبية</span>
+            <span class="sep"></span>
+            <span class="amt">11,200 درهم</span>
+          </div>
+        </div>
+        <button class="m-add-all " data-action="add-client">+ الكل</button>
+      </div>
+      
+    </div>
+  </div></div>
+          </div>
+
+          <!-- ====== MY LIST VIEW ====== -->
+          <div class="m-view view-mylist hidden" id="viewList">
+            <div class="m-scroll"><div class="m-list" id="rankList"></div></div>
+          </div>
+
+          <!-- ====== LOCKED ====== -->
+          <div class="m-view view-locked hidden" id="viewLocked">
+            <div class="m-scroll">
+              <div class="m-locked">
+                <div class="dispatch-mini">
+                  <div class="icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                  </div>
+                  <div class="info">
+                    <div class="lbl"><span class="pulse-dot"></span> الإرسال في</div>
+                    <div class="val" data-dispatch-countdown="">19<span class="sep">:</span>16<span class="sep">:</span>30</div>
+                    <div class="sub">ترتيبك يوصل لـ<b>السوبرفيزور</b> و <b>رجالة التوصيل</b> على <b>10:59 غدا</b></div>
+                  </div>
+                </div>
+                <div class="m-locked-note">
+                  <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  <span>قائمتك مقفلة. النتائج توصل على <strong>21:00</strong>.</span>
+                </div>
+                <div id="lockedList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ====== ALLOC ====== -->
+          <div class="m-view view-alloc hidden" id="viewAlloc">
+            <div class="m-scroll">
+              <div class="m-alloc">
+                <div class="dispatch-mini">
+                  <div class="icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                  </div>
+                  <div class="info">
+                    <div class="lbl"><span class="pulse-dot"></span> الإرسال في</div>
+                    <div class="val" data-dispatch-countdown="">19<span class="sep">:</span>16<span class="sep">:</span>30</div>
+                    <div class="sub">قراراتك توصل لـ<b>السوبرفيزور</b> و <b>رجالة التوصيل</b> على <b>10:59 غدا</b> — أكد بعقل</div>
+                  </div>
+                </div>
+                <div id="allocList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ====== FINAL ====== -->
+          <div class="m-view view-final hidden" id="viewFinal">
+            <div class="m-scroll">
+              <div class="m-alloc">
+                <div class="dispatch-card">
+                  <div class="dl"><span class="pulse-dot"></span> الإرسال في</div>
+                  <div class="dv" data-dispatch-countdown="">19<span class="sep">:</span>16<span class="sep">:</span>30</div>
+                  <div class="dlbls"><span>ساعات</span><span>دقائق</span><span>ثوان</span></div>
+                  <div class="dp"><div class="dp-fill" id="dispatchProgress" style="width: 16.074%;"></div></div>
+                  <div class="ds">القرارات وصلات للسوبرفيزور على <b>10:59</b>. الإرسال النهائي لـ<b>رجالة التوصيل</b> على <b>11:59 صباحا</b></div>
+                </div>
+                <div id="finalList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ====== HELP SHEET — self-education ====== -->
+          <div class="help-sheet" id="helpSheet">
+            <div class="help-sheet-header">
+              <div class="help-sheet-header-row">
+                <div>
+                  <div class="lbl">دليل ذاتي</div>
+                  <h2>كيفاش تخدم عملية توصيل الغد</h2>
+                </div>
+                <button class="help-close" id="helpClose" aria-label="إغلاق">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+            </div>
+            <div class="help-content" id="helpContent">
+
+              <!-- Compact 4-phase timeline -->
+              <div class="htimeline">
+                <div class="htimeline-row" id="htimelineRow">
+                  <div class="step" data-step="1"><div class="dot">1</div><div class="lbl">اختر<br>و رتب</div></div>
+                  <div class="step" data-step="2"><div class="dot">2</div><div class="lbl">توزيع<br>الستوك</div></div>
+                  <div class="step" data-step="3"><div class="dot">3</div><div class="lbl">أكد</div></div>
+                  <div class="step" data-step="4"><div class="dot">4</div><div class="lbl">الإرسال</div></div>
+                </div>
+              </div>
+
+              <!-- Phase explanations -->
+              <div class="help-phase" data-step="1">
+                <div class="ph-num">1</div>
+                <div class="ph-body">
+                  <h3><span>اختر و رتب</span><span class="ph-now hidden">أنت هنا</span></h3>
+                  <div class="ph-time">من <bdi>12:01 ظهرا</bdi> إلى <bdi>20:00 ليلا</bdi> · حوالي 8 ساعات</div>
+                  <div class="ph-do">قلب على الكليانات بالتيليفون أو بالاسم. ضغط على كليان باش تشوف الطلبيات ديالو، ومن بعد على طلبية باش تشوف المنتوجات. زيد الطلبيات اللي بغيتي يتسالاو <strong>غدا</strong>، ورتبهم بالأسهم ↑ / ↓.</div>
+                  <div class="ph-tips">
+                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>اللي في الفوق كياخذ الستوك الأول إلا نقص — حط أحسن كليان عندك في الفوق.</span></div>
+                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>تقدر تزيد، تنحي ولا ترتب حتى للساعة 20:00.</span></div>
+                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>غير الكليانات اللي عندهم منتوجات متوفرة هما اللي كيتبانو.</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="help-phase" data-step="2">
+                <div class="ph-num">2</div>
+                <div class="ph-body">
+                  <h3><span>توزيع الستوك</span><span class="ph-now hidden">أنت هنا</span></h3>
+                  <div class="ph-time">من <bdi>20:00</bdi> إلى <bdi>21:00 ليلا</bdi> · ساعة وحدة</div>
+                  <div class="ph-do">النظام كيوزع الستوك على الطلبيات المرتبة في الفوق، عند جميع البياعة. القائمة ديالك <strong>مقفلة</strong>، تقدر تشوفها ولكن ما تقدرش تبدلها.</div>
+                  <div class="ph-tips">
+                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>ارتاح — ما كاين والو دير دابا.</span></div>
+                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>النتائج كتبان على الساعة 21:00 بالضبط.</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="help-phase" data-step="3">
+                <div class="ph-num">3</div>
+                <div class="ph-body">
+                  <h3><span>أكد التوزيع</span><span class="ph-now hidden">أنت هنا</span></h3>
+                  <div class="ph-time">من <bdi>21:00 ليلا</bdi> إلى <bdi>10:59 صباحا</bdi> غدا · حوالي 14 ساعة</div>
+                  <div class="ph-do">لكل طلبية غادي تشوف <strong>كامل</strong>، <strong>ناقص</strong>، ولا <strong>ما كاينش</strong>. ضغط على <strong>أكد</strong> باش يتسالى غدا، ولا <strong>تخطى</strong> باش تنحيه من اللائحة.</div>
+                  <div class="ph-tips">
+                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>حتى الطلبيات الناقصة تقدر تأكدها — الكليان كياخذ اللي كاين في الستوك.</span></div>
+                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>تخطى الطلبيات اللي نسبة الستوك ديالها قليلة بزاف.</span></div>
+                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>القرارات <strong>كتقفل على الساعة 10:59 صباحا بالضبط</strong> — ما تتأخرش.</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="help-phase" data-step="4">
+                <div class="ph-num">4</div>
+                <div class="ph-body">
+                  <h3><span>الإرسال</span><span class="ph-now hidden">أنت هنا</span></h3>
+                  <div class="ph-time">من <bdi>10:59</bdi> إلى <bdi>11:59 صباحا</bdi> · ساعة وحدة</div>
+                  <div class="ph-do">القرارات ديالك وصلات للسوبرفيزور على الساعة <strong>10:59 صباحا</strong>. ما بين الساعة 11:00 و 11:58، الإرسال راه <strong>في طور المعالجة</strong> عند السوبرفيزور و المسؤولين على التوصيل. على الساعة <strong>11:59 صباحا</strong> كيتم الإرسال النهائي لرجالة التوصيل. ما عندكش حتى شي حاجة دير.</div>
+                  <div class="ph-tips">
+                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>العداد كيبين الوقت اللي باقي للإرسال النهائي.</span></div>
+                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>النافذة الجديدة كتفتح على الساعة 12:01 للتوصيل ديال بعد غدا.</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick tips -->
+              <div class="help-tips-block">
+                <h4>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M12 2a7 7 0 0 1 4 12.7c-.7.6-1 1.4-1 2.3v1H9v-1c0-.9-.3-1.7-1-2.3A7 7 0 0 1 12 2z"></path></svg>
+                  نصائح سريعة
+                </h4>
+                <ul>
+                  <li><strong>قلب بذكاء.</strong> كتب شي جزء من رقم التيليفون (مثلا <code dir="ltr" style="font-family:var(--font-mono);font-size:11px;background:#fff;padding:1px 5px;border-radius:4px;border:.5px solid var(--border);display:inline-block">6612</code>) ولا شي حروف من اسم الكليان.</li>
+                  <li><strong>النقطة الخضراء</strong> على منتوج كتعني بلي راه متوفر اليوم. المنتوجات الباهتة ما غاديش يتسالاو.</li>
+                  <li><strong>الكليانات الكبار (AMA)</strong> كاينين في تبويب آخر — كيتسالاو ديركت من المورد قبل 4 أيام.</li>
+                  <li><strong>إلى ما كنتش متأكد،</strong> رتب حسب قيمة الطلبية (الأكبر فوق) ولا حسب وفاء الكليان.</li>
+                  <li><strong>عيط مباشرة.</strong> كليك على رقم التيليفون فأي كرت باش تعيط للكليان من التيليفون ديالك.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- BOTTOM BAR -->
+          <div class="m-bottom" id="mBottom">
+            <div class="info">
+              <div class="n" id="bottomTitle">3 طلبيات مختارة</div>
+              <div class="s tnum" id="bottomSubtitle">37,970 درهم</div>
+            </div>
+            <button class="m-bottom-btn primary" id="bottomBtn">رتب القائمة <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">iPhone 14 Pro · 402 × 800</div>
+    <div class="phone-side-note">Subtle ambient glow behind the phone shifts with phase color. Dynamic Island reserved for future status alerts.</div>
+  </div>
+</div>
+
+<!-- ====================== CREATOR (DESKTOP) ====================== -->
+<div class="desktop-stage hidden" id="creatorStage">
+  <div class="creator-hero">
+    <h1>
+      <span style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary-600));display:grid;place-items:center;box-shadow:var(--shadow-orange)"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#fff" width="18" height="18"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline></svg></span>
+      Order Fulfillment
+      <span class="role-chip">Creator</span>
+    </h1>
+    <div class="tag">All sellers' selections, in one priority list. Reorder, upload stock, distribute.</div>
+    <div class="ph-stepper" id="cStepper">
+      <div class="ph-step active" data-phase="p1"><div class="num">1</div><div class="lbl"><span class="t">Sellers ranking</span><span class="h">12:01 → 20:00 (D−1)</span></div></div>
+      <div class="ph-step" data-phase="p2"><div class="num">2</div><div class="lbl"><span class="t">Stock distribution</span><span class="h">20:00 → 21:00 (D−1)</span></div></div>
+      <div class="ph-step" data-phase="p3"><div class="num">3</div><div class="lbl"><span class="t">Sellers confirming</span><span class="h">21:00 (D−1) → 10:59 (D)</span></div></div>
+      <div class="ph-step" data-phase="p4"><div class="num">4</div><div class="lbl"><span class="t">Review &amp; dispatch</span><span class="h">10:59 → 11:59 (D)</span></div></div>
+    </div>
+  </div>
+
+  <div class="c-card" id="creatorP1P2">
+    <h3>Global priority across all sellers</h3>
+    <div class="sub">Drag rows to override. Each card shows the seller's own rank for context.</div>
+    <div class="c-grid">
+      <div><div id="globalPriorityList"></div></div>
+      <div>
+        <div class="stock-panel">
+          <h4>Available stock</h4>
+          <label class="upload-zone" id="stockZone">
+            <div style="color:var(--text-soft);margin-bottom:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></div>
+            <div style="font-size:13.5px;font-weight:700" id="stockLabel">Drop stock file here</div>
+            <div style="font-size:12px;color:var(--text-soft);margin-top:4px" id="stockHint">XLSX or CSV · partnerCode + qty</div>
+            <input type="file" hidden="" accept=".xlsx,.csv">
+          </label>
+        </div>
+        <button class="creator-btn dark" id="distributeBtn" style="width:100%;justify-content:center;margin-bottom:10px">Distribute stock now</button>
+        <div style="font-size:12px;color:var(--text-soft);line-height:1.55">Auto-runs at 21:00. Sellers see results immediately after.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="c-card hidden" id="creatorP3">
+    <h3>Allocation result — live</h3>
+    <div class="sub">Sellers are confirming. Read-only until 11:00 tomorrow.</div>
+    <div id="creatorAllocList"></div>
+  </div>
+
+  <div class="c-card hidden" id="creatorP4">
+    <h3>Dispatch package</h3>
+    <div class="sub">Same files as Delivery Planner end page.</div>
+    <div class="exp-grid">
+      <div class="exp-card"><h4>Sub-orders</h4><div class="desc">Per-product breakdown of confirmed orders.</div><button class="creator-btn">Export XLSX</button></div>
+      <div class="exp-card"><h4>Confirmed deliveries</h4><div class="desc">Line-level products with qty + status. Feeds bons de livraison.</div><button class="creator-btn">Export XLSX</button></div>
+      <div class="exp-card"><h4>Dispatch</h4><div class="desc">Orders assigned to delivery agents (L119, L228, ...).</div><button class="creator-btn">Export CSV</button></div>
+      <div class="exp-card"><h4>Report</h4><div class="desc">Daily totals, allocation rate, partials.</div><button class="creator-btn">Export PDF</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================== DATA ============================== */
+const SELLERS = [{ id:'karim', name:'Karim' }, { id:'yassine', name:'Yassine' }];
+const CLIENTS = [
+  { id:'C001', seller:'karim', name:'Said Belhaj',       phone:'0661234567', color:0,
+    orders:[
+      { id:'CMD260511301', date:'11/05/2026 09:42', total:18420, products:[
+        {code:'ART01975', name:"Huile d'olive 1L",     qty:24, unitPrice:65},
+        {code:'ART02103', name:'Sucre cristallisé 1kg', qty:30, unitPrice:14},
+        {code:'ART03002', name:'Riz long grain 5kg',    qty:12, unitPrice:62},
+        {code:'ART04219', name:'Lait UHT 1L',           qty:48, unitPrice:9.5},
+        {code:'ART05012', name:'Pâtes spaghetti 500g',  qty:36, unitPrice:7},
+      ]},
+      { id:'CMD260511308', date:'11/05/2026 14:11', total:6850, products:[
+        {code:'ART06710', name:'Café moulu 250g',       qty:20, unitPrice:42},
+        {code:'ART07212', name:'Biscuits sablés',       qty:30, unitPrice:8.5},
+      ]},
+    ]},
+  { id:'C002', seller:'karim', name:'Boutique Aziz',     phone:'0672111223', color:1,
+    orders:[
+      { id:'CMD260511302', date:'11/05/2026 10:05', total:12700, products:[
+        {code:'ART02103', name:'Sucre cristallisé 1kg', qty:50, unitPrice:14},
+        {code:'ART04219', name:'Lait UHT 1L',           qty:60, unitPrice:9.5},
+        {code:'ART08001', name:'Eau minérale 1.5L',     qty:120, unitPrice:4.5},
+      ]},
+    ]},
+  { id:'C003', seller:'karim', name:'Hanout El Bahja',   phone:'0698874455', color:2,
+    orders:[
+      { id:'CMD260511303', date:'10/05/2026 17:30', total:9850, products:[
+        {code:'ART01975', name:"Huile d'olive 1L",     qty:8,  unitPrice:65},
+        {code:'ART03002', name:'Riz long grain 5kg',    qty:6,  unitPrice:62},
+        {code:'ART05012', name:'Pâtes spaghetti 500g',  qty:20, unitPrice:7},
+      ]},
+    ]},
+  { id:'C004', seller:'karim', name:'Chez Latifa',        phone:'0612346677', color:3,
+    orders:[
+      { id:'CMD260511304', date:'11/05/2026 08:20', total:7320, products:[
+        {code:'ART04219', name:'Lait UHT 1L',           qty:36, unitPrice:9.5},
+        {code:'ART06710', name:'Café moulu 250g',       qty:12, unitPrice:42},
+      ]},
+    ]},
+  { id:'C005', seller:'karim', name:'Souk Maarif Mini',   phone:'0688771122', color:4,
+    orders:[
+      { id:'CMD260511305', date:'10/05/2026 19:45', total:4290, products:[
+        {code:'ART08001', name:'Eau minérale 1.5L',     qty:60, unitPrice:4.5},
+        {code:'ART02103', name:'Sucre cristallisé 1kg', qty:15, unitPrice:14},
+      ]},
+    ]},
+  { id:'C006', seller:'karim', name:'Epicerie Anouar',    phone:'0660042330', color:5,
+    orders:[
+      { id:'CMD260511306', date:'11/05/2026 11:50', total:5750, products:[
+        {code:'ART09100', name:'Tomates pelées 400g',   qty:36, unitPrice:11},
+        {code:'ART05012', name:'Pâtes spaghetti 500g',  qty:30, unitPrice:7},
+      ]},
+    ]},
+  { id:'C007', seller:'karim', name:'Hanout Si Mohamed',  phone:'0666123888', color:0,
+    orders:[
+      { id:'CMD260511307', date:'11/05/2026 12:30', total:11200, products:[
+        {code:'ART01975', name:"Huile d'olive 1L",     qty:12, unitPrice:65},
+        {code:'ART04219', name:'Lait UHT 1L',           qty:40, unitPrice:9.5},
+      ]},
+    ]},
+  { id:'C008', seller:'karim', name:'Boutique Rachid',    phone:'0699002211', color:2,
+    orders:[
+      { id:'CMD260511309', date:'11/05/2026 13:18', total:8900, products:[
+        {code:'ART03002', name:'Riz long grain 5kg',    qty:8,  unitPrice:62},
+        {code:'ART07212', name:'Biscuits sablés',       qty:36, unitPrice:8.5},
+      ]},
+    ]},
+  { id:'C101', seller:'yassine', name:'Hanout Reda',     phone:'0661001020', color:3,
+    orders:[{ id:'CMD260511501', date:'11/05/2026 14:00', total:14700, products:[] }]},
+];
+
+// Active products list (uploaded by creator for today's delivery window).
+// Only clients with at least one order containing an active product are shown.
+const ACTIVE_PRODUCTS = new Set([
+  'ART01975', // Huile d'olive
+  'ART02103', // Sucre
+  'ART04219', // Lait UHT
+  'ART06710', // Café moulu
+  'ART09100', // Tomates pelées
+  'ART05012', // Pâtes spaghetti
+]);
+
+let SELECTED = [
+  { clientId:'C001', orderId:'CMD260511301' },
+  { clientId:'C002', orderId:'CMD260511302' },
+  { clientId:'C001', orderId:'CMD260511308' },
+];
+
+function orderHasActive(o){ return o.products.some(p => ACTIVE_PRODUCTS.has(p.code)); }
+function clientHasActive(c){ return c.orders.some(orderHasActive); }
+function clientActiveCount(c){
+  let n = 0;
+  c.orders.forEach(o => o.products.forEach(p => { if (ACTIVE_PRODUCTS.has(p.code)) n++; }));
+  return n;
+}
+const SELECTED_BY_SELLER = { yassine:[{ clientId:'C101', orderId:'CMD260511501' }] };
+
+let EXPANDED_C = new Set();
+let EXPANDED_O = new Set();
+let CURRENT_ROLE = 'seller';
+let CURRENT_SELLER = 'karim';
+let CURRENT_PHASE = 'p1';
+let CURRENT_TAB = 'find';
+let ALLOCATIONS = [];
+
+const PHASES = {
+  p1: { idx:1, pill:'المرحلة 1 · اختر و رتب', cls:'p1', detail:'زيد الكليانات اللي بغيتي يتسالاو غدا (<strong>الثلاثاء 12 ماي</strong>) و رتبهم. القفل على الساعة <strong>20:00 ليلا</strong>.' },
+  p2: { idx:2, pill:'المرحلة 2 · مقفل', cls:'p2', detail:'التوزيع جاري. النتائج توصل على الساعة <strong>21:00 ليلا</strong>.' },
+  p3: { idx:3, pill:'المرحلة 3 · أكد', cls:'p3', detail:'تم توزيع الستوك. أكد ولا تخطى كل طلبية. القفل غدا على الساعة <strong>10:59 صباحا</strong>.' },
+  p4: { idx:4, pill:'المرحلة 4 · مقفل', cls:'p4', detail:'كلشي مقفل. الإرسال غادي يتسالف للسوبرفيزور و رجالة التوصيل على الساعة <strong>11:59 صباحا</strong>.' },
+};
+
+/* ============================== TIME / COUNTDOWN ============================== */
+let _simNow = null, _simEnd = null, _phaseStart = null, _simDispatch = null;
+const _baseDate = '2026-05-11';
+function _t(dayOffset, h, m){
+  const d = new Date(_baseDate + 'T00:00:00');
+  d.setDate(d.getDate() + dayOffset);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+function setupTime(phase){
+  // Two dispatch events:
+  //  - SUPERVISOR (10:59): seller decisions reach supervisor — the seller's effective deadline
+  //  - AGENTS (11:59): final dispatch to delivery agents, after creator+supervisor review (11:00-11:58)
+  const SUPERVISOR = _t(1, 10, 59);
+  const AGENTS = _t(1, 11, 59);
+  if (phase === 'p1'){
+    _simNow = _t(0, 15, 42);
+    _phaseStart = _t(0, 12, 1);
+    _simEnd = _t(0, 20, 0);
+    _simDispatch = SUPERVISOR;
+  } else if (phase === 'p2'){
+    _simNow = _t(0, 20, 36);
+    _phaseStart = _t(0, 20, 0);
+    _simEnd = _t(0, 21, 0);
+    _simDispatch = SUPERVISOR;
+  } else if (phase === 'p3'){
+    _simNow = _t(0, 21, 38);
+    _phaseStart = _t(0, 21, 0);
+    _simEnd = _t(1, 10, 59);     // Phase 3 lock = 10:59 (was 11:00)
+    _simDispatch = SUPERVISOR;
+  } else { // p4
+    _simNow = _t(1, 11, 25);
+    _phaseStart = _t(1, 10, 59); // Phase 4 starts when decisions reach supervisor
+    _simEnd = _t(1, 11, 59);     // final dispatch to agents
+    _simDispatch = AGENTS;
+  }
+}
+function _digits(target, now){
+  const ms = Math.max(0, target - now);
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return {
+    h: String(h).padStart(2,'0'),
+    m: String(m).padStart(2,'0'),
+    s: String(s).padStart(2,'0'),
+    ms,
+  };
+}
+function fmtClockChip(target, now){
+  const d = _digits(target, now);
+  return `${d.h}<span class="sep">:</span>${d.m}<span class="sep">:</span>${d.s}`;
+}
+function fmtClockBig(target, now){
+  const d = _digits(target, now);
+  return `${d.h}<span class="sep">:</span>${d.m}<span class="sep">:</span>${d.s}`;
+}
+function tick(){
+  if (!_simNow) return;
+  _simNow = new Date(_simNow.getTime() + 1000);
+  updateClocks();
+}
+function updateClocks(){
+  if (!_simNow || !_simEnd || !_phaseStart) return;
+  const cd = document.getElementById('phaseCountdown');
+  if (cd){
+    cd.innerHTML = fmtClockChip(_simEnd, _simNow);
+    const remMs = _simEnd - _simNow;
+    cd.classList.toggle('urgent', remMs > 0 && remMs < 5 * 60 * 1000);
+  }
+  const pf = document.getElementById('phaseProgress');
+  if (pf){
+    const total = _simEnd - _phaseStart;
+    const elapsed = _simNow - _phaseStart;
+    const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
+    pf.style.width = pct + '%';
+  }
+  if (_simDispatch){
+    // Update ALL dispatch countdown displays (P2 mini, P3 mini, P4 big)
+    document.querySelectorAll('[data-dispatch-countdown]').forEach(el => {
+      el.innerHTML = fmtClockBig(_simDispatch, _simNow);
+    });
+    const dp = document.getElementById('dispatchProgress');
+    if (dp){
+      const total = _simDispatch - _phaseStart;
+      const elapsed = _simNow - _phaseStart;
+      const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
+      dp.style.width = pct + '%';
+    }
+  }
+}
+setInterval(tick, 1000);
+
+/* ============================== ROLE ============================== */
+function applyRole(role){
+  CURRENT_ROLE = role;
+  document.getElementById('sellerStage').classList.toggle('hidden', role !== 'seller');
+  document.getElementById('creatorStage').classList.toggle('hidden', role !== 'creator');
+  applyPhaseView();
+}
+
+/* ============================== PHASE ============================== */
+function applyPhase(phase){
+  CURRENT_PHASE = phase;
+  const cfg = PHASES[phase];
+  const pill = document.getElementById('phasePill');
+  pill.className = 'm-phase-pill ' + cfg.cls;
+  document.getElementById('phasePillLabel').textContent = cfg.pill;
+  const det = document.getElementById('phaseDetail');
+  if (det) det.innerHTML = cfg.detail;
+  setupTime(phase);
+  updateClocks();
+  document.querySelectorAll('#cStepper .ph-step').forEach(s => {
+    s.classList.remove('active','done');
+    const i = parseInt(s.dataset.phase.slice(1));
+    if (i < cfg.idx) s.classList.add('done');
+    else if (i === cfg.idx) s.classList.add('active');
+  });
+  document.getElementById('creatorP1P2').classList.toggle('hidden', !(phase === 'p1' || phase === 'p2'));
+  document.getElementById('creatorP3').classList.toggle('hidden', phase !== 'p3');
+  document.getElementById('creatorP4').classList.toggle('hidden', phase !== 'p4');
+  applyPhaseView();
+  updateStats();
+}
+
+function applyPhaseView(){
+  document.querySelectorAll('.m-view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('tabsWrap').style.display = (CURRENT_PHASE === 'p1') ? '' : 'none';
+
+  if (CURRENT_PHASE === 'p1'){
+    if (CURRENT_TAB === 'find'){
+      document.getElementById('viewFind').classList.remove('hidden');
+      renderClientList();
+      setBottomBar('selection');
+    } else {
+      document.getElementById('viewList').classList.remove('hidden');
+      renderRankList();
+      setBottomBar('ranking');
+    }
+  } else if (CURRENT_PHASE === 'p2'){
+    document.getElementById('viewLocked').classList.remove('hidden');
+    renderLockedList();
+    setBottomBar('locked-p2');
+  } else if (CURRENT_PHASE === 'p3'){
+    document.getElementById('viewAlloc').classList.remove('hidden');
+    ALLOCATIONS = buildAllocations();
+    renderAllocations();
+    setBottomBar('confirming');
+  } else {
+    document.getElementById('viewFinal').classList.remove('hidden');
+    renderFinal();
+    setBottomBar('done');
+  }
+
+  if (CURRENT_ROLE === 'creator'){
+    renderGlobalPriority();
+    if (CURRENT_PHASE === 'p3') renderCreatorAllocations();
+  }
+  updateTabIndicator();
+}
+
+function setBottomBar(state){
+  const t = document.getElementById('bottomTitle');
+  const s = document.getElementById('bottomSubtitle');
+  const b = document.getElementById('bottomBtn');
+  b.classList.remove('primary','locked');
+
+  if (state === 'selection'){
+    t.textContent = `${SELECTED.length} ${SELECTED.length === 1 ? 'طلبية مختارة' : 'طلبيات مختارة'}`;
+    const total = SELECTED.reduce((sum,x) => {
+      const c = CLIENTS.find(c => c.id === x.clientId);
+      const o = c.orders.find(o => o.id === x.orderId);
+      return sum + (o ? o.total : 0);
+    }, 0);
+    s.textContent = `${total.toLocaleString('en-US')} درهم`;
+    b.innerHTML = (SELECTED.length === 0 ? 'اختر كليانات' : 'رتب القائمة') +
+      ' <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+    b.classList.add('primary');
+  } else if (state === 'ranking'){
+    t.textContent = `${SELECTED.length} مرتبة`;
+    s.textContent = 'الأهم في الفوق';
+    b.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> زيد البحث';
+  } else if (state === 'locked-p2'){
+    t.textContent = 'القائمة مقفلة';
+    s.textContent = 'صبر حتى 21:00';
+    b.innerHTML = 'حدث';
+    b.classList.add('locked');
+  } else if (state === 'confirming'){
+    const conf = ALLOCATIONS.filter(a => a.decision === 'confirm').length;
+    t.textContent = `${conf} / ${ALLOCATIONS.length} مؤكدة`;
+    s.textContent = 'كليك على أكد ولا تخطى';
+    b.innerHTML = 'أكد كلشي';
+    b.classList.add('primary');
+  } else {
+    t.textContent = 'النافذة مسدودة';
+    s.textContent = 'التوصيل جاري';
+    b.innerHTML = 'تم';
+    b.classList.add('locked');
+  }
+}
+
+/* ============================== TABS ============================== */
+function updateTabIndicator(){
+  const ind = document.getElementById('tabIndicator');
+  const wrap = ind?.parentElement;
+  if (!wrap) return;
+  const tabs = wrap.querySelectorAll('.m-tab');
+  const active = wrap.querySelector('.m-tab.active');
+  if (!active) return;
+  const rect = active.getBoundingClientRect();
+  const wrapRect = wrap.getBoundingClientRect();
+  ind.style.left = (rect.left - wrapRect.left) + 'px';
+  ind.style.width = rect.width + 'px';
+}
+
+document.querySelectorAll('#tabsWrap .m-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#tabsWrap .m-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    CURRENT_TAB = tab.dataset.tab;
+    applyPhaseView();
+  });
+});
+
+/* ============================== SEARCH ============================== */
+function normalize(q){ return (q || '').toLowerCase().replace(/[\s\-()]/g, '').trim(); }
+function highlight(text, q){
+  if (!q) return text;
+  const norm = String(text).toLowerCase();
+  const idx = norm.indexOf(q.toLowerCase());
+  if (idx < 0) return text;
+  return text.slice(0, idx) + '<span class="hl">' + text.slice(idx, idx + q.length) + '</span>' + text.slice(idx + q.length);
+}
+function highlightPhone(phone, q){
+  const digits = (q || '').replace(/\D/g,'');
+  if (!digits) return phone;
+  const idx = phone.indexOf(digits);
+  if (idx < 0) return phone;
+  return phone.slice(0, idx) + '<span class="hl">' + phone.slice(idx, idx + digits.length) + '</span>' + phone.slice(idx + digits.length);
+}
+function initials(name){
+  return name.split(' ').slice(0,2).map(s => s[0]).join('').toUpperCase();
+}
+
+function isOrderSel(id){ return SELECTED.some(s => s.orderId === id); }
+function allAdded(c){ return c.orders.every(o => isOrderSel(o.id)); }
+function anyAdded(c){ return c.orders.some(o => isOrderSel(o.id)); }
+
+function renderClientList(){
+  const rawQ = document.getElementById('clientSearch').value;
+  const q = normalize(rawQ);
+  document.getElementById('searchWrap').classList.toggle('has-value', rawQ.length > 0);
+  // Only clients whose orders contain at least one active product
+  const allForSeller = CLIENTS.filter(c => c.seller === CURRENT_SELLER);
+  let list = allForSeller.filter(clientHasActive);
+  const hiddenCount = allForSeller.length - list.length;
+  if (q){
+    list = list.filter(c => {
+      const nameMatch = c.name.toLowerCase().replace(/\s/g,'').includes(q);
+      const digits = q.replace(/\D/g,'');
+      const phoneMatch = digits && c.phone.includes(digits);
+      return nameMatch || phoneMatch;
+    });
+  }
+  document.getElementById('searchCount').textContent = list.length;
+  const hintEl = document.getElementById('filterHint');
+  const filterIcon = document.getElementById('filterIcon');
+  if (hintEl){
+    hintEl.textContent = hiddenCount > 0
+      ? `${hiddenCount} مخفي — ما عندهومش منتوجات متوفرة`
+      : 'كل الكليانات عندهم منتوجات متوفرة';
+  }
+  if (filterIcon){
+    if (hiddenCount > 0){
+      filterIcon.style.color = 'var(--text-soft)';
+      filterIcon.innerHTML = '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>';
+    } else {
+      filterIcon.style.color = 'var(--success)';
+      filterIcon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+    }
+  }
+  const wrap = document.getElementById('clientResults');
+  if (list.length === 0){
+    wrap.innerHTML = `
+      <div class="m-empty">
+        <div class="ico"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
+        <div class="t">حتى كليان ما تلاقى</div>
+        <div class="s">جرب أقل أرقام ولا شي حروف من الاسم.</div>
+      </div>`;
+    return;
+  }
+  wrap.innerHTML = list.map(c => renderClientCard(c, rawQ)).join('');
+  attachCardHandlers();
+}
+
+function renderClientCard(c, rawQ){
+  const exp = EXPANDED_C.has(c.id);
+  const allSel = allAdded(c);
+  const anySel = anyAdded(c);
+  const total = c.orders.reduce((s,o) => s + o.total, 0);
+  let btnHtml, btnCls = '';
+  if (allSel){
+    btnCls = 'all-added';
+    btnHtml = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> مزاد';
+  } else if (anySel){
+    btnCls = 'partial';
+    btnHtml = '+ الباقي';
+  } else {
+    btnHtml = '+ الكل';
+  }
+  const ordHtml = exp ? `<div class="m-orders">${c.orders.map(o => renderOrderRow(c, o, rawQ)).join('')}</div>` : '';
+  return `
+    <div class="m-client-card ${exp ? 'expanded' : ''} ${anySel ? 'has-added' : ''}" data-client="${c.id}" data-color="${c.color}">
+      <div class="m-client-head">
+        <div class="m-avatar">${initials(c.name)}</div>
+        <div class="m-client-info">
+          <div class="m-client-name">
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            ${highlight(c.name, rawQ)}
+          </div>
+          <div class="m-client-meta">
+            <a class="phone-call" href="tel:${c.phone}" onclick="event.stopPropagation()" aria-label="عيط للكليان">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              ${highlightPhone(c.phone, rawQ)}
+            </a>
+            <span class="sep"></span>
+            <span>${c.orders.length} ${c.orders.length>1?'طلبيات':'طلبية'}</span>
+            <span class="sep"></span>
+            <span class="amt">${total.toLocaleString('en-US')} درهم</span>
+          </div>
+        </div>
+        <button class="m-add-all ${btnCls}" data-action="add-client">${btnHtml}</button>
+      </div>
+      ${ordHtml}
+    </div>
+  `;
+}
+
+function renderOrderRow(c, o, rawQ){
+  const exp = EXPANDED_O.has(o.id);
+  const added = isOrderSel(o.id);
+  const prodHtml = exp ? `
+    <div class="m-products">
+      ${o.products.length === 0 ? '<div style="padding:18px;color:var(--text-soft);font-style:italic;font-size:12.5px;text-align:center">ما كاينش تفاصيل المنتوجات</div>' : `
+        <div class="m-products-head"><span>المنتوج</span><span style="text-align:left">الكمية</span><span style="text-align:left">المجموع</span></div>
+        ${o.products.map(p => {
+          const active = ACTIVE_PRODUCTS.has(p.code);
+          return `
+          <div class="m-prod ${active ? '' : 'inactive'}" title="${active ? 'متوفر في القائمة' : 'ماشي في القائمة'}">
+            <div class="pn"><span class="active-dot"></span><span class="pc">${p.code}</span>${p.name}</div>
+            <div class="qty">${p.qty}</div>
+            <div class="tot">${(p.qty * p.unitPrice).toLocaleString('en-US')}</div>
+          </div>`;
+        }).join('')}
+      `}
+    </div>
+  ` : '';
+  return `
+    <div class="m-order-row ${exp ? 'expanded' : ''} ${added ? 'is-added' : ''}" data-order="${o.id}" data-client="${c.id}">
+      <div class="m-order-head">
+        <div class="m-order-info">
+          <div class="m-order-line1">
+            <svg class="m-order-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <span class="m-order-code">${o.id}</span>
+            <span class="m-order-amt">${o.total.toLocaleString('en-US')}<span class="cur">درهم</span></span>
+          </div>
+          <div class="m-order-line2"><span class="b">${o.date.split(' ')[0]}</span> · ${o.products.length} منتوجات</div>
+        </div>
+        <button class="m-add-order ${added ? 'is-added' : ''}" data-action="add-order">${added ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'}</button>
+      </div>
+      ${prodHtml}
+    </div>
+  `;
+}
+
+function attachCardHandlers(){
+  document.querySelectorAll('.m-client-card .m-client-head').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.closest('button')) return;
+      const card = el.closest('.m-client-card');
+      const id = card.dataset.client;
+      EXPANDED_C.has(id) ? EXPANDED_C.delete(id) : EXPANDED_C.add(id);
+      renderClientList();
+    });
+  });
+  document.querySelectorAll('[data-action="add-client"]').forEach(b => {
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = b.closest('.m-client-card').dataset.client;
+      const c = CLIENTS.find(x => x.id === id);
+      if (allAdded(c)) SELECTED = SELECTED.filter(s => s.clientId !== id);
+      else c.orders.forEach(o => { if (!isOrderSel(o.id)) SELECTED.push({ clientId:id, orderId:o.id }); });
+      renderClientList(); updateStats(); setBottomBar('selection');
+    });
+  });
+  document.querySelectorAll('.m-order-row .m-order-head').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.closest('button')) return;
+      const row = el.closest('.m-order-row');
+      const id = row.dataset.order;
+      EXPANDED_O.has(id) ? EXPANDED_O.delete(id) : EXPANDED_O.add(id);
+      renderClientList();
+    });
+  });
+  document.querySelectorAll('[data-action="add-order"]').forEach(b => {
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      const row = b.closest('.m-order-row');
+      const orderId = row.dataset.order, clientId = row.dataset.client;
+      const idx = SELECTED.findIndex(s => s.orderId === orderId);
+      if (idx >= 0) SELECTED.splice(idx, 1);
+      else SELECTED.push({ clientId, orderId });
+      renderClientList(); updateStats(); setBottomBar('selection');
+    });
+  });
+}
+
+document.getElementById('clientSearch').addEventListener('input', renderClientList);
+document.getElementById('clearSearch').addEventListener('click', () => {
+  document.getElementById('clientSearch').value = '';
+  renderClientList();
+});
+
+/* ============================== RANK LIST ============================== */
+function renderRankList(){
+  const wrap = document.getElementById('rankList');
+  if (SELECTED.length === 0){
+    wrap.innerHTML = `
+      <div class="m-empty">
+        <div class="ico"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+        <div class="t">القائمة فارغة</div>
+        <div class="s">دخل ل"بحث الكليانات" في الفوق و زيد شي طلبيات.</div>
+      </div>`;
+    return;
+  }
+  let html = '';
+  let lastClient = null;
+  SELECTED.forEach((s, i) => {
+    const c = CLIENTS.find(x => x.id === s.clientId);
+    const o = c.orders.find(x => x.id === s.orderId);
+    if (c.id !== lastClient){
+      html += `<div class="m-group-head">
+        <span>${c.name}</span>
+        <a class="phone-call lg" href="tel:${c.phone}" aria-label="عيط للكليان">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          ${c.phone}
+        </a>
+      </div>`;
+      lastClient = c.id;
+    }
+    const upDis = i === 0 ? 'disabled' : '';
+    const dnDis = i === SELECTED.length - 1 ? 'disabled' : '';
+    html += `
+      <div class="m-rank-card" data-idx="${i}">
+        <div class="pri">${i+1}</div>
+        <div class="info">
+          <div><span class="code">${o.id}</span></div>
+          <div class="m"><span>${o.products.length} منتوجات</span> · <span class="b">${o.total.toLocaleString('en-US')} درهم</span></div>
+        </div>
+        <div class="m-rank-actions">
+          <div class="arrows">
+            <button class="arrow-btn" data-move="up" ${upDis}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>
+            <button class="arrow-btn" data-move="down" ${dnDis}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+          </div>
+          <button class="rm-btn" data-rm="${o.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button>
+        </div>
+      </div>`;
+  });
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('[data-move]').forEach(b => {
+    b.addEventListener('click', () => {
+      const idx = parseInt(b.closest('.m-rank-card').dataset.idx);
+      const dir = b.dataset.move;
+      const j = dir === 'up' ? idx - 1 : idx + 1;
+      if (j < 0 || j >= SELECTED.length) return;
+      [SELECTED[idx], SELECTED[j]] = [SELECTED[j], SELECTED[idx]];
+      renderRankList(); setBottomBar('ranking');
+    });
+  });
+  wrap.querySelectorAll('[data-rm]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.rm;
+      const i = SELECTED.findIndex(s => s.orderId === id);
+      if (i >= 0) SELECTED.splice(i, 1);
+      renderRankList(); updateStats(); setBottomBar('ranking');
+    });
+  });
+}
+
+/* ============================== LOCKED ============================== */
+function renderLockedList(){
+  const wrap = document.getElementById('lockedList');
+  wrap.innerHTML = SELECTED.map((s, i) => {
+    const c = CLIENTS.find(x => x.id === s.clientId);
+    const o = c.orders.find(x => x.id === s.orderId);
+    return `
+      <div class="m-rank-card locked">
+        <div class="pri">${i+1}</div>
+        <div class="info">
+          <div><span class="code">${o.id}</span> · <strong>${c.name}</strong></div>
+          <div class="m">
+            <a class="phone-call" href="tel:${c.phone}" aria-label="عيط للكليان">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              ${c.phone}
+            </a>
+            <span class="b" style="margin-inline-start:6px">${o.total.toLocaleString('en-US')} درهم</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ============================== ALLOCATIONS ============================== */
+function buildAllocations(){
+  return SELECTED.map((s, i) => {
+    const c = CLIENTS.find(x => x.id === s.clientId);
+    const o = c.orders.find(x => x.id === s.orderId);
+    let ratio;
+    if (i === 0) ratio = 1.0;
+    else if (i === 1) ratio = 1.0;
+    else if (i === 2) ratio = 0.6;
+    else ratio = 0.2;
+    return {
+      orderId:o.id, clientId:c.id, clientName:c.name, phone:c.phone, total:o.total, color:c.color,
+      priority:i+1, ratio, lines:o.products.length || 5,
+      linesOk: Math.round((o.products.length || 5) * ratio),
+      decision:null,
+    };
+  });
+}
+
+function renderRing(pct, cls){
+  const r = 32;
+  const C = 2 * Math.PI * r;
+  const offset = C * (1 - pct / 100);
+  return `
+    <div class="ring">
+      <svg viewBox="0 0 80 80">
+        <circle class="bg" cx="40" cy="40" r="${r}"/>
+        <circle class="fg" cx="40" cy="40" r="${r}" stroke-dasharray="${C}" stroke-dashoffset="${offset}"/>
+      </svg>
+      <div class="label"><span class="pct">${pct}<span style="font-size:13px;letter-spacing:0;font-weight:700">%</span></span><span class="sub">نسبة</span></div>
+    </div>`;
+}
+
+function renderAllocations(){
+  const wrap = document.getElementById('allocList');
+  wrap.innerHTML = ALLOCATIONS.map(a => {
+    const pct = Math.round(a.ratio * 100);
+    let cls = 'none', label = 'ما كاينش';
+    if (a.ratio >= 1){ cls = 'full'; label = 'كامل'; }
+    else if (a.ratio > 0){ cls = 'partial'; label = 'ناقص'; }
+    const decCls = a.decision === 'confirm' ? 'confirmed' : (a.decision === 'skip' ? 'skipped' : '');
+    const missing = a.lines - a.linesOk;
+    let summary;
+    if (a.linesOk === a.lines){
+      summary = `<span class="ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span><b>${a.lines} من ${a.lines}</b> منتوجات متوفرة</span>`;
+    } else if (a.linesOk > 0){
+      summary = `<span class="ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="17" r=".5"/><path d="M10.29 3.86l-8.4 14.55a2 2 0 0 0 1.7 3.04h16.82a2 2 0 0 0 1.7-3.04L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></span><span><b>${a.linesOk} من ${a.lines}</b> متوفرة <span class="dot"></span> <span class="miss">${missing} ناقصة</span></span>`;
+    } else {
+      summary = `<span class="ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span><span><b>0 من ${a.lines}</b> — ما كاينش الستوك</span>`;
+    }
+    return `
+      <div class="alloc-card ${cls} ${decCls}">
+        <div class="top">
+          <div>
+            <div class="name">${a.clientName}</div>
+            <div class="meta">#${a.priority} · ${a.orderId}</div>
+            <a class="phone-call" href="tel:${a.phone}" aria-label="عيط للكليان" style="margin-top:6px">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              ${a.phone}
+            </a>
+          </div>
+          <span class="badge ${cls}">${label}</span>
+        </div>
+        <div class="alloc-ring">
+          ${renderRing(pct, cls)}
+          <div class="prod-summary">${summary}</div>
+        </div>
+        <div class="alloc-actions">
+          <button class="big-btn skip ${a.decision === 'skip' ? 'is-on' : ''}" data-id="${a.orderId}" data-act="skip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            تخطى
+          </button>
+          <button class="big-btn confirm ${a.decision === 'confirm' ? '' : 'is-off'}" data-id="${a.orderId}" data-act="confirm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            أكد
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+  wrap.querySelectorAll('.big-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      const a = ALLOCATIONS.find(x => x.orderId === b.dataset.id);
+      const act = b.dataset.act;
+      a.decision = a.decision === act ? null : act;
+      renderAllocations(); setBottomBar('confirming');
+    });
+  });
+}
+
+document.getElementById('bottomBtn').addEventListener('click', () => {
+  if (CURRENT_PHASE === 'p1'){
+    const target = CURRENT_TAB === 'find' ? 'mylist' : 'find';
+    document.querySelector(`#tabsWrap .m-tab[data-tab="${target}"]`).click();
+  } else if (CURRENT_PHASE === 'p3'){
+    ALLOCATIONS.forEach(a => { if (a.ratio > 0) a.decision = 'confirm'; });
+    renderAllocations(); setBottomBar('confirming');
+  }
+});
+
+/* ============================== FINAL ============================== */
+function renderFinal(){
+  const wrap = document.getElementById('finalList');
+  wrap.innerHTML = ALLOCATIONS.map(a => {
+    const pct = Math.round(a.ratio * 100);
+    const cls = a.ratio >= 1 ? 'full' : a.ratio > 0 ? 'partial' : 'none';
+    const decCls = a.decision === 'confirm' ? 'confirmed' : 'skipped';
+    return `
+      <div class="alloc-card ${cls} ${decCls}">
+        <div class="top">
+          <div>
+            <div class="name">${a.clientName}</div>
+            <div class="meta">#${a.priority} · ${a.orderId} · ${a.linesOk}/${a.lines} منتوج · ${pct}%</div>
+          </div>
+          <span class="badge ${decCls === 'confirmed' ? 'confirmed' : 'skipped'}">${decCls === 'confirmed' ? 'مؤكدة' : 'متخطاة'}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ============================== CREATOR GLOBAL ============================== */
+function renderGlobalPriority(){
+  const wrap = document.getElementById('globalPriorityList');
+  if (!wrap) return;
+  const flat = [];
+  SELECTED.forEach(s => flat.push({ ...s, sellerId:'karim' }));
+  (SELECTED_BY_SELLER.yassine || []).forEach(s => flat.push({ ...s, sellerId:'yassine' }));
+  wrap.innerHTML = flat.map((s, i) => {
+    const c = CLIENTS.find(x => x.id === s.clientId);
+    const o = c.orders.find(x => x.id === s.orderId);
+    const seller = SELLERS.find(x => x.id === s.sellerId);
+    return `
+      <div class="gp-card" draggable="true" data-id="${o.id}">
+        <span class="h"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span>
+        <div class="pri">${i+1}</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;letter-spacing:-.01em">${c.name}</div>
+          <div style="font-size:11.5px;color:var(--text-soft);margin-top:2px"><span style="font-family:var(--font-mono)">${o.id}</span> · ${o.products.length} products</div>
+        </div>
+        <span class="seller-chip">${seller.name}</span>
+        <span style="font-size:10.5px;padding:3px 7px;border-radius:6px;background:var(--bg-muted);color:var(--text-soft);font-weight:700;font-family:var(--font-mono)" title="Seller rank">#${i+1}</span>
+        <div style="font-family:var(--font-mono);font-size:14px;font-weight:700;letter-spacing:-.02em">${o.total.toLocaleString('en-US')} MAD</div>
+      </div>`;
+  }).join('');
+  let dragSrc = null;
+  wrap.querySelectorAll('.gp-card').forEach(card => {
+    card.addEventListener('dragstart', () => { dragSrc = card.dataset.id; card.classList.add('dragging'); });
+    card.addEventListener('dragend', () => { card.classList.remove('dragging'); wrap.querySelectorAll('.drag-over').forEach(c => c.classList.remove('drag-over')); });
+    card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      const t = card.dataset.id;
+      if (t === dragSrc) return;
+      const items = Array.from(wrap.querySelectorAll('.gp-card'));
+      const srcEl = items.find(x => x.dataset.id === dragSrc);
+      const tgtEl = items.find(x => x.dataset.id === t);
+      if (srcEl && tgtEl) wrap.insertBefore(srcEl, tgtEl);
+      Array.from(wrap.querySelectorAll('.gp-card .pri')).forEach((p, i) => p.textContent = i+1);
+    });
+  });
+}
+
+document.getElementById('distributeBtn').addEventListener('click', () => {
+  document.getElementById('simPhase').value = 'p3';
+  applyPhase('p3');
+});
+
+const stockZone = document.getElementById('stockZone');
+stockZone.addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  stockZone.classList.add('has-file');
+  document.getElementById('stockLabel').textContent = f.name;
+  document.getElementById('stockHint').textContent = 'Loaded — ready to distribute';
+});
+
+function renderCreatorAllocations(){
+  const wrap = document.getElementById('creatorAllocList');
+  if (!wrap) return;
+  wrap.innerHTML = ALLOCATIONS.map(a => {
+    const pct = Math.round(a.ratio * 100);
+    const cls = a.ratio >= 1 ? 'full' : a.ratio > 0 ? 'partial' : 'none';
+    const decisionLabel = a.decision === 'confirm' ? 'Confirmed' : a.decision === 'skip' ? 'Skipped' : 'Pending';
+    return `
+      <div style="background:#fff;border:.5px solid var(--border);border-radius:14px;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:10px;box-shadow:var(--shadow-xs)">
+        <div>
+          <div style="font-weight:700;font-size:15px;letter-spacing:-.015em">${a.clientName} <span class="badge ${cls}" style="margin-left:6px">${pct}%</span></div>
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);margin-top:4px">#${a.priority} · ${a.orderId}</div>
+        </div>
+        <span class="badge ${a.decision === 'confirm' ? 'confirmed' : a.decision === 'skip' ? 'skipped' : 'partial'}">${decisionLabel}</span>
+      </div>`;
+  }).join('');
+}
+
+/* ============================== STATS ============================== */
+function updateStats(){
+  if (CURRENT_PHASE === 'p1' || CURRENT_PHASE === 'p2'){
+    document.getElementById('statSelected').textContent = SELECTED.length;
+    document.getElementById('statClients').textContent = new Set(SELECTED.map(s => s.clientId)).size;
+    document.getElementById('lblSelected').textContent = 'طلبيات مختارة';
+    const total = SELECTED.reduce((sum, x) => {
+      const c = CLIENTS.find(c => c.id === x.clientId);
+      const o = c.orders.find(o => o.id === x.orderId);
+      return sum + (o ? o.total : 0);
+    }, 0);
+    document.getElementById('statValue').textContent = total.toLocaleString('en-US');
+    document.getElementById('myListCnt').textContent = SELECTED.length;
+  } else {
+    document.getElementById('statSelected').textContent = ALLOCATIONS.length;
+    document.getElementById('statClients').textContent = new Set(ALLOCATIONS.map(a => a.clientId)).size;
+    document.getElementById('lblSelected').textContent = 'النتائج';
+    const totalV = ALLOCATIONS.reduce((s, a) => s + a.total * a.ratio, 0);
+    document.getElementById('statValue').textContent = Math.round(totalV).toLocaleString('en-US');
+  }
+}
+
+/* ============================== HELP SHEET ============================== */
+function openHelp(){
+  highlightHelpPhase();
+  document.getElementById('helpSheet').classList.add('open');
+  document.getElementById('helpBtn').classList.add('seen');
+}
+function closeHelp(){ document.getElementById('helpSheet').classList.remove('open'); }
+function highlightHelpPhase(){
+  const idx = parseInt(CURRENT_PHASE.slice(1));
+  // Timeline dots
+  document.querySelectorAll('.htimeline .step').forEach(s => {
+    const n = parseInt(s.dataset.step);
+    s.classList.remove('done','current');
+    if (n < idx) s.classList.add('done');
+    else if (n === idx) s.classList.add('current');
+  });
+  // Phase cards
+  document.querySelectorAll('.help-phase').forEach(p => {
+    const n = parseInt(p.dataset.step);
+    p.classList.toggle('current', n === idx);
+    p.querySelector('.ph-now').classList.toggle('hidden', n !== idx);
+  });
+  // Scroll the current phase card into view inside the help content
+  setTimeout(() => {
+    const cur = document.querySelector('.help-phase.current');
+    if (cur && document.getElementById('helpSheet').classList.contains('open')){
+      cur.scrollIntoView({ behavior:'smooth', block:'center' });
+    }
+  }, 350);
+}
+document.getElementById('helpBtn').addEventListener('click', openHelp);
+document.getElementById('helpClose').addEventListener('click', closeHelp);
+
+/* ============================== INIT ============================== */
+document.querySelectorAll('input[name="role"]').forEach(r => r.addEventListener('change', () => applyRole(r.value)));
+document.getElementById('simPhase').addEventListener('change', e => applyPhase(e.target.value));
+applyRole('seller');
+applyPhase('p1');
+// Initial indicator after render
+setTimeout(updateTabIndicator, 50);
+window.addEventListener('resize', updateTabIndicator);
+</script>
+
+<script>
+/* [patch: embedded_bridge_postmsg] Bridges the embedded mockup to the
+   parent app via postMessage (works under file:// null-origin too).
+   - Receives data + role from parent on load
+   - Sends back: save_list, get_list, run_allocator, upload_stock, export
+*/
+(function () {
+  function ready(fn) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+  ready(function () {
+    var role = (document.body.getAttribute('data-embed') || '').toLowerCase();
+    if (!role) return;
+    var P = window.parent && window.parent !== window ? window.parent : null;
+    if (!P) return;
+    try { if (typeof applyRole === 'function') applyRole(role); } catch (_) {}
+
+    var CO = { role: role, seller: '', clients: {}, orders: [], assignments: {}, myList: [] };
+    function post(msg) { try { P.postMessage(msg, '*'); } catch (_) {} }
+
+    window.addEventListener('message', function (e) {
+      var m = e && e.data;
+      if (!m || typeof m !== 'object' || !m.type) return;
+      if (m.type === 'co:data') {
+        if (m.seller != null)        CO.seller      = m.seller;
+        if (m.clients)               CO.clients     = m.clients;
+        if (m.orders)                CO.orders      = m.orders;
+        if (m.assignments)           CO.assignments = m.assignments;
+        if (Array.isArray(m.myList)) CO.myList      = m.myList;
+        console.log('[confirm_orders] data —', Object.keys(CO.clients).length, 'clients,', CO.orders.length, 'orders, seller:', CO.seller);
+        renderRealClients();
+        updateRealStats();
+      }
+    });
+    post({ type: 'co:ready', role: role });
+
+    function computePhase() {
+      var d = new Date();
+      var t = d.getHours() * 60 + d.getMinutes();
+      if (t >= (12*60+1) && t < (20*60)) return 'p1';
+      if (t >= (20*60)   && t < (21*60)) return 'p2';
+      if (t >= (21*60)   || t < (10*60+59)) return 'p3';
+      if (t >= (10*60+59) && t < (11*60+59)) return 'p4';
+      return 'p1';
+    }
+    function applyRealPhase(){ try { if (typeof applyPhase === 'function') applyPhase(computePhase()); } catch (_) {} }
+    applyRealPhase();
+    setInterval(applyRealPhase, 60*1000);
+
+    function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
+    function initials(name){ var s=String(name||'?').trim(); var p=s.split(/\s+/).filter(Boolean); return ((p[0]||'?').charAt(0) + (p[1]?p[1].charAt(0):'')).toUpperCase(); }
+    function fmtMad(n){ return Math.round(n||0).toLocaleString('en-US'); }
+
+    function sellerName(){ return CO.seller || ''; }
+    function getMyList(){ return Array.isArray(CO.myList) ? CO.myList.slice() : []; }
+    function setMyList(list){
+      CO.myList = list.slice();
+      post({ type: 'co:save_list', list: list.slice() });
+    }
+
+    function renderRealClients(){
+      var host = document.getElementById('clientResults');
+      if (!host) return;
+      var seller = sellerName();
+      var clients = CO.clients || {};
+      var assigns = CO.assignments || {};
+      var phones = Object.keys(clients).filter(function(p){
+        var c = clients[p] || {};
+        var assigned = (assigns[p] && assigns[p].seller) || c.seller || '';
+        return !seller || assigned === seller;
+      });
+      phones.sort(function(a,b){ return ((clients[a]||{}).name||'').toLowerCase().localeCompare(((clients[b]||{}).name||'').toLowerCase()); });
+      var orderInfo = {};
+      (CO.orders || []).forEach(function(o){
+        if (!o || !o.phone) return;
+        if (o.status === 'CANCELED' || o.status === 'RETURNED') return;
+        if (!orderInfo[o.phone]) orderInfo[o.phone] = { count:0, mad:0 };
+        orderInfo[o.phone].count++;
+        orderInfo[o.phone].mad += (o.amount || 0);
+      });
+      var myMap = {}; getMyList().forEach(function(p){ myMap[p]=true; });
+      if (!phones.length) {
+        host.innerHTML = '<div style="padding:32px 16px; text-align:center; color:#6a7280; font-size:13px;">ما كاينش زبائن. سيفط ملف الكليانات من GMV Tracker.</div>';
+        return;
+      }
+      host.innerHTML = phones.map(function(phone, idx){
+        var c = clients[phone] || {};
+        var info = orderInfo[phone] || { count:0, mad:0 };
+        var added = !!myMap[phone];
+        var name = c.name || '(بدون اسم)';
+        return '<div class="m-client-card' + (added?' has-added':'') + '" data-client="' + esc(phone) + '" data-color="' + (idx % 6) + '">' +
+          '<div class="m-client-head">' +
+            '<div class="m-avatar">' + esc(initials(name)) + '</div>' +
+            '<div class="m-client-info">' +
+              '<div class="m-client-name"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>' + esc(name) + '</div>' +
+              '<div class="m-client-meta">' +
+                '<a class="phone-call" href="tel:' + esc(phone) + '" onclick="event.stopPropagation()" aria-label="عيط للكليان">' +
+                  '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>' +
+                  esc(phone) + '</a>' +
+                '<span class="sep"></span><span>' + info.count + ' طلبية</span>' +
+                '<span class="sep"></span><span class="amt">' + fmtMad(info.mad) + ' درهم</span>' +
+              '</div>' +
+            '</div>' +
+            '<button class="m-add-all' + (added?' all-added':'') + '" data-action="add-client">' +
+              (added ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> مزاد' : '+ الكل') +
+            '</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      host.querySelectorAll('[data-action="add-client"]').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var card = btn.closest('.m-client-card');
+          var phone = card && card.dataset.client;
+          if (!phone) return;
+          var list = getMyList();
+          var i = list.indexOf(phone);
+          if (i >= 0) list.splice(i, 1); else list.push(phone);
+          setMyList(list);
+          renderRealClients();
+          updateRealStats();
+        });
+      });
+    }
+    function updateRealStats(){
+      var myList = getMyList();
+      var totalMad = 0;
+      (CO.orders || []).forEach(function(o){
+        if (!o || !o.phone) return;
+        if (myList.indexOf(o.phone) < 0) return;
+        if (o.status === 'CANCELED' || o.status === 'RETURNED') return;
+        totalMad += (o.amount || 0);
+      });
+      var $ = function(id){ return document.getElementById(id); };
+      if ($('statSelected'))   $('statSelected').textContent   = myList.length;
+      if ($('statClients'))    $('statClients').textContent    = myList.length;
+      if ($('statValue'))      $('statValue').textContent      = fmtMad(totalMad);
+      if ($('myListCnt'))      $('myListCnt').textContent      = myList.length;
+      if ($('bottomTitle'))    $('bottomTitle').textContent    = myList.length + ' طلبيات مختارة';
+      if ($('bottomSubtitle')) $('bottomSubtitle').textContent = fmtMad(totalMad) + ' درهم';
+    }
+
+    // Initial render with empty state; updates will arrive via postMessage.
+    renderRealClients();
+    updateRealStats();
+
+    if (role === 'creator') {
+      var distributeBtn = document.getElementById('distributeBtn');
+      if (distributeBtn) distributeBtn.addEventListener('click', function(){
+        post({ type: 'co:run_allocator' });
+        distributeBtn.textContent = '✓ Sent';
+        setTimeout(function(){ distributeBtn.textContent = 'Distribute stock now'; }, 1800);
+      });
+      // Stock upload — postMessage can't carry File objects easily across
+      // origins, so we read the file here, send bytes + name to parent.
+      var stockInput = document.querySelector('#stockZone input[type="file"]');
+      var stockLabel = document.getElementById('stockLabel');
+      if (stockInput) stockInput.addEventListener('change', function(e){
+        var f = e.target.files && e.target.files[0]; if (!f) return;
+        var r = new FileReader();
+        r.onload = function(){
+          post({ type: 'co:upload_stock', name: f.name, bytes: r.result });
+          if (stockLabel) stockLabel.textContent = '✓ ' + f.name;
+        };
+        r.readAsArrayBuffer(f);
+        try { e.target.value = ''; } catch(_){}
+      });
+      var exportMap = ['full', 'partial', 'waiting', 'top'];
+      document.querySelectorAll('#creatorP4 .exp-card .creator-btn').forEach(function(btn, idx){
+        btn.addEventListener('click', function(){
+          var kind = (idx === 3) ? 'full_report' : (exportMap[idx] || 'full');
+          post({ type: 'co:export', kind: kind });
+        });
+      });
+    }
+  });
+})();
+</script>
+
+<script>
+/* Legacy auto-iframe — disabled when embedded so we don't recurse. */
+(function () {
+  if ((document.body.getAttribute('data-embed') || '') !== '') return;
+  function go() {
+    var el = document.getElementById('featureFulfill');
+    if (!el) return false;
+    el.style.cssText = 'display:none;padding:0;max-width:none;margin:0;height:100vh;';
+    el.innerHTML = '<iframe src="order-fulfillment-v2.html" title="Order Fulfillment" style="width:100%;height:100%;min-height:100vh;border:0;display:block;background:transparent;" loading="lazy"></iframe>';
+    return true;
+  }
+  if (!go()) document.addEventListener('DOMContentLoaded', go);
+})();
+</script>
+</body></html>
