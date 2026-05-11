@@ -4313,6 +4313,12 @@
   </div>
 </div>
 
+<!-- GLS_BUTTON -->
+<div class="app-lang-switch" id="appLangSwitch" role="group" aria-label="Language">
+  <button type="button" data-applang="fr">FR</button>
+  <button type="button" data-applang="en">EN</button>
+  <button type="button" data-applang="ar">عربي</button>
+</div>
 <div class="app-shell" id="appShell">
 
   <!-- App-level sidebar — feature switcher. The current app
@@ -6448,11 +6454,21 @@ function doProcess() {
   // processing summary / stock reconciliation.
   const initialStock = new Map();
   const negativeStockCodes = [];
+  // Track how many rows we converted from atomic\u2192packing so the operator
+  // gets a count in the summary. Conversion applies only when the
+  // Articles Matjar catalog has Sell unit = PACKING and a Package quantity.
+  let stockConvertedToPacking = 0;
   stock.forEach(s => {
     const code = (s[sCode]||'').toString().trim();
     if (!code) return;
     const rawQ = parseFloat(s[sQty]);
-    const q = isFinite(rawQ) ? rawQ : 0;
+    let q = isFinite(rawQ) ? rawQ : 0;
+    // Convert atomic stock to packing units when the product is sold per package.
+    const art = (typeof awalArticlesLookup !== 'undefined' && awalArticlesLookup) ? awalArticlesLookup.get(code) : null;
+    if (art && art.sellUnit === 'PACKING' && art.pkgQty && art.pkgQty > 0) {
+      q = Math.floor(q / art.pkgQty);
+      stockConvertedToPacking++;
+    }
     if (q < 0) {
       negativeStockCodes.push({ code, raw: q });
       initialStock.set(code, (initialStock.get(code) || 0) + 0); // clamp to 0
@@ -14501,6 +14517,8 @@ function awalBuildLookup(articles) {
       bc_carton: awalClean(row['Package barcode']),
       bc_unit:   awalClean(row['Atomic barcode']),
       unit,
+      sellUnit: sell,
+      pkgQty: pkgQty,
     });
   }
   return lookup;
@@ -15757,18 +15775,42 @@ function gmvApplyRoleUI() {
       if (host && host.firstChild) host.insertBefore(cBanner, host.firstChild);
     }
   }
-  // Add a small read-only badge so viewers know why uploads are hidden.
+  // Sync <html lang/dir> with the active engagement language so
+  // the entire document picks up the right direction (Bug 2).
+  try {
+    const _lang = (typeof engLang === 'function') ? engLang() : 'fr';
+    document.documentElement.lang = _lang;
+    document.documentElement.dir  = _lang === 'ar' ? 'rtl' : 'ltr';
+  } catch (_) {}
+  // Read-only role badge — mounts inside .gmv-inner so it respects
+  // the page layout (Bug 1) and is localized + role-aware.
   let badge = document.getElementById('gmvRoleBadge');
   if (!isCreator && sbUser) {
+    const _lang = (typeof engLang === 'function') ? engLang() : 'fr';
+    const _isSeller = (typeof gmvIsSeller === 'function') && gmvIsSeller();
+    const _txt = (() => {
+      if (_isSeller) {
+        if (_lang === 'ar') return 'وضع البائع \u2014 لا يمكنك رفع الملفات. اطلب من المالك (' + GMV_CREATOR_EMAIL + ') رفعها.';
+        if (_lang === 'en') return 'Seller mode \u2014 only the creator (' + GMV_CREATOR_EMAIL + ') can upload files. Use the Engagement page to commit your products.';
+        return 'Mode vendeur \u2014 seul le créateur (' + GMV_CREATOR_EMAIL + ') peut charger les fichiers. Engagez vos produits depuis la page Engagement.';
+      }
+      if (_lang === 'ar') return 'وضع المشاهد \u2014 يمكنك تحديد أهدافك واستكشاف البيانات، لكن المالك فقط (' + GMV_CREATOR_EMAIL + ') يمكنه رفع الملفات.';
+      if (_lang === 'en') return 'Viewer mode \u2014 you can set your own targets and explore data, but only the creator (' + GMV_CREATOR_EMAIL + ') can upload files.';
+      return 'Mode consultation \u2014 vous pouvez d\u00e9finir vos cibles et explorer les donn\u00e9es, mais seul le cr\u00e9ateur (' + GMV_CREATOR_EMAIL + ') peut charger les fichiers.';
+    })();
     if (!badge) {
       badge = document.createElement('div');
       badge.id = 'gmvRoleBadge';
-      badge.style.cssText = 'margin:0 0 12px; padding:8px 12px; border-radius:6px; background:#eff6ff; color:#1e40af; font-size:12px; border:1px solid #bfdbfe;';
-      badge.textContent = 'Viewer mode \u2014 you can set your own targets and explore data, but only the creator (' + GMV_CREATOR_EMAIL + ') can upload files.';
-      const host = document.getElementById('gmvWrap') || document.querySelector('.gmv-wrap') || document.body;
-      const firstChild = host && host.firstChild;
-      if (host && firstChild) host.insertBefore(badge, firstChild);
-      else if (host) host.appendChild(badge);
+    }
+    badge.textContent = _txt;
+    badge.setAttribute('dir', _lang === 'ar' ? 'rtl' : 'ltr');
+    // Mount inside the GMV feature pane, not <body>.
+    const _gmv = document.getElementById('featureGmvMaker');
+    const _inner = _gmv ? _gmv.querySelector('.gmv-inner') : null;
+    const _host = _inner || _gmv || document.getElementById('gmvWrap') || document.querySelector('.gmv-wrap') || document.body;
+    if (badge.parentNode !== _host) {
+      if (_host && _host.firstChild) _host.insertBefore(badge, _host.firstChild);
+      else if (_host) _host.appendChild(badge);
     }
   } else if (badge) {
     badge.remove();
@@ -17206,6 +17248,10 @@ function gmvRenderPageBar() {
   // Sellers only see Engagement inside GMV Tracker.
   const isSeller = (typeof gmvIsSeller === 'function') && gmvIsSeller();
   if (isSeller) gmv.activePage = 'engagement';
+  // Hide the main page-bar entirely for sellers (only one tab — looks
+  // like a banner). The body class flips a CSS rule injected by
+  // fix_engagement_design.py.
+  try { document.body.classList.toggle('gmv-seller-only', isSeller); } catch (_) {}
   const cur = gmv.activePage || 'performance';
   bar.querySelectorAll('.gmv-pagebtn').forEach(btn => {
     if (isSeller && btn.dataset.gpage !== 'engagement') {
@@ -19098,7 +19144,9 @@ const gmvEngagement = {
   focusProducts: {},   // code -> { family, min, name }
   paliers: [],         // [{ palier, threshold, prize1, prize2, prize3 }]
   commitments: {},     // sellerName -> { period, focus: { code: targetQty }, paliers: { phone: palierNum } }
-  activeSubtab: 'focus',
+  activeSubtab: 'paliers',
+  expandedPaliers: {},  // phone -> true when a client's card is expanded
+  expandedSections: { won: true, ok: true, idle: false },
   loaded: false,
 };
 
@@ -19120,7 +19168,18 @@ async function gmvLoadEngagement() {
     if (Array.isArray(pa)) gmvEngagement.paliers = pa;
     if (ce && Array.isArray(ce.data)) {
       const map = {};
-      ce.data.forEach(r => { map[r.seller] = r; });
+      ce.data.forEach(r => {
+        // Per-client product commitments are stashed under focus.__byClient
+        // so we don't need a Supabase schema change. Extract into
+        // commitment.clientFocus for the in-memory shape.
+        const f = (r && r.focus && typeof r.focus === 'object') ? r.focus : {};
+        const byClient = (f && f.__byClient && typeof f.__byClient === 'object') ? f.__byClient : {};
+        const clean = {};
+        Object.keys(f || {}).forEach(k => { if (k !== '__byClient') clean[k] = f[k]; });
+        r.focus = clean;
+        r.clientFocus = byClient;
+        map[r.seller] = r;
+      });
       gmvEngagement.commitments = map;
     }
     gmvEngagement.loaded = true;
@@ -19130,15 +19189,32 @@ async function gmvLoadEngagement() {
 async function gmvSaveEngagementCommitment(seller, period, patch) {
   if (typeof sb === 'undefined' || !sb || !sbUser) throw new Error('Not signed in.');
   const existing = gmvEngagement.commitments[seller] || {};
+  const newFocus       = (patch.focus       !== undefined) ? patch.focus       : (existing.focus       || {});
+  const newClientFocus = (patch.clientFocus !== undefined) ? patch.clientFocus : (existing.clientFocus || {});
+  const newPaliers     = (patch.paliers     !== undefined) ? patch.paliers     : (existing.paliers     || {});
+  // Stash per-client commitments inside the focus JSONB under __byClient
+  // so the existing Supabase schema works without a migration.
+  const focusBlob = Object.assign({}, newFocus);
+  if (newClientFocus && Object.keys(newClientFocus).length) {
+    focusBlob.__byClient = newClientFocus;
+  }
   const row = {
     seller, period,
-    focus: patch.focus || existing.focus || {},
-    paliers: patch.paliers || existing.paliers || {},
+    focus: focusBlob,
+    paliers: newPaliers,
     updated_at: new Date().toISOString(),
   };
   const { error } = await sb.from('seller_engagements').upsert(row, { onConflict: 'seller,period' });
   if (error) throw new Error(error.message || String(error));
-  gmvEngagement.commitments[seller] = row;
+  // Store split shape in memory so the rest of the code reads focus
+  // (global) without seeing __byClient leak through.
+  gmvEngagement.commitments[seller] = {
+    seller, period,
+    focus: newFocus,
+    clientFocus: newClientFocus,
+    paliers: newPaliers,
+    updated_at: row.updated_at,
+  };
 }
 
 // Compute qty sold per (seller, productCode) from gmv.orders for the
@@ -19183,6 +19259,79 @@ function gmvAchievedPalier(ca) {
   return best;
 }
 
+// ===== Per-client engagement helpers =====================================
+// Sellers commit a list of focus products PER CLIENT. Achievement is
+// per-product per-client: a SKU is 'achieved' for client X when
+// delivered qty to X >= the SKU's min in the relevant period.
+//   Milestone M1   = ENG_CLIENT_MILESTONE_M1 SKUs achieved by end of May
+//   Milestone Both = ENG_CLIENT_MILESTONE_BOTH SKUs achieved with
+//                    cumulative qty across May+June.
+// The palier GMV threshold is met by the client's GMV across ANY
+// products (focus or not) — this is independent of the milestone
+// product list.
+const ENG_CLIENT_MIN_PRODUCTS  = 10;
+const ENG_CLIENT_MILESTONE_M1   = 5;
+const ENG_CLIENT_MILESTONE_BOTH = 10;
+
+// Per-(seller, phone, period) qty/gmv for each focus product.
+function gmvComputeSoldForSellerClient(seller, phone, period) {
+  const out = {};
+  const useFulfillOrders = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders) && fulfill.orders.length);
+  const sourceLines = useFulfillOrders ? fulfill.orders : (gmv.orders || []);
+  sourceLines.forEach(o => {
+    if (!o || !o.productCode || o.phone !== phone) return;
+    if (!gmvEngagement.focusProducts[o.productCode]) return;
+    const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
+    if (!d || isNaN(d.getTime())) return;
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (key !== period) return;
+    const cl = (gmv.clients || {})[o.phone] || {};
+    const assigned = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '';
+    if (assigned !== seller) return;
+    if (!out[o.productCode]) out[o.productCode] = { qty: 0, gmv: 0 };
+    out[o.productCode].qty += (typeof o.qty === 'number' ? o.qty : 1);
+    out[o.productCode].gmv += (o.amount || 0);
+  });
+  return out;
+}
+
+function gmvClientAchievedM1(seller, phone, codes) {
+  const sold = gmvComputeSoldForSellerClient(seller, phone, ENG_PERIOD_M1);
+  let achieved = 0;
+  (codes || []).forEach(code => {
+    const meta = gmvEngagement.focusProducts[code] || {};
+    const s = sold[code] || { qty: 0 };
+    if (meta.min && s.gmv >= meta.min) achieved++;
+  });
+  return achieved;
+}
+
+function gmvClientAchievedBoth(seller, phone, codes) {
+  const m1 = gmvComputeSoldForSellerClient(seller, phone, ENG_PERIOD_M1);
+  const m2 = gmvComputeSoldForSellerClient(seller, phone, ENG_PERIOD_M2);
+  let achieved = 0;
+  (codes || []).forEach(code => {
+    const meta = gmvEngagement.focusProducts[code] || {};
+    const g = ((m1[code] && m1[code].gmv) || 0) + ((m2[code] && m2[code].gmv) || 0);
+    if (meta.min && g >= meta.min) achieved++;
+  });
+  return achieved;
+}
+
+// Total client GMV (any products, focus or not) for a specific period.
+function gmvCaPerClientPeriod(period) {
+  const out = {};
+  (gmv.orders || []).forEach(o => {
+    if (!o) return;
+    const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
+    if (!d || isNaN(d.getTime())) return;
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (key !== period) return;
+    out[o.phone] = (out[o.phone] || 0) + (o.amount || 0);
+  });
+  return out;
+}
+
 // ---- Upload parsers (creator only) ----
 async function gmvOnUploadFocus(file) {
   const rows = await readXlsx(file);
@@ -19214,6 +19363,9 @@ async function gmvOnUploadPaliers(file) {
   const c1 = findCol(rows[0], ['Prize 1','prize 1','prize1','Cadeau 1','cadeau1']);
   const c2 = findCol(rows[0], ['Prize 2','prize 2','prize2','Cadeau 2','cadeau2']);
   const c3 = findCol(rows[0], ['Prize 3','prize 3','prize3','Cadeau 3','cadeau3']);
+  const cI1 = findCol(rows[0], ['Image 1','image 1','image1','Img 1','img1','Photo 1','photo1']);
+  const cI2 = findCol(rows[0], ['Image 2','image 2','image2','Img 2','img2','Photo 2','photo2']);
+  const cI3 = findCol(rows[0], ['Image 3','image 3','image3','Img 3','img3','Photo 3','photo3']);
   if (!cP || !cT) throw new Error('Need Palier + Threshold columns.');
   const out = [];
   rows.forEach(r => {
@@ -19225,6 +19377,9 @@ async function gmvOnUploadPaliers(file) {
       prize1: c1 ? String(r[c1] || '').trim() : '',
       prize2: c2 ? String(r[c2] || '').trim() : '',
       prize3: c3 ? String(r[c3] || '').trim() : '',
+      image1: cI1 ? String(r[cI1] || '').trim() : '',
+      image2: cI2 ? String(r[cI2] || '').trim() : '',
+      image3: cI3 ? String(r[cI3] || '').trim() : '',
     });
   });
   out.sort((a, b) => a.palier - b.palier);
@@ -19270,7 +19425,10 @@ async function gmvRenderEngagement(wrap) {
     const cmdTitle = document.querySelector('.cmd-title');
     if (cmdTitle) {
       const titles = { ar: 'متتبع GMV', fr: 'GMV Tracker', en: 'GMV Tracker' };
-      cmdTitle.textContent = titles[engLang()] || 'GMV Tracker';
+      const _t = titles[engLang()] || 'GMV Tracker';
+      // Use innerHTML with <bdi> so 'GMV' (Latin) is bidi-isolated
+      // from 'متتبع' (Arabic). Plain text would render confusingly.
+      cmdTitle.innerHTML = '<bdi>' + _t.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])) + '</bdi>';
     }
     // Translate the GMV pagebar Engagement tab label.
     document.querySelectorAll('.gmv-pagebtn[data-gpage]').forEach(b => {
@@ -19298,32 +19456,63 @@ async function gmvRenderEngagement(wrap) {
   }
   const isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
   const mySeller = (typeof gmvSellerName === 'function') ? gmvSellerName() : '';
-  const sub = gmvEngagement.activeSubtab || 'focus';
+  if (gmvEngagement.activeSubtab === 'focus') gmvEngagement.activeSubtab = 'paliers';
+  const sub = gmvEngagement.activeSubtab || 'paliers';
   // Subtab buttons.
-  const tabBtn = (key, label) => `<button type="button" data-engtab="${key}" style="padding:8px 14px; border:0; background:${sub === key ? '#0f172a' : 'transparent'}; color:${sub === key ? '#fff' : '#475569'}; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">${label}</button>`;
+  const tabBtn = (key, label) => `<button type="button" class="gmv-engtab${sub === key ? ' active' : ''}" data-engtab="${key}">${label}</button>`;
   // Creator-only upload bar.
+  // The bar is green whenever BOTH focus + paliers are loaded.
+  // Yellow means something is still missing.
+  const _focusN = Object.keys(gmvEngagement.focusProducts || {}).length;
+  const _palierN = (gmvEngagement.paliers || []).length;
+  const _uploadOk = _focusN > 0 && _palierN > 0;
+  const _uploadStyle = _uploadOk
+    ? 'background:#dcfce7; border:1px solid #86efac;'
+    : 'background:#fef3c7; border:1px solid #fde68a;';
+  const _uploadLabelCol = _uploadOk ? '#14532d' : '#92400e';
+  const _uploadCountCol = _uploadOk ? '#166534' : '#78350f';
+  const _uploadLabel = _uploadOk ? '✓ Loaded' : 'Creator setup:';
   const uploadsHtml = isCreator ? `
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin:0 0 14px; padding:10px 12px; background:#fef3c7; border:1px solid #fde68a; border-radius:8px;">
-      <span style="font-size:12px; color:#92400e; align-self:center;"><b>Creator setup:</b></span>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin:0 0 14px; padding:10px 12px; ${_uploadStyle} border-radius:8px; transition: background .3s, border-color .3s;">
+      <span style="font-size:12px; color:${_uploadLabelCol}; align-self:center;"><b>${_uploadLabel}</b></span>
       <label class="btn" style="font-size:12px; cursor:pointer;">Upload focus products
         <input type="file" id="engFocusUpload" accept=".xlsx,.xls,.csv" style="display:none;">
       </label>
       <label class="btn" style="font-size:12px; cursor:pointer;">Upload paliers
         <input type="file" id="engPaliersUpload" accept=".xlsx,.xls,.csv" style="display:none;">
       </label>
-      <span style="font-size:11px; color:#78350f; align-self:center;">
+      <span style="font-size:11px; color:${_uploadCountCol}; align-self:center;">
         ${Object.keys(gmvEngagement.focusProducts).length} SKU(s) · ${gmvEngagement.paliers.length} palier(s)
       </span>
     </div>` : '';
 
+  // Roue de la Fortune hero — orange band with mini wheel + steps.
+  const rfHero = `
+    <section class="rf-hero">
+      <div class="rf-hero-inner">
+        <div class="rf-wheel" aria-hidden="true">
+          <div class="rf-wheel-rim"></div>
+          <div class="rf-wheel-pointer"></div>
+          <div class="rf-wheel-inner"></div>
+          <div class="rf-wheel-hub">z</div>
+        </div>
+        <div class="rf-hero-text">
+          <span class="rf-hero-pill">${engT('rf_pill')}</span>
+          <h2 class="rf-hero-title">🎡 ${engT('rf_title')}</h2>
+          <p class="rf-hero-sub">${engT('rf_sub')}${mySeller ? ' · ' + engT('eng_seller_label') + ' ' + gmvEscapeHtmlEng(mySeller) : ''}</p>
+        </div>
+      </div>
+    </section>
+    <div class="rf-steps">
+      <div class="rf-step"><span class="rf-step-num">1</span><div class="rf-step-title">${engT('rf_step1_t')}</div><div class="rf-step-desc">${engT('rf_step1_d')}</div></div>
+      <div class="rf-step"><span class="rf-step-num">2</span><div class="rf-step-title">${engT('rf_step2_t')}</div><div class="rf-step-desc">${engT('rf_step2_d')}</div></div>
+      <div class="rf-step"><span class="rf-step-num">3</span><div class="rf-step-title">${engT('rf_step3_t')}</div><div class="rf-step-desc">${engT('rf_step3_d')}</div></div>
+      <div class="rf-step"><span class="rf-step-num">4</span><div class="rf-step-title">${engT('rf_step4_t')}</div><div class="rf-step-desc">${engT('rf_step4_d')}</div></div>
+    </div>`;
   wrap.innerHTML = `
-    <div style="margin:0 0 14px;">
-      <h2 style="margin:0 0 4px; font-size:18px; font-weight:700;">${engT('eng_title')}</h2>
-      <div style="font-size:12px; color:#64748b;">${engT('eng_period_label')} <b>${gmvCurrentPeriodKey()}</b>${mySeller ? ` · ${engT('eng_seller_label')} <b>${gmvEscapeHtmlEng(mySeller)}</b>` : ''}</div>
-    </div>
+    ${rfHero}
     ${uploadsHtml}
-    <div style="display:inline-flex; gap:4px; margin:0 0 12px; padding:4px; background:#f1f5f9; border-radius:8px;">
-      ${tabBtn('focus', engT('eng_subtab_focus'))}
+    <div class="gmv-engtab-bar" role="tablist">
       ${tabBtn('paliers', engT('eng_subtab_paliers'))}
       ${tabBtn('scoreboard', engT('eng_subtab_score'))}
     </div>
@@ -19336,25 +19525,28 @@ async function gmvRenderEngagement(wrap) {
     });
   });
   // Wire creator uploads.
+  // No transient flash anymore — re-rendering after a successful upload
+  // is enough; the bar will switch to green automatically because both
+  // counts will be > 0.
+  const _flashOk = () => { try { gmvRenderEngagement(wrap); } catch (_) {} };
   const fU = document.getElementById('engFocusUpload');
   if (fU) fU.addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
-    try { await gmvOnUploadFocus(f); gmvRenderEngagement(wrap); }
+    try { await gmvOnUploadFocus(f); _flashOk(); }
     catch (err) { alert('Focus upload error: ' + (err.message || err)); }
     try { e.target.value = ''; } catch (_) {}
   });
   const pU = document.getElementById('engPaliersUpload');
   if (pU) pU.addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
-    try { await gmvOnUploadPaliers(f); gmvRenderEngagement(wrap); }
+    try { await gmvOnUploadPaliers(f); _flashOk(); }
     catch (err) { alert('Paliers upload error: ' + (err.message || err)); }
     try { e.target.value = ''; } catch (_) {}
   });
   // Render the active subtab.
   const panel = document.getElementById('engPanel');
-  if (sub === 'focus') gmvRenderEngagementFocus(panel, mySeller, isCreator);
-  else if (sub === 'paliers') gmvRenderEngagementPaliers(panel, mySeller, isCreator);
-  else gmvRenderEngagementScoreboard(panel, mySeller, isCreator);
+  if (sub === 'scoreboard') gmvRenderEngagementScoreboard(panel, mySeller, isCreator);
+  else gmvRenderEngagementPaliers(panel, mySeller, isCreator);
 }
 
 // Engagement campaign — May/June 2026.
@@ -19427,6 +19619,45 @@ const ENG_I18N = {
     sc_palier_hit: 'Paliers', sc_score: 'Score',
     sc_no_data: "Pas encore de données — engagez-vous sur des produits pour voir vos performances.",
     sc_great: 'Excellent !', sc_good: 'Bonne progression', sc_keep: 'Continuez',
+    pal_target: 'Palier ciblé', pal_my_products: 'Mes produits engagés',
+    rf_title: 'Roue de la Fortune', rf_sub: "Trade Marketing · Wholesale · Mai-Juin 2026",
+    rf_pill: '14 paliers · 3 cadeaux par palier',
+    rf_step1_t: 'Engagement signé', rf_step1_d: 'Cible 100K → 2,5M MAD sur Mai+Juin.',
+    rf_step2_t: '10 produits focus', rf_step2_d: 'Atteindre le min. MAD sur ≥10 références.',
+    rf_step3_t: 'Atteinte du palier', rf_step3_d: 'Le GMV cumulé débloque le palier.',
+    rf_step4_t: 'Tour de roue 🎡', rf_step4_d: '1 cadeau gagné parmi 3 (Bronze/Silver/Gold).',
+    rf_medal_1: 'Bronze', rf_medal_2: 'Silver', rf_medal_3: 'Gold',
+    rf_prizes: 'Cadeaux possibles',
+    pal_search: 'Rechercher un client...', pal_no_match: 'Aucun client ne correspond à la recherche.',
+    pal_milestones: 'Jalons de la campagne',
+    pal_expand_all: 'Tout déplier', pal_collapse_all: 'Tout replier',
+    pal_sec_won_t: 'Cadeaux débloqués', pal_sec_won_d: 'Au moins un cadeau de palier ouvert.',
+    pal_sec_ok_t: 'Minimum atteint',     pal_sec_ok_d: '10+ produits engagés, prochain palier en cours.',
+    pal_sec_idle_t: 'Pas encore actifs', pal_sec_idle_d: 'Moins de 10 produits engagés.',
+    sb_stat_clients: 'Clients', sb_stat_gifts: 'Cadeaux ouverts', sb_stat_gmv: 'GMV cumulé',
+    sb_kpi_clients: 'Clients', sb_kpi_gifts: 'Cadeaux ouverts', sb_kpi_at_min: 'Minimum atteint', sb_kpi_total_gmv: 'GMV total',
+    sb_status_title: 'Statut de mon portefeuille',
+    pal_portfolio: 'Mon portefeuille', pal_prize_at: 'au',
+    pal_setup_needed: 'À configurer', pal_choose_products: 'Choisir mes produits',
+    pal_setup_cta_t: 'Choisir mes produits pour ce client', pal_setup_cta_d: 'Sélectionner ≥10 produits avec leurs montants minimum.',
+    pal_setup_banner_t: '{n} client(s) sans produits engagés', pal_setup_banner_d: 'Pour chaque zbon, sélectionnez ≥10 produits parmi la liste focus.', pal_setup_banner_cta: 'Configurer maintenant →',
+    pal_month_may: 'Mai 2026', pal_month_june: 'Juin 2026',
+    pal_rule_both: 'Les 2 conditions ci-dessous doivent être atteintes.',
+    pal_cond_products: '{n} produits au minimum MAD livrés ({period})',
+    pal_cond_gmv: 'CA du client ≥ seuil du palier ({period})',
+    pal_campaign_window: 'Campagne', pal_tracked_over: 'Suivi sur',
+    pal_section_empty: 'Aucun client dans ce groupe pour le moment.',
+    pal_delivered: 'Livré', pal_units: 'unités',
+    pal_next_target: 'Prochain palier', pal_remaining: '{n} MAD restants pour le débloquer',
+    pal_all_done: '🎉 Tous les paliers atteints !',
+    pal_edit: 'Modifier', pal_done: 'Fermer',
+    pal_no_target: '— Pas de palier ciblé —', pal_no_target_set: 'Pas de palier ciblé',
+    pal_lvl: 'Palier {n}', pal_achieved: 'Palier atteint',
+    pal_clients: 'client(s) revendiqué(s)', pal_no_clients: 'Aucun client revendiqué. Allez dans \"Mes clients\" pour en revendiquer.',
+    pal_no_paliers: 'Aucun palier défini. Demandez au créateur de téléverser le fichier.',
+    pal_may_gift: 'Cadeau Mai 2026', pal_both_gift: 'Cadeau Mai+Juin 2026',
+    pal_gift_open: 'Cadeau débloqué', pal_gift_locked: 'Verrouillé',
+    pal_products: 'produits',
     eng_milestone_m1: 'Cible mai 2026', eng_milestone_both: 'Cible mai+juin 2026',
     eng_milestone_m1_hint: '5 produits doivent atteindre leur min. en mai',
     eng_milestone_both_hint: '10 produits cumulés sur mai+juin',
@@ -19467,6 +19698,45 @@ const ENG_I18N = {
     sc_palier_hit: 'Tiers', sc_score: 'Score',
     sc_no_data: "No data yet — commit to products to see your performance.",
     sc_great: 'Excellent!', sc_good: 'Good progress', sc_keep: 'Keep going',
+    pal_target: 'Target palier', pal_my_products: 'My committed products',
+    rf_title: 'Fortune Wheel', rf_sub: 'Trade Marketing · Wholesale · May-June 2026',
+    rf_pill: '14 paliers · 3 prizes per palier',
+    rf_step1_t: 'Engagement signed', rf_step1_d: 'Target 100K → 2.5M MAD across May+June.',
+    rf_step2_t: '10 focus products', rf_step2_d: 'Hit the MAD min on ≥10 SKUs.',
+    rf_step3_t: 'Reach the palier', rf_step3_d: 'Cumulative GMV unlocks the palier.',
+    rf_step4_t: 'Spin the wheel 🎡', rf_step4_d: '1 prize won among 3 (Bronze/Silver/Gold).',
+    rf_medal_1: 'Bronze', rf_medal_2: 'Silver', rf_medal_3: 'Gold',
+    rf_prizes: 'Possible prizes',
+    pal_search: 'Search clients...', pal_no_match: 'No clients match the search.',
+    pal_milestones: 'Campaign milestones',
+    pal_expand_all: 'Expand all', pal_collapse_all: 'Collapse all',
+    pal_sec_won_t: 'Gifts unlocked',     pal_sec_won_d: 'At least one palier gift opened.',
+    pal_sec_ok_t: 'Minimum reached',     pal_sec_ok_d: '10+ products committed, working toward next palier.',
+    pal_sec_idle_t: 'Not active yet',    pal_sec_idle_d: 'Fewer than 10 products committed.',
+    sb_stat_clients: 'Clients', sb_stat_gifts: 'Gifts open', sb_stat_gmv: 'Cumulative GMV',
+    sb_kpi_clients: 'Clients', sb_kpi_gifts: 'Gifts open', sb_kpi_at_min: 'At minimum', sb_kpi_total_gmv: 'Total GMV',
+    sb_status_title: 'My portfolio status',
+    pal_portfolio: 'My portfolio', pal_prize_at: 'at',
+    pal_setup_needed: 'Setup', pal_choose_products: 'Choose products',
+    pal_setup_cta_t: 'Choose products for this client', pal_setup_cta_d: 'Pick ≥10 focus SKUs with their MAD minimums.',
+    pal_setup_banner_t: '{n} client(s) without committed products', pal_setup_banner_d: 'For each client, pick ≥10 products from the focus list.', pal_setup_banner_cta: 'Set up now →',
+    pal_month_may: 'May 2026', pal_month_june: 'June 2026',
+    pal_rule_both: 'Both conditions below must be met.',
+    pal_cond_products: '{n} products at the MAD minimum delivered ({period})',
+    pal_cond_gmv: "Client's GMV ≥ palier threshold ({period})",
+    pal_campaign_window: 'Campaign', pal_tracked_over: 'Tracked over',
+    pal_section_empty: 'No clients in this group yet.',
+    pal_delivered: 'Delivered', pal_units: 'units',
+    pal_next_target: 'Next palier', pal_remaining: '{n} MAD to go to unlock it',
+    pal_all_done: '🎉 All paliers achieved!',
+    pal_edit: 'Edit', pal_done: 'Close',
+    pal_no_target: '— No target —', pal_no_target_set: 'No target set',
+    pal_lvl: 'Palier {n}', pal_achieved: 'Reached palier',
+    pal_clients: 'claimed client(s)', pal_no_clients: 'No claimed clients. Go to \"My clients\" to claim some.',
+    pal_no_paliers: 'No paliers defined. Ask the creator to upload the paliers file.',
+    pal_may_gift: 'May 2026 gift', pal_both_gift: 'May+June 2026 gift',
+    pal_gift_open: 'Gift unlocked', pal_gift_locked: 'Locked',
+    pal_products: 'products',
     eng_milestone_m1: 'May 2026 target', eng_milestone_both: 'May+June 2026 target',
     eng_milestone_m1_hint: '5 products must reach their min in May',
     eng_milestone_both_hint: '10 products cumulative across May+June',
@@ -19507,6 +19777,45 @@ const ENG_I18N = {
     sc_palier_hit: 'المستويات', sc_score: 'النتيجة',
     sc_no_data: 'لا توجد بيانات بعد — التزم بمنتجات لرؤية أدائك.',
     sc_great: '🔥 ممتاز !', sc_good: 'تقدم جيد', sc_keep: 'واصل',
+    pal_target: 'المستوى المستهدف', pal_my_products: 'منتجاتي الملتزم بها',
+    rf_title: 'عجلة الحظ', rf_sub: "Trade Marketing · ماي-يونيو 2026",
+    rf_pill: '14 مستوى · 3 هدايا لكل مستوى',
+    rf_step1_t: 'الالتزام موقع', rf_step1_d: 'الهدف 100K → 2.5M درهم على ماي+يونيو.',
+    rf_step2_t: '10 منتجات مختارة', rf_step2_d: 'الوصول للحد الأدنى بالدرهم على ≥10 منتجات.',
+    rf_step3_t: 'بلوغ المستوى', rf_step3_d: 'GMV التراكمي يفتح المستوى.',
+    rf_step4_t: 'دور العجلة 🎡', rf_step4_d: 'هدية واحدة من 3 (برونزية/فضية/ذهبية).',
+    rf_medal_1: 'برونزية', rf_medal_2: 'فضية', rf_medal_3: 'ذهبية',
+    rf_prizes: 'الهدايا الممكنة',
+    pal_search: 'البحث عن زبون...', pal_no_match: 'لا يوجد زبون يطابق البحث.',
+    pal_milestones: 'مراحل الحملة',
+    pal_expand_all: 'فتح الكل', pal_collapse_all: 'إغلاق الكل',
+    pal_sec_won_t: 'الهدايا مفتوحة',  pal_sec_won_d: 'هدية مستوى واحدة على الأقل مفتوحة.',
+    pal_sec_ok_t: 'الحد الأدنى مبلوغ', pal_sec_ok_d: '10+ منتجات ملتزم بها، نحو المستوى التالي.',
+    pal_sec_idle_t: 'لم ينشط بعد',    pal_sec_idle_d: 'أقل من 10 منتجات ملتزم بها.',
+    sb_stat_clients: 'الزبناء', sb_stat_gifts: 'الهدايا المفتوحة', sb_stat_gmv: 'GMV التراكمي',
+    sb_kpi_clients: 'الزبناء', sb_kpi_gifts: 'الهدايا المفتوحة', sb_kpi_at_min: 'الحد الأدنى مبلوغ', sb_kpi_total_gmv: 'GMV الإجمالي',
+    sb_status_title: 'حالة محفظتي',
+    pal_portfolio: 'محفظتي', pal_prize_at: 'في',
+    pal_setup_needed: 'يحتاج إعداد', pal_choose_products: 'اختر منتجاتي',
+    pal_setup_cta_t: 'اختر منتجاتك لهذا الزبون', pal_setup_cta_d: 'اختر 10 منتجات على الأقل من قائمة المنتجات المختارة.',
+    pal_setup_banner_t: '{n} زبون بدون منتجات ملتزم بها', pal_setup_banner_d: 'لكل زبون، اختر 10 منتجات على الأقل من القائمة.', pal_setup_banner_cta: 'بدء الإعداد ←',
+    pal_month_may: 'ماي 2026', pal_month_june: 'يونيو 2026',
+    pal_rule_both: 'يجب تحقيق الشرطين التاليين معا.',
+    pal_cond_products: '{n} منتج بالحد الأدنى للدرهم تم تسليمها ({period})',
+    pal_cond_gmv: 'CA الزبون ≥ عتبة المستوى ({period})',
+    pal_campaign_window: 'الحملة', pal_tracked_over: 'متتبع على',
+    pal_section_empty: 'لا يوجد زبون في هذه الفئة حاليا.',
+    pal_delivered: 'تم تسليمه', pal_units: 'وحدة',
+    pal_next_target: 'المستوى التالي', pal_remaining: 'متبقي {n} درهم لفتحه',
+    pal_all_done: '🎉 تم بلوغ كل المستويات !',
+    pal_edit: 'تعديل', pal_done: 'إغلاق',
+    pal_no_target: '— لا يوجد مستوى مستهدف —', pal_no_target_set: 'لم يتم تحديد مستوى',
+    pal_lvl: 'مستوى {n}', pal_achieved: 'تم بلوغ المستوى',
+    pal_clients: 'زبون مرتبط', pal_no_clients: 'لا يوجد زبون مرتبط. ادهب إلى \"زبنائي\" لاختيارهم.',
+    pal_no_paliers: 'لا توجد مستويات. اطلب من المالك رفع الملف.',
+    pal_may_gift: 'هدية ماي 2026', pal_both_gift: 'هدية ماي+يونيو 2026',
+    pal_gift_open: 'الهدية مفتوحة', pal_gift_locked: 'مغلقة',
+    pal_products: 'منتجات',
     eng_milestone_m1: 'هدف ماي 2026', eng_milestone_both: 'هدف ماي+يونيو 2026',
     eng_milestone_m1_hint: '5 منتجات يجب أن تبلغ حدها الأدنى في ماي',
     eng_milestone_both_hint: '10 منتجات تراكميا في ماي + يونيو',
@@ -19535,7 +19844,7 @@ function gmvSelectedGmv(seller, period, selectedCodes) {
     const meta = gmvEngagement.focusProducts[code] || {};
     const s = sold[code] || { qty: 0, gmv: 0 };
     total += s.gmv;
-    if (meta.min && s.qty >= meta.min) achieved++;
+    if (meta.min && s.gmv >= meta.min) achieved++;
   });
   return { sold, total, achieved };
 }
@@ -19551,7 +19860,7 @@ function gmvAchievedAcrossBothMonths(seller, selectedCodes) {
     const q = ((m1[code] && m1[code].qty) || 0) + ((m2[code] && m2[code].qty) || 0);
     const g = ((m1[code] && m1[code].gmv) || 0) + ((m2[code] && m2[code].gmv) || 0);
     totalGmv += g;
-    if (meta.min && q >= meta.min) achieved++;
+    if (meta.min && g >= meta.min) achieved++;
   });
   return { achieved, totalGmv };
 }
@@ -19730,74 +20039,489 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
 
 function gmvRenderEngagementPaliers(panel, mySeller, isCreator) {
   if (!panel) return;
+  panel.setAttribute('dir', engLang() === 'ar' ? 'rtl' : 'ltr');
   if (!gmvEngagement.paliers.length) {
-    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">No paliers defined yet. ' + (isCreator ? 'Upload a paliers file above.' : 'Ask the creator to upload the paliers file.') + '</div>';
+    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">' + engT('pal_no_paliers') + '</div>';
     return;
   }
   if (!mySeller && !isCreator) {
-    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">Sign in as a seller to commit and track paliers.</div>';
+    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">' + engT('eng_signin_seller') + '</div>';
     return;
   }
-  const period = gmvCurrentPeriodKey();
-  const seller = mySeller || '(creator)';
-  const commitment = (gmvEngagement.commitments[seller] || {}).paliers || {};
-  // Find this seller's claimed clients.
-  const myPhones = new Set();
+  const period   = gmvCurrentPeriodKey();
+  const seller   = mySeller || '(creator)';
+  const commit   = gmvEngagement.commitments[seller] || {};
+  const palTgts  = commit.paliers     || {};
+  const cFocus   = commit.clientFocus || {};
+  // Build the seller's client list from BOTH sources:
+  //   1. Manual claim   -> gmvClientAssignments.byPhone[phone].seller
+  //   2. Clients file   -> gmv.clients[phone].seller
+  // Manual claim wins (matches gmvComputeSoldForSeller's logic).
+  const myPhones = [];
+  const _seenPhones = new Set();
+  Object.entries(gmv.clients || {}).forEach(([phone, c]) => {
+    const claim = gmvClientAssignments && gmvClientAssignments.byPhone
+      ? gmvClientAssignments.byPhone[phone]
+      : null;
+    const assigned = (claim && claim.seller) || (c && c.seller) || '';
+    if (assigned === seller && !_seenPhones.has(phone)) {
+      _seenPhones.add(phone);
+      myPhones.push(phone);
+    }
+  });
+  // Also include any phones that are claimed but were missing from
+  // gmv.clients (defensive — keeps the manual claim flow working).
   Object.entries(gmvClientAssignments.byPhone || {}).forEach(([phone, a]) => {
-    if (a.seller === seller) myPhones.add(phone);
+    if (a.seller === seller && !_seenPhones.has(phone)) {
+      _seenPhones.add(phone);
+      myPhones.push(phone);
+    }
   });
-  if (!myPhones.size) {
-    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">No claimed clients yet. Go to "My clients" tab to claim some.</div>';
+  if (!myPhones.length) {
+    panel.innerHTML = '<div style="padding:24px; color:#94a3b8; text-align:center; font-size:13px;">' + engT('pal_no_clients') + '</div>';
     return;
   }
-  const ca = gmvComputeCaPerClient();
-  const palierOpts = ['<option value="0">— No target —</option>'].concat(
-    gmvEngagement.paliers.map(p => `<option value="${p.palier}">Palier ${p.palier} (${(p.threshold || 0).toLocaleString()} MAD)</option>`)
-  ).join('');
-  let html = `<table style="width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
-    <thead><tr style="background:#f8fafc;">
-      <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Client</th>
-      <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Phone</th>
-      <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Palier ciblé</th>
-      <th style="text-align:right; padding:8px 10px; font-size:11px; color:#64748b;">CA actuel</th>
-      <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Palier atteint</th>
-      <th style="text-align:left; padding:8px 10px; font-size:11px; color:#64748b;">Récompense (atteint)</th>
-    </tr></thead><tbody>`;
-  Array.from(myPhones).forEach(phone => {
-    const cl = (gmv.clients || {})[phone] || {};
-    const target = commitment[phone] || 0;
-    const cur = ca[phone] || 0;
-    const ach = gmvAchievedPalier(cur);
-    const targetP = (gmvEngagement.paliers || []).find(p => p.palier === parseInt(target));
-    const hitTarget = ach && targetP && ach.palier >= targetP.palier;
-    const rowBg = hitTarget ? 'background:#f0fdf4;' : '';
-    html += `<tr style="${rowBg} border-top:1px solid #f1f5f9;">
-      <td style="padding:6px 10px; font-weight:600;">${gmvEscapeHtmlEng(cl.name || '(no name)')}</td>
-      <td style="padding:6px 10px; font-family:monospace; font-size:12px; color:#475569;">${gmvEscapeHtmlEng(phone)}</td>
-      <td style="padding:6px 10px;">
-        <select data-eng-palier="${gmvEscapeHtmlEng(phone)}" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
-          ${palierOpts.replace('value="' + target + '"', 'value="' + target + '" selected')}
-        </select>
-      </td>
-      <td style="padding:6px 10px; text-align:right; font-weight:600;">${Math.round(cur).toLocaleString()} MAD</td>
-      <td style="padding:6px 10px;">${ach ? `<span style="background:#dbeafe; color:#1e40af; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">Palier ${ach.palier}</span>` : '<span style="color:#94a3b8; font-size:11px;">aucun</span>'}</td>
-      <td style="padding:6px 10px; font-size:11px; color:#64748b;">${ach ? gmvEscapeHtmlEng(ach.prize1 || '') : '—'}</td>
-    </tr>`;
+  myPhones.sort((a, b) => {
+    const na = (((gmv.clients || {})[a] || {}).name || '').toLowerCase();
+    const nb = (((gmv.clients || {})[b] || {}).name || '').toLowerCase();
+    return na.localeCompare(nb);
   });
-  html += `</tbody></table>`;
+  // Search filter — persistent across re-renders.
+  const _palQ = (gmvEngagement.paliersSearch || '').trim().toLowerCase();
+  const myPhonesAll = myPhones.slice();
+  const myPhonesFiltered = _palQ
+    ? myPhones.filter(p => {
+        const c = (gmv.clients || {})[p] || {};
+        return ((c.name || '') + ' ' + p).toLowerCase().includes(_palQ);
+      })
+    : myPhones;
+  const focusCodes = Object.keys(gmvEngagement.focusProducts || {});
+  const caM1   = gmvCaPerClientPeriod(ENG_PERIOD_M1);
+  const caM2   = gmvCaPerClientPeriod(ENG_PERIOD_M2);
+  const fmt    = n => Math.round(n || 0).toLocaleString('en-US');
+  const palierOpts = ['<option value="0">' + engT('pal_no_target') + '</option>'].concat(
+    gmvEngagement.paliers.map(p => `<option value="${p.palier}">${engT('pal_lvl', { n: p.palier })} (${fmt(p.threshold)} MAD)</option>`)
+  ).join('');
+  // Three buckets: clients with an unlocked gift, those at minimum
+  // products, and those who haven't engaged yet. idleHead collects
+  // the zero-commit cards so they surface first in their section.
+  const _bucket = { won: '', ok: '', idle: '', idleHead: '' };
+  const _counts = { won: 0, ok: 0, idle: 0, needs: 0 };
+  let cardsHtml = '';
+  // Sort paliers ascending so the auto-progression has stable ordering.
+  const sortedPaliers = (gmvEngagement.paliers || []).slice().sort((a, b) => (a.palier || 0) - (b.palier || 0));
+  if (!myPhonesFiltered.length) {
+    cardsHtml = `<div style="padding:32px 16px; text-align:center; color:#94a3b8; font-size:13px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px;">${engT('pal_no_match')}</div>`;
+  }
+  myPhonesFiltered.forEach(phone => {
+    const cl       = (gmv.clients || {})[phone] || {};
+    const cM1      = caM1[phone] || 0;
+    const cBoth    = (caM1[phone] || 0) + (caM2[phone] || 0);
+    // Highest palier already crossed by cumulative May+June GMV.
+    const ach      = gmvAchievedPalier(cBoth);
+    // Next-target palier = first palier whose threshold is still ahead.
+    // Defaults to Palier 1 when nothing has been crossed yet.
+    const targetP  = sortedPaliers.find(p => (p.threshold || 0) > cBoth) || null;
+    const allDone  = !targetP && sortedPaliers.length > 0;
+    // Per-client product commits + milestone achievement counts.
+    const myProds  = Object.keys(cFocus[phone] || {}).filter(c => cFocus[phone][c] && cFocus[phone][c].selected);
+    const m1Count  = gmvClientAchievedM1(seller, phone, myProds);
+    const bothCount = gmvClientAchievedBoth(seller, phone, myProds);
+    const m1HitMileMile = m1Count   >= ENG_CLIENT_MILESTONE_M1;
+    const bHitMile      = bothCount >= ENG_CLIENT_MILESTONE_BOTH;
+    // Gift unlock = milestone met AND client GMV crossed the targeted palier.
+    const m1Open   = !!(targetP && cM1   >= (targetP.threshold || 0) && m1HitMileMile);
+    const bothOpen = !!(targetP && cBoth >= (targetP.threshold || 0) && bHitMile);
+    const m1Pct    = Math.min(100, Math.round((m1Count   / ENG_CLIENT_MILESTONE_M1)   * 100));
+    const bothPct  = Math.min(100, Math.round((bothCount / ENG_CLIENT_MILESTONE_BOTH) * 100));
+    const prodPct  = Math.min(100, Math.round((myProds.length / ENG_CLIENT_MIN_PRODUCTS) * 100));
+    const prodOk   = myProds.length >= ENG_CLIENT_MIN_PRODUCTS;
+    const giftRow = (label, count, total, pct, open, gmvCur, gmvTgt) => `
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 10px; background:${open ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${open ? '#86efac' : '#e2e8f0'}; border-radius:6px; margin-top:6px;">
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:#0f172a; flex-wrap:wrap;">
+            <span>${label}</span>
+            <span style="font-size:10.5px; font-weight:700; color:${open ? '#16a34a' : '#94a3b8'};">${open ? '🎁 ' + engT('pal_gift_open') : engT('pal_gift_locked')}</span>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; font-size:10.5px; color:#64748b; margin-top:2px;">
+            <span><b style="color:${count >= total ? '#16a34a' : '#0f172a'};">${count}</b>/${total} ${engT('pal_products')}</span>
+            ${gmvTgt ? `<span><b style="color:${gmvCur >= gmvTgt ? '#16a34a' : '#0f172a'};">${fmt(gmvCur)}</b>/${fmt(gmvTgt)} MAD</span>` : `<span style="color:#dc2626;">${engT('pal_no_target_set')}</span>`}
+          </div>
+          <div style="height:2px; background:#f1f5f9; border-radius:99px; overflow:hidden; margin-top:4px;">
+            <div style="height:100%; width:${pct}%; background:${open ? '#16a34a' : '#3b82f6'}; transition:width .4s;"></div>
+          </div>
+        </div>
+      </div>`;
+    // ===== HERO (next palier) + medals =====
+    const _heroBlock = (() => {
+      if (allDone) {
+        return `<section class="pcard-hero is-done">
+          <div class="pcard-hero-eyebrow">🏆 ${engT('pal_all_done')}</div>
+        </section>`;
+      }
+      if (!targetP) return '';
+      const remaining = Math.max(0, (targetP.threshold || 0) - cBoth);
+      const progPct = Math.min(100, Math.round((cBoth / (targetP.threshold || 1)) * 100));
+      const _prizes = [
+        { tag: engT('rf_medal_1'), prize: targetP.prize1 || '', image: targetP.image1 || '' },
+        { tag: engT('rf_medal_2'), prize: targetP.prize2 || '', image: targetP.image2 || '' },
+        { tag: engT('rf_medal_3'), prize: targetP.prize3 || '', image: targetP.image3 || '' },
+      ].filter(m => m.prize);
+      const _prizesHtml = _prizes.length
+        ? `<div class="pcard-prizes">
+             <div class="pcard-prizes-label">🎁 ${engT('rf_prizes')}</div>
+             <div class="pcard-prize-list">
+               ${_prizes.map((m, i) => {
+                 const hasImg = !!m.image;
+                 const lead = hasImg
+                   ? `<img class="pcard-prize-img" src="${m.image}" alt="" loading="lazy">`
+                   : `<span class="pcard-prize-medal">${i + 1}</span>`;
+                 return `<div class="pcard-prize pcard-prize-${i + 1}${hasImg ? ' has-img' : ''}">
+                   ${lead}
+                   <span class="pcard-prize-name" title="${gmvEscapeHtmlEng(m.prize)}">${gmvEscapeHtmlEng(m.prize)}</span>
+                   <span class="pcard-prize-tag">${m.tag}</span>
+                 </div>`;
+               }).join('')}
+             </div>
+           </div>`
+        : '';
+      return `<section class="pcard-hero">
+        <div class="pcard-hero-eyebrow">${engT('pal_next_target')}</div>
+        <div class="pcard-hero-title">${engT('pal_lvl', { n: targetP.palier })}</div>
+        <div class="pcard-hero-meta">
+          <span><b>${fmt(cBoth)}</b> / ${fmt(targetP.threshold)} MAD</span>
+          <span class="pcard-hero-pct">${progPct}%</span>
+        </div>
+        <div class="pcard-progress"><span style="width:${progPct}%"></span></div>
+        <div class="pcard-hero-remaining">${engT('pal_remaining', { n: fmt(remaining) })}</div>
+        ${_prizesHtml}
+      </section>`;
+    })();
+
+    // ===== MILESTONES (two-condition checklist) =====
+    // periodLabel — 'Mai' / 'Mai+Juin' to make the GMV window explicit.
+    const _milestone = (open, count, total, label, gmvCur, gmvTgt, periodLabel) => {
+      const prodMet = count >= total;
+      const gmvMet  = !!gmvTgt && gmvCur >= gmvTgt;
+      const _check = met => `<span class="pcard-mile-cond-icon">${met ? '✓' : '✗'}</span>`;
+      const prodLine = `
+        <div class="pcard-mile-cond${prodMet ? ' is-met' : ''}">
+          ${_check(prodMet)}
+          <span class="pcard-mile-cond-text">${engT('pal_cond_products', { n: total, period: periodLabel })}</span>
+          <span class="pcard-mile-cond-value"><b>${count}</b> / ${total}</span>
+        </div>`;
+      const gmvLine = `
+        <div class="pcard-mile-cond${gmvMet ? ' is-met' : ''}">
+          ${_check(gmvMet)}
+          <span class="pcard-mile-cond-text">${engT('pal_cond_gmv', { period: periodLabel })}</span>
+          <span class="pcard-mile-cond-value">${gmvTgt ? `<b>${fmt(gmvCur)}</b> / ${fmt(gmvTgt)} MAD` : `<span style="color:#dc2626;">${engT('pal_no_target_set')}</span>`}</span>
+        </div>`;
+      return `
+        <div class="pcard-milestone-v2${open ? ' is-open' : ''}">
+          <div class="pcard-milestone-v2-head">
+            <span class="pcard-milestone-v2-icon">${open ? '🎁' : '🔒'}</span>
+            <div class="pcard-milestone-v2-text">
+              <div class="pcard-milestone-v2-name">${label}</div>
+              <div class="pcard-milestone-v2-sub">${engT('pal_rule_both')}</div>
+            </div>
+            <span class="pcard-milestone-v2-status">${open ? engT('pal_gift_open') : engT('pal_gift_locked')}</span>
+          </div>
+          <div class="pcard-milestone-v2-conds">
+            ${prodLine}
+            ${gmvLine}
+          </div>
+        </div>`;
+    };
+
+    // Classify into a bucket BEFORE building the HTML, so we can route it.
+    const _bucketKey = (m1Open || bothOpen)
+      ? 'won'
+      : (prodOk ? 'ok' : 'idle');
+    _counts[_bucketKey]++;
+    const _needsSetup = myProds.length === 0;
+    if (_needsSetup) _counts.needs = (_counts.needs || 0) + 1;
+    const _open = !!(gmvEngagement.expandedPaliers && gmvEngagement.expandedPaliers[phone]);
+    const _summaryProg = targetP ? Math.min(100, Math.round((cBoth / (targetP.threshold || 1)) * 100)) : (allDone ? 100 : 0);
+    const _summaryLabel = allDone
+      ? engT('pal_all_done')
+      : (targetP ? engT('pal_lvl', { n: targetP.palier }) : '');
+    const _summaryMeta = (targetP && !allDone)
+      ? `<span><b>${fmt(cBoth)}</b> / ${fmt(targetP.threshold)} MAD</span>`
+      : '';
+    // First non-empty prize at the next-target palier — shown as a
+    // small orange chip so sellers know what they're playing for.
+    const _nextPrize = targetP ? (targetP.prize1 || targetP.prize2 || targetP.prize3 || '') : '';
+    const _nextPrizeImg = targetP ? (targetP.image1 || targetP.image2 || targetP.image3 || '') : '';
+    const _giftIcon  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>';
+    const _nextPrizeLead = _nextPrizeImg
+      ? `<img class="pcard-summary-prize-img" src="${_nextPrizeImg}" alt="" loading="lazy">`
+      : _giftIcon;
+    const _nextPrizeHtml = (_nextPrize && !allDone)
+      ? `<div class="pcard-summary-prize">${_nextPrizeLead}<span class="pcard-summary-prize-name" title="${gmvEscapeHtmlEng(_nextPrize)}">${gmvEscapeHtmlEng(_nextPrize)}</span><span class="pcard-summary-prize-tag">${engT('pal_prize_at')} P${targetP.palier}</span></div>`
+      : '';
+    const _routeKey = (_needsSetup && _bucketKey === 'idle') ? 'idleHead' : _bucketKey;
+    _bucket[_routeKey] += `
+      <article class="pcard${_open ? ' pcard--open' : ''}${_needsSetup ? ' pcard--needs-setup' : ''}">
+        <header class="pcard-head" data-pal-toggle="${gmvEscapeHtmlEng(phone)}">
+          <div style="min-width:0; flex:1;">
+            <div class="pcard-name">${gmvEscapeHtmlEng(cl.name || '(no name)')}</div>
+            <div class="pcard-phone">${gmvEscapeHtmlEng(phone)}</div>
+          </div>
+          <div class="pcard-head-right">
+            ${_needsSetup ? `<span class="pcard-needs-badge">⚙ ${engT('pal_setup_needed')}</span>` : (ach ? `<span class="pcard-badge">${engT('pal_achieved')} ${ach.palier}</span>` : '')}
+            <span class="pcard-chevron" aria-hidden="true">▾</span>
+          </div>
+        </header>
+        <div class="pcard-summary">
+          ${_summaryLabel ? `<div class="pcard-summary-line">
+            <span style="color:#64748b;">${engT('pal_next_target')} : <b style="color:#0f172a;">${_summaryLabel}</b></span>
+            ${_summaryMeta}
+            <span class="pcard-summary-pct${allDone ? ' is-done' : ''}">${_summaryProg}%</span>
+          </div>` : ''}
+          <div class="pcard-summary-bar${allDone ? ' is-done' : ''}"><span style="width:${_summaryProg}%"></span></div>
+          <div class="pcard-summary-chips">
+            <span class="pcard-summary-chip${prodOk ? ' is-open' : ''}">${prodOk ? '✓' : '•'} ${engT('pal_my_products')} ${myProds.length}/${ENG_CLIENT_MIN_PRODUCTS}</span>
+            <span class="pcard-summary-chip${m1Open ? ' is-open' : ''}">${m1Open ? '✓' : '🔒'} ${engT('pal_may_gift')}</span>
+            <span class="pcard-summary-chip${bothOpen ? ' is-open' : ''}">${bothOpen ? '✓' : '🔒'} ${engT('pal_both_gift')}</span>
+          </div>
+          ${_nextPrizeHtml}
+        </div>
+        <div class="pcard-body">
+        ${_heroBlock}
+        <section class="pcard-commit">
+          <div class="pcard-commit-row">
+            <div class="pcard-commit-label">${engT('pal_my_products')}</div>
+            <div class="pcard-commit-count ${prodOk ? 'is-ok' : 'is-low'}">${myProds.length}<span class="denom"> / ${ENG_CLIENT_MIN_PRODUCTS}</span></div>
+            <button type="button" data-pal-edit="${gmvEscapeHtmlEng(phone)}" class="pcard-commit-btn">${myProds.length === 0 ? engT('pal_choose_products') : engT('pal_edit')}</button>
+          </div>
+          ${_needsSetup ? `<button type="button" data-pal-edit="${gmvEscapeHtmlEng(phone)}" class="pcard-setup-cta">
+            <span class="pcard-setup-cta-icon">+</span>
+            <span class="pcard-setup-cta-text">
+              <span class="pcard-setup-cta-title">${engT('pal_setup_cta_t')}</span>
+              <span class="pcard-setup-cta-sub">${engT('pal_setup_cta_d')} <b>${engT('pal_month_may')} + ${engT('pal_month_june')}</b>.</span>
+            </span>
+            <span class="pcard-setup-cta-arrow">→</span>
+          </button>` : `<div class="pcard-commit-bar${prodOk ? ' is-ok' : ''}"><span style="width:${prodPct}%"></span></div>`}
+          <div data-pal-products="${gmvEscapeHtmlEng(phone)}" style="display:none; margin-top:10px; max-height:320px; overflow-y:auto; padding:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;">
+            ${(() => {
+              if (!focusCodes.length) return `<div style="color:#94a3b8; font-size:12px; padding:6px;">${engT('eng_no_focus')}</div>`;
+              const _monthHeader = `<div class="pcard-prod-window">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                <span>${engT('pal_tracked_over')} <b>${engT('pal_month_may')} + ${engT('pal_month_june')}</b></span>
+              </div>`;
+              const sM1 = gmvComputeSoldForSellerClient(seller, phone, ENG_PERIOD_M1);
+              const sM2 = gmvComputeSoldForSellerClient(seller, phone, ENG_PERIOD_M2);
+              const sorted = focusCodes.slice().sort((a, b) => {
+                const sa = !!(cFocus[phone] && cFocus[phone][a] && cFocus[phone][a].selected);
+                const sb = !!(cFocus[phone] && cFocus[phone][b] && cFocus[phone][b].selected);
+                if (sa !== sb) return sa ? -1 : 1;
+                const qa = ((sM1[a] && sM1[a].qty) || 0) + ((sM2[a] && sM2[a].qty) || 0);
+                const qb = ((sM1[b] && sM1[b].qty) || 0) + ((sM2[b] && sM2[b].qty) || 0);
+                if (qa !== qb) return qb - qa;
+                return a.localeCompare(b);
+              });
+              return _monthHeader + sorted.map(code => {
+                const meta = gmvEngagement.focusProducts[code] || {};
+                const checked = !!(cFocus[phone] && cFocus[phone][code] && cFocus[phone][code].selected);
+                const qty = ((sM1[code] && sM1[code].qty) || 0) + ((sM2[code] && sM2[code].qty) || 0);
+                const mad = ((sM1[code] && sM1[code].gmv) || 0) + ((sM2[code] && sM2[code].gmv) || 0);
+                const min = meta.min || 0;
+                const hit = min > 0 && mad >= min;
+                const pct = min > 0 ? Math.min(100, Math.round((mad / min) * 100)) : (mad > 0 ? 100 : 0);
+                const nm = (meta.name || '').slice(0, 36);
+                const rowBg = hit ? '#f0fdf4' : (checked ? '#fff' : 'transparent');
+                const borderC = hit ? '#86efac' : (checked ? '#cbd5e1' : 'transparent');
+                return `<label style="display:flex; align-items:flex-start; gap:8px; padding:8px; margin-bottom:6px; font-size:12px; cursor:pointer; border-radius:6px; background:${rowBg}; border:1px solid ${borderC};">
+                  <input type="checkbox" data-pal-prod="${gmvEscapeHtmlEng(phone)}" value="${gmvEscapeHtmlEng(code)}" ${checked ? 'checked' : ''} style="cursor:pointer; flex-shrink:0; margin-top:1px;">
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; gap:6px; align-items:baseline;">
+                      <b style="color:#0f172a; flex-shrink:0;">${gmvEscapeHtmlEng(code)}</b>
+                      ${nm ? `<span style="color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">${gmvEscapeHtmlEng(nm)}</span>` : ''}
+                      ${hit ? '<span style="color:#16a34a; font-weight:700; flex-shrink:0;">✓</span>' : ''}
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:#64748b; margin-top:3px;">
+                      <span>${engT('pal_delivered')} : <b style="color:${hit ? '#16a34a' : '#0f172a'};">${fmt(mad)}</b>${min > 0 ? ' / ' + fmt(min) : ''} MAD</span>
+                      ${qty > 0 ? `<span>${qty} ${engT('pal_units')}</span>` : ''}
+                    </div>
+                    ${min > 0 ? `<div style="height:3px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin-top:5px;">
+                      <div style="height:100%; width:${pct}%; background:${hit ? '#16a34a' : '#3b82f6'}; transition:width .4s;"></div>
+                    </div>` : ''}
+                  </div>
+                </label>`;
+              }).join('');
+            })()}
+          </div>
+        </section>
+        <section class="pcard-milestones">
+          <div class="pcard-milestones-label">${engT('pal_milestones')}</div>
+          ${_milestone(m1Open,   m1Count,   ENG_CLIENT_MILESTONE_M1,   engT('pal_may_gift'),  cM1,   targetP ? targetP.threshold : 0, engT('pal_month_may'))}
+          ${_milestone(bothOpen, bothCount, ENG_CLIENT_MILESTONE_BOTH, engT('pal_both_gift'), cBoth, targetP ? targetP.threshold : 0, engT('pal_month_may') + ' + ' + engT('pal_month_june'))}
+        </section>
+        </div>
+      </article>`;
+  });
+  const _filtCount = myPhonesFiltered.length;
+  const _totCount  = myPhonesAll.length;
+  const _countTxt  = (_palQ && _filtCount !== _totCount)
+    ? (_filtCount + ' / ' + _totCount + ' ' + engT('pal_clients'))
+    : (_totCount + ' ' + engT('pal_clients'));
+  // Build the 3 sections.
+  const _exp = gmvEngagement.expandedSections || { won: true, ok: true, idle: false };
+  const _emptyHtml = engT('pal_section_empty');
+  const _section = (key, title, sub, icon, modCls) => {
+    const cnt = _counts[key];
+    const isOpen = !!_exp[key];
+    return `<section class="pal-section ${modCls}${isOpen ? ' pal-section--open' : ''}">
+      <header class="pal-section-head" data-pal-section="${key}">
+        <span class="pal-section-icon">${icon}</span>
+        <div style="flex:1; min-width:0;">
+          <div class="pal-section-title">${title}</div>
+          <div class="pal-section-sub">${sub}</div>
+        </div>
+        <span class="pal-section-count">${cnt}</span>
+        <svg class="pal-section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </header>
+      <div class="pal-section-body">
+        ${cnt > 0 ? `<div class="pal-cards-grid">${key === 'idle' ? (_bucket.idleHead || '') + _bucket.idle : _bucket[key]}</div>` : `<div class="pal-section-empty">${_emptyHtml}</div>`}
+      </div>
+    </section>`;
+  };
+  // Portfolio hero — same metrics as the scoreboard so the two pages
+  // tell a consistent story.
+  const _gmvTotal = myPhonesAll.reduce((t, p) => t + ((caM1[p] || 0) + (caM2[p] || 0)), 0);
+  const _giftsOpen = _counts.won;
+  const _searchIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+  const _portfolioHero = `
+    <section class="sb-hero" style="margin-bottom:12px;">
+      <div class="sb-hero-eyebrow">${engT('pal_portfolio')} · ${period}</div>
+      <h2 class="sb-hero-name">${gmvEscapeHtmlEng(seller)}</h2>
+      <div class="sb-hero-stats">
+        <div class="sb-hero-stat"><b>${myPhonesAll.length}</b><span>${engT('sb_stat_clients')}</span></div>
+        <div class="sb-hero-stat"><b>${_giftsOpen}</b><span>${engT('sb_stat_gifts')}</span></div>
+        <div class="sb-hero-stat"><b>${fmt(_gmvTotal)}</b><span>MAD · ${engT('sb_stat_gmv')}</span></div>
+      </div>
+      <div class="sb-hero-window">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        ${engT('pal_campaign_window')} · <b>${engT('pal_month_may')} → ${engT('pal_month_june')}</b>
+      </div>
+    </section>`;
+  // Setup banner (only shown when at least one client has no products).
+  const _needsCount = myPhonesAll.reduce((c, p) => {
+    const arr = Object.keys(cFocus[p] || {}).filter(k => cFocus[p][k] && cFocus[p][k].selected);
+    return arr.length === 0 ? c + 1 : c;
+  }, 0);
+  const _setupBanner = _needsCount > 0 ? `
+    <section class="pal-setup-banner">
+      <div class="pal-setup-banner-icon">⚙</div>
+      <div class="pal-setup-banner-text">
+        <div class="pal-setup-banner-title">${engT('pal_setup_banner_t', { n: _needsCount })}</div>
+        <div class="pal-setup-banner-sub">${engT('pal_setup_banner_d')} <b>${engT('pal_month_may')} + ${engT('pal_month_june')}</b>.</div>
+      </div>
+      <button type="button" id="palSetupJump" class="pal-setup-banner-btn">${engT('pal_setup_banner_cta')}</button>
+    </section>` : '';
   panel.innerHTML = `
-    <div style="display:flex; gap:8px; margin:0 0 10px;">
-      <span style="font-size:13px;"><b>${myPhones.size}</b> claimed client(s)</span>
-      <button type="button" id="engSavePaliers" class="btn btn-primary" style="margin-left:auto; font-size:12px;">Save my engagement</button>
-    </div>${html}`;
+    ${_portfolioHero}
+    ${_setupBanner}
+    <div style="display:flex; gap:10px; align-items:center; margin:0 0 12px; flex-wrap:wrap;">
+      <div class="pal-searchbar">
+        ${_searchIcon}
+        <input type="search" id="palSearch" placeholder="${engT('pal_search')}" value="${gmvEscapeHtmlEng(_palQ)}" autocomplete="off" />
+      </div>
+      <button type="button" id="engSavePaliers" class="pal-save-btn">${engT('eng_save')}</button>
+    </div>
+    <div class="pal-toolbar">
+      <div style="font-size:12px; color:#64748b; flex:1;">${_countTxt}</div>
+      <button type="button" id="palExpandAll"   class="pal-toolbar-btn">${engT('pal_expand_all')}</button>
+      <button type="button" id="palCollapseAll" class="pal-toolbar-btn">${engT('pal_collapse_all')}</button>
+    </div>
+    ${myPhonesFiltered.length === 0 && _palQ ? cardsHtml : `
+      ${_section('won',  engT('pal_sec_won_t'),  engT('pal_sec_won_d'),  '🎁', 'pal-section--won')}
+      ${_section('ok',   engT('pal_sec_ok_t'),   engT('pal_sec_ok_d'),   '✓',  'pal-section--ok')}
+      ${_section('idle', engT('pal_sec_idle_t'), engT('pal_sec_idle_d'), '⏳', 'pal-section--idle')}
+    `}`;
+  // Wire the search input — debounced to keep typing snappy.
+  const _palSearch = document.getElementById('palSearch');
+  if (_palSearch) {
+    let _palDebounce = null;
+    _palSearch.addEventListener('input', () => {
+      clearTimeout(_palDebounce);
+      _palDebounce = setTimeout(() => {
+        gmvEngagement.paliersSearch = _palSearch.value || '';
+        gmvRenderEngagementPaliers(panel, mySeller, isCreator);
+        const after = document.getElementById('palSearch');
+        if (after) { after.focus(); try { after.setSelectionRange(after.value.length, after.value.length); } catch (_) {} }
+      }, 120);
+    });
+  }
+  // Wire the setup banner: open the idle section and scroll to it.
+  const _setupJump = document.getElementById('palSetupJump');
+  if (_setupJump) _setupJump.addEventListener('click', () => {
+    if (!gmvEngagement.expandedSections) gmvEngagement.expandedSections = {};
+    gmvEngagement.expandedSections.idle = true;
+    const sec = panel.querySelector('[data-pal-section="idle"]');
+    if (sec) {
+      sec.closest('.pal-section').classList.add('pal-section--open');
+      sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+  // Wire section-head toggles (open/close a whole status group).
+  panel.querySelectorAll('[data-pal-section]').forEach(h => {
+    h.addEventListener('click', () => {
+      const k = h.dataset.palSection;
+      if (!gmvEngagement.expandedSections) gmvEngagement.expandedSections = {};
+      gmvEngagement.expandedSections[k] = !gmvEngagement.expandedSections[k];
+      const sec = h.closest('.pal-section');
+      if (sec) sec.classList.toggle('pal-section--open', !!gmvEngagement.expandedSections[k]);
+    });
+  });
+  // Wire the head-tap toggle that opens/closes a client card.
+  panel.querySelectorAll('[data-pal-toggle]').forEach(h => {
+    h.addEventListener('click', () => {
+      const phone = h.dataset.palToggle;
+      const card = h.closest('.pcard');
+      if (!card) return;
+      const open = card.classList.toggle('pcard--open');
+      if (!gmvEngagement.expandedPaliers) gmvEngagement.expandedPaliers = {};
+      if (open) gmvEngagement.expandedPaliers[phone] = true;
+      else      delete gmvEngagement.expandedPaliers[phone];
+    });
+  });
+  const _expAll = document.getElementById('palExpandAll');
+  if (_expAll) _expAll.addEventListener('click', () => {
+    if (!gmvEngagement.expandedPaliers) gmvEngagement.expandedPaliers = {};
+    myPhonesAll.forEach(p => { gmvEngagement.expandedPaliers[p] = true; });
+    gmvRenderEngagementPaliers(panel, mySeller, isCreator);
+  });
+  const _colAll = document.getElementById('palCollapseAll');
+  if (_colAll) _colAll.addEventListener('click', () => {
+    gmvEngagement.expandedPaliers = {};
+    gmvRenderEngagementPaliers(panel, mySeller, isCreator);
+  });
+  // Wire expand toggles for the per-client product list.
+  panel.querySelectorAll('[data-pal-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const phone = btn.dataset.palEdit;
+      const list = panel.querySelector('[data-pal-products="' + (window.CSS && CSS.escape ? CSS.escape(phone) : phone.replace(/"/g, '\\"')) + '"]');
+      if (list) list.style.display = list.style.display === 'none' ? '' : 'none';
+    });
+  });
+  // Save: collect palier targets + per-client product commits.
   const saveBtn = document.getElementById('engSavePaliers');
   if (saveBtn) saveBtn.addEventListener('click', async () => {
-    const paliers = {};
-    panel.querySelectorAll('[data-eng-palier]').forEach(s => {
-      const v = parseInt(s.value); if (v > 0) paliers[s.dataset.engPalier] = v;
+    // Palier targets are now auto-derived from GMV — only collect
+    // per-client product commitments from the UI.
+    const cFocusOut = {};
+    panel.querySelectorAll('[data-pal-prod]:checked').forEach(cb => {
+      const phone = cb.dataset.palProd;
+      const code  = cb.value;
+      if (!cFocusOut[phone]) cFocusOut[phone] = {};
+      cFocusOut[phone][code] = { selected: true };
     });
-    try { await gmvSaveEngagementCommitment(seller, period, { paliers }); alert('Saved.'); }
-    catch (e) { alert('Save failed: ' + (e.message || e)); }
+    try {
+      await gmvSaveEngagementCommitment(seller, period, { clientFocus: cFocusOut });
+      gmvRenderEngagementPaliers(panel, mySeller, isCreator);
+      try { saveBtn.textContent = engT('eng_saved'); setTimeout(() => { try { saveBtn.textContent = engT('eng_save'); } catch (_) {} }, 1500); } catch (_) {}
+    } catch (e) { alert('Save failed: ' + (e.message || e)); }
   });
 }
 
@@ -19806,181 +20530,196 @@ function gmvRenderEngagementScoreboard(panel, mySeller, isCreator) {
   panel.setAttribute('dir', engLang() === 'ar' ? 'rtl' : 'ltr');
   const period = gmvCurrentPeriodKey();
   const fmt = n => Math.round(n || 0).toLocaleString('en-US');
-  // Compute stats for one seller.
+
+  // ---- Helpers: enumerate a seller's clients (claims OR file). ----
+  const phonesForSeller = (seller) => {
+    const seen = new Set();
+    const out = [];
+    Object.entries(gmv.clients || {}).forEach(([phone, c]) => {
+      const claim = gmvClientAssignments && gmvClientAssignments.byPhone ? gmvClientAssignments.byPhone[phone] : null;
+      const assigned = (claim && claim.seller) || (c && c.seller) || '';
+      if (assigned === seller && !seen.has(phone)) { seen.add(phone); out.push(phone); }
+    });
+    Object.entries((gmvClientAssignments && gmvClientAssignments.byPhone) || {}).forEach(([phone, a]) => {
+      if (a.seller === seller && !seen.has(phone)) { seen.add(phone); out.push(phone); }
+    });
+    return out;
+  };
+
+  // ---- Aggregate stats for one seller across their portfolio. ----
   const computeFor = (seller) => {
-    const commitment = gmvEngagement.commitments[seller] || {};
-    const rawFocus = commitment.focus || {};
-    // Normalize: a "selected" entry means the seller committed to the SKU.
-    const focusSelected = Object.entries(rawFocus)
-      .filter(([_, v]) => v && (v.selected || typeof v === 'number'))
-      .map(([k]) => k);
-    const paliersTgt = commitment.paliers || {};
-    const sold = gmvComputeSoldForSeller(seller, period);
-    let focusGmv = 0, focusHit = 0;
-    focusSelected.forEach(code => {
-      const meta = gmvEngagement.focusProducts[code] || {};
-      const s = sold[code] || { qty: 0, gmv: 0 };
-      focusGmv += s.gmv;
-      if (meta.min && s.qty >= meta.min) focusHit++;
+    const phones = phonesForSeller(seller);
+    const commit = gmvEngagement.commitments[seller] || {};
+    const cFocus = commit.clientFocus || {};
+    const caM1 = gmvCaPerClientPeriod(ENG_PERIOD_M1);
+    const caM2 = gmvCaPerClientPeriod(ENG_PERIOD_M2);
+    const sortedPaliers = (gmvEngagement.paliers || []).slice().sort((a, b) => (a.palier || 0) - (b.palier || 0));
+    let totalGmv = 0;
+    let palierMax = 0;
+    let m1Gifts = 0, bothGifts = 0;
+    let won = 0, atMin = 0, idle = 0;
+    phones.forEach(phone => {
+      const c1 = caM1[phone] || 0;
+      const c2 = caM2[phone] || 0;
+      const cBoth = c1 + c2;
+      totalGmv += cBoth;
+      const ach = gmvAchievedPalier(cBoth);
+      if (ach && ach.palier > palierMax) palierMax = ach.palier;
+      const targetP = sortedPaliers.find(p => (p.threshold || 0) > cBoth) || null;
+      const myProds = Object.keys(cFocus[phone] || {}).filter(c => cFocus[phone][c] && cFocus[phone][c].selected);
+      const prodOk = myProds.length >= ENG_CLIENT_MIN_PRODUCTS;
+      const m1Count   = gmvClientAchievedM1(seller, phone, myProds);
+      const bothCount = gmvClientAchievedBoth(seller, phone, myProds);
+      const m1Open   = !!(targetP && c1    >= (targetP.threshold || 0) && m1Count   >= ENG_CLIENT_MILESTONE_M1);
+      const bothOpen = !!(targetP && cBoth >= (targetP.threshold || 0) && bothCount >= ENG_CLIENT_MILESTONE_BOTH);
+      if (m1Open) m1Gifts++;
+      if (bothOpen) bothGifts++;
+      if (m1Open || bothOpen) won++;
+      else if (prodOk) atMin++;
+      else idle++;
     });
-    // Milestone progress for the May/June campaign.
-    const m1 = gmvSelectedGmv(seller, ENG_PERIOD_M1, focusSelected);
-    const both = gmvAchievedAcrossBothMonths(seller, focusSelected);
-    const m1Done = m1.achieved >= ENG_MILESTONE_M1;
-    const bothDone = both.achieved >= ENG_MILESTONE_BOTH;
-    // Client tiers progress.
-    const ca = gmvComputeCaPerClient();
-    let palierHit = 0;
-    Object.entries(paliersTgt).forEach(([phone, target]) => {
-      const ach = gmvAchievedPalier(ca[phone] || 0);
-      if (ach && ach.palier >= parseInt(target)) palierHit++;
-    });
-    const focusTotal = focusSelected.length;
-    const palierTotal = Object.keys(paliersTgt).length;
-    const focusScore = focusTotal ? focusHit / focusTotal : 0;
-    const palierScore = palierTotal ? palierHit / palierTotal : 0;
-    const blend = Math.round(((focusScore + palierScore) / 2) * 100);
-    return { seller, focusSelected, focusHit, focusTotal, focusGmv, m1Achieved: m1.achieved, m1Done, bothAchieved: both.achieved, bothDone, palierHit, palierTotal, focusScorePct: Math.round(focusScore * 100), palierScorePct: Math.round(palierScore * 100), score: blend };
+    const giftsTotal = m1Gifts + bothGifts;
+    return {
+      seller,
+      clients: phones.length,
+      totalGmv,
+      palierMax,
+      m1Gifts, bothGifts, giftsTotal,
+      won, atMin, idle,
+    };
   };
 
-  // Donut helper: SVG circular progress.
-  const donut = (pct, color, size, strokeW, label) => {
-    const r = (size - strokeW) / 2;
-    const c = 2 * Math.PI * r;
-    const off = c * (1 - Math.max(0, Math.min(100, pct)) / 100);
-    return `
-      <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="display:block;">
-        <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="#f1f5f9" stroke-width="${strokeW}" fill="none"/>
-        <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="${color}" stroke-width="${strokeW}" fill="none"
-          stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round"
-          transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dashoffset .8s;"/>
-        <text x="50%" y="48%" text-anchor="middle" font-size="${Math.round(size*0.22)}" font-weight="700" fill="#0f172a">${pct}%</text>
-        ${label ? `<text x="50%" y="68%" text-anchor="middle" font-size="${Math.round(size*0.09)}" fill="#64748b">${label}</text>` : ''}
-      </svg>`;
-  };
-
-  // Decide which view to render: seller (only their data) or creator (full leaderboard).
+  // ===== PERSONAL VIEW =====
   if (mySeller && !isCreator) {
-    // PERSONAL VIEW
     const me = computeFor(mySeller);
-    if (me.focusTotal === 0 && me.palierTotal === 0) {
-      panel.innerHTML = `<div style="padding:48px 32px; text-align:center; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px;"><div style="font-size:32px; margin-bottom:8px;">📈</div><div style="font-size:13px; color:#64748b;">${engT('sc_no_data')}</div></div>`;
+    if (me.clients === 0) {
+      panel.innerHTML = `<div style="padding:40px 24px; text-align:center; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:14px;">
+        <div style="font-size:36px; margin-bottom:10px;">📈</div>
+        <div style="font-size:14px; color:#475569; font-weight:600;">${engT('sc_no_data')}</div>
+      </div>`;
       return;
     }
-    const scoreColor = me.score >= 75 ? '#16a34a' : me.score >= 40 ? '#f59e0b' : '#dc2626';
-    const moodEmoji = me.score >= 75 ? '🔥' : me.score >= 40 ? '👍' : '💪';
-    const moodTxt = me.score >= 75 ? engT('sc_great') : me.score >= 40 ? engT('sc_good') : engT('sc_keep');
-    const m1Color = me.m1Done ? '#16a34a' : '#3b82f6';
-    const bothColor = me.bothDone ? '#16a34a' : '#a855f7';
-    const m1Pct = Math.min(100, Math.round((me.m1Achieved / ENG_MILESTONE_M1) * 100));
-    const bothPct = Math.min(100, Math.round((me.bothAchieved / ENG_MILESTONE_BOTH) * 100));
+    const tot = me.won + me.atMin + me.idle;
+    const pctWon  = tot ? (me.won  / tot) * 100 : 0;
+    const pctOk   = tot ? (me.atMin / tot) * 100 : 0;
+    const pctIdle = tot ? (me.idle / tot) * 100 : 0;
     panel.innerHTML = `
-      <div style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius:18px; padding:28px 24px; color:#fff; margin-bottom:14px; position:relative; overflow:hidden;">
-        <div style="position:absolute; top:-30px; right:-30px; width:160px; height:160px; background:radial-gradient(circle, ${scoreColor}40 0%, transparent 70%); border-radius:50%;"></div>
-        <div style="position:relative; display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
-          <div style="flex-shrink:0;">${donut(me.score, scoreColor, 140, 14, '')}</div>
-          <div style="flex:1; min-width:200px;">
-            <div style="font-size:11px; opacity:.7; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;">${engT('sc_my_perf')} · ${period}</div>
-            <div style="font-size:24px; font-weight:700;">${gmvEscapeHtmlEng(me.seller)}</div>
-            <div style="margin-top:10px; font-size:14px; opacity:.9;">${moodEmoji} <b>${moodTxt}</b></div>
-            <div style="margin-top:6px; font-size:12px; opacity:.7;">${engT('sc_overall')} : <b style="color:${scoreColor};">${me.score}%</b></div>
-          </div>
+      <section class="sb-hero">
+        <div class="sb-hero-eyebrow">${engT('sc_my_perf')} · ${period}</div>
+        <h2 class="sb-hero-name">${gmvEscapeHtmlEng(me.seller)}</h2>
+        <div class="sb-hero-stats">
+          <div class="sb-hero-stat"><b>${me.clients}</b><span>${engT('sb_stat_clients')}</span></div>
+          <div class="sb-hero-stat"><b>${me.giftsTotal}</b><span>${engT('sb_stat_gifts')}</span></div>
+          <div class="sb-hero-stat"><b>${fmt(me.totalGmv)}</b><span>MAD · ${engT('sb_stat_gmv')}</span></div>
         </div>
+      </section>
+
+      <div class="sb-kpi-grid">
+        <article class="sb-kpi sb-kpi--idle">
+          <div class="sb-kpi-icon">👥</div>
+          <div class="sb-kpi-body">
+            <div class="sb-kpi-value">${me.clients}</div>
+            <div class="sb-kpi-label">${engT('sb_kpi_clients')}</div>
+          </div>
+        </article>
+        <article class="sb-kpi sb-kpi--won">
+          <div class="sb-kpi-icon">🎁</div>
+          <div class="sb-kpi-body">
+            <div class="sb-kpi-value">${me.giftsTotal}</div>
+            <div class="sb-kpi-label">${engT('sb_kpi_gifts')}</div>
+          </div>
+        </article>
+        <article class="sb-kpi sb-kpi--ok">
+          <div class="sb-kpi-icon">✓</div>
+          <div class="sb-kpi-body">
+            <div class="sb-kpi-value">${me.atMin}</div>
+            <div class="sb-kpi-label">${engT('sb_kpi_at_min')}</div>
+          </div>
+        </article>
+        <article class="sb-kpi sb-kpi--gmv">
+          <div class="sb-kpi-icon">💰</div>
+          <div class="sb-kpi-body">
+            <div class="sb-kpi-value">${fmt(me.totalGmv)}</div>
+            <div class="sb-kpi-label">MAD · ${engT('sb_kpi_total_gmv')}</div>
+          </div>
+        </article>
       </div>
 
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:14px;">
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
-          <div style="display:flex; align-items:center; gap:14px;">
-            ${donut(me.focusScorePct, '#3b82f6', 64, 8, '')}
-            <div style="flex:1; min-width:0;">
-              <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em;">${engT('sc_focus_score')}</div>
-              <div style="font-size:20px; font-weight:700; color:#0f172a; margin-top:2px;">${me.focusHit}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${me.focusTotal}</span></div>
-              <div style="font-size:11px; color:#64748b; margin-top:2px;">${engT('sc_committed')} : ${me.focusTotal} · ${engT('sc_reached')} : ${me.focusHit}</div>
-            </div>
-          </div>
+      <section class="sb-status">
+        <div class="sb-status-title">${engT('sb_status_title')}</div>
+        <div class="sb-status-bar">
+          ${me.won  > 0 ? `<span class="won"  style="width:${pctWon}%"></span>` : ''}
+          ${me.atMin > 0 ? `<span class="ok"   style="width:${pctOk}%"></span>` : ''}
+          ${me.idle > 0 ? `<span class="idle" style="width:${pctIdle}%"></span>` : ''}
         </div>
-
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
-          <div style="display:flex; align-items:center; gap:14px;">
-            ${donut(m1Pct, m1Color, 64, 8, '')}
-            <div style="flex:1; min-width:0;">
-              <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em;">${engT('eng_milestone_m1')}</div>
-              <div style="font-size:20px; font-weight:700; color:#0f172a; margin-top:2px;">${me.m1Achieved}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${ENG_MILESTONE_M1}</span></div>
-              <div style="font-size:11px; color:${me.m1Done ? '#16a34a' : '#64748b'}; margin-top:2px; font-weight:600;">${me.m1Done ? engT('eng_milestone_done') : engT('eng_milestone_m1_hint')}</div>
-            </div>
-          </div>
+        <div class="sb-status-legend">
+          <div class="sb-status-leg"><span class="sb-status-leg-dot won"></span><div><b>${me.won}</b> <span>${engT('pal_sec_won_t')}</span></div></div>
+          <div class="sb-status-leg"><span class="sb-status-leg-dot ok"></span><div><b>${me.atMin}</b> <span>${engT('pal_sec_ok_t')}</span></div></div>
+          <div class="sb-status-leg"><span class="sb-status-leg-dot idle"></span><div><b>${me.idle}</b> <span>${engT('pal_sec_idle_t')}</span></div></div>
         </div>
-
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
-          <div style="display:flex; align-items:center; gap:14px;">
-            ${donut(bothPct, bothColor, 64, 8, '')}
-            <div style="flex:1; min-width:0;">
-              <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em;">${engT('eng_milestone_both')}</div>
-              <div style="font-size:20px; font-weight:700; color:#0f172a; margin-top:2px;">${me.bothAchieved}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${ENG_MILESTONE_BOTH}</span></div>
-              <div style="font-size:11px; color:${me.bothDone ? '#16a34a' : '#64748b'}; margin-top:2px; font-weight:600;">${me.bothDone ? engT('eng_milestone_done') : engT('eng_milestone_both_hint')}</div>
-            </div>
-          </div>
-        </div>
-
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
-          <div style="display:flex; align-items:center; gap:14px;">
-            ${donut(me.palierScorePct, '#a855f7', 64, 8, '')}
-            <div style="flex:1; min-width:0;">
-              <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em;">${engT('sc_palier_score')}</div>
-              <div style="font-size:20px; font-weight:700; color:#0f172a; margin-top:2px;">${me.palierHit}<span style="font-size:14px; color:#94a3b8; font-weight:500;"> / ${me.palierTotal}</span></div>
-              <div style="font-size:11px; color:#64748b; margin-top:2px;">${engT('sc_clients_paliers')}</div>
-            </div>
-          </div>
-        </div>
-      </div>`;
+      </section>`;
     return;
   }
 
-  // CREATOR / VIEWER VIEW — full leaderboard.
+  // ===== CREATOR / VIEWER VIEW — LEADERBOARD =====
   const allSellers = new Set(Object.values(gmv.clients || {}).map(c => c && c.seller).filter(Boolean));
-  Object.values(gmvClientAssignments.byPhone || {}).forEach(a => { if (a.seller) allSellers.add(a.seller); });
-  const stats = Array.from(allSellers).map(computeFor).sort((a, b) => b.score - a.score);
+  Object.values((gmvClientAssignments && gmvClientAssignments.byPhone) || {}).forEach(a => { if (a.seller) allSellers.add(a.seller); });
+  const stats = Array.from(allSellers).map(computeFor)
+    .sort((a, b) => (b.giftsTotal - a.giftsTotal) || (b.totalGmv - a.totalGmv) || (b.atMin - a.atMin));
+  if (!stats.length) {
+    panel.innerHTML = `<div style="padding:40px 24px; text-align:center; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:14px; color:#64748b; font-size:13px;">${engT('sc_no_data')}</div>`;
+    return;
+  }
+  const totalGifts = stats.reduce((s, x) => s + x.giftsTotal, 0);
+  const totalClients = stats.reduce((s, x) => s + x.clients, 0);
+  const totalGmv = stats.reduce((s, x) => s + x.totalGmv, 0);
   const podium = stats.slice(0, 3);
   const rest = stats.slice(3);
   const podiumCard = (s, i) => {
-    const medals = ['🥇','🥈','🥉'];
-    const colors = ['#fbbf24', '#94a3b8', '#a3754f'];
-    return `
-      <div style="background:#fff; border:2px solid ${colors[i]}; border-radius:14px; padding:18px; text-align:center;">
-        <div style="font-size:32px; margin-bottom:6px;">${medals[i]}</div>
-        <div style="font-size:14px; font-weight:700; color:#0f172a;">${gmvEscapeHtmlEng(s.seller)}</div>
-        <div style="font-size:24px; font-weight:700; color:${colors[i]}; margin-top:6px;">${s.score}%</div>
-        <div style="font-size:11px; color:#64748b; margin-top:4px;">${engT('sc_focus_hit')}: <b>${s.focusHit}/${s.focusTotal}</b> · ${engT('sc_palier_hit')}: <b>${s.palierHit}/${s.palierTotal}</b></div>
-      </div>`;
+    const medals = ['🥇', '🥈', '🥉'];
+    const cls = ['r1', 'r2', 'r3'][i];
+    return `<article class="sb-podium-card ${cls}">
+      <div class="medal">${medals[i]}</div>
+      <div class="name">${gmvEscapeHtmlEng(s.seller)}</div>
+      <div class="big">${s.giftsTotal}</div>
+      <div class="meta">${engT('sb_kpi_gifts')}<br/><span>${s.clients} ${engT('sb_stat_clients').toLowerCase()} · ${fmt(s.totalGmv)} MAD</span></div>
+    </article>`;
   };
   panel.innerHTML = `
-    <div style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; border-radius:14px; padding:18px 22px; margin-bottom:14px;">
-      <div style="font-size:11px; opacity:.7; text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px;">${engT('sc_leaderboard')} · ${period}</div>
-      <div style="font-size:18px; font-weight:700;">${stats.length} ${engT('sc_seller').toLowerCase()}(s)</div>
-    </div>
-    ${podium.length ? `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:18px;">${podium.map((s, i) => podiumCard(s, i)).join('')}</div>` : ''}
+    <section class="sb-hero">
+      <div class="sb-hero-eyebrow">${engT('sc_leaderboard')} · ${period}</div>
+      <h2 class="sb-hero-name">${stats.length} ${engT('sc_seller').toLowerCase()}(s)</h2>
+      <div class="sb-hero-stats">
+        <div class="sb-hero-stat"><b>${totalClients}</b><span>${engT('sb_stat_clients')}</span></div>
+        <div class="sb-hero-stat"><b>${totalGifts}</b><span>${engT('sb_stat_gifts')}</span></div>
+        <div class="sb-hero-stat"><b>${fmt(totalGmv)}</b><span>MAD · ${engT('sb_stat_gmv')}</span></div>
+      </div>
+    </section>
+    ${podium.length ? `<div class="sb-podium">${podium.map(podiumCard).join('')}</div>` : ''}
     ${rest.length ? `
-      <table style="width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
-        <thead><tr style="background:#f8fafc;">
-          <th style="text-align:left; padding:10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em;">${engT('sc_rank')}</th>
-          <th style="text-align:left; padding:10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em;">${engT('sc_seller')}</th>
-          <th style="text-align:right; padding:10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em;">${engT('sc_focus_hit')}</th>
-          <th style="text-align:right; padding:10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em;">${engT('sc_palier_hit')}</th>
-          <th style="text-align:right; padding:10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em;">${engT('sc_score')}</th>
-        </tr></thead>
-        <tbody>
-          ${rest.map((s, i) => `
-            <tr style="border-top:1px solid #f1f5f9;">
-              <td style="padding:8px 10px; color:#94a3b8;">${i + 4}</td>
-              <td style="padding:8px 10px; font-weight:600;">${gmvEscapeHtmlEng(s.seller)}</td>
-              <td style="padding:8px 10px; text-align:right;">${s.focusHit} / ${s.focusTotal}</td>
-              <td style="padding:8px 10px; text-align:right;">${s.palierHit} / ${s.palierTotal}</td>
-              <td style="padding:8px 10px; text-align:right; font-weight:700; color:${s.score >= 75 ? '#166534' : s.score >= 40 ? '#f59e0b' : '#dc2626'};">${s.score}%</td>
+      <div class="sb-table-wrap">
+        <table class="sb-table">
+          <thead><tr>
+            <th>${engT('sc_rank')}</th>
+            <th>${engT('sc_seller')}</th>
+            <th class="num">${engT('sb_kpi_clients')}</th>
+            <th class="num">${engT('sb_kpi_gifts')}</th>
+            <th class="num">${engT('sb_kpi_at_min')}</th>
+            <th class="num">${engT('sb_kpi_total_gmv')} MAD</th>
+          </tr></thead>
+          <tbody>
+            ${rest.map((s, i) => `<tr>
+              <td style="color:#94a3b8;">${i + 4}</td>
+              <td style="font-weight:600;">${gmvEscapeHtmlEng(s.seller)}</td>
+              <td class="num">${s.clients}</td>
+              <td class="num" style="color:${s.giftsTotal > 0 ? '#c2410c' : '#94a3b8'};">${s.giftsTotal}</td>
+              <td class="num">${s.atMin}</td>
+              <td class="num">${fmt(s.totalGmv)}</td>
             </tr>`).join('')}
-        </tbody>
-      </table>` : ''}`;
+          </tbody>
+        </table>
+      </div>` : ''}`;
 }
-
 // =========================================================================
 // Client assignment pool — sellers claim wholesale clients from a shared
 // pool. Each client can be claimed by exactly ONE seller. Stored in the
@@ -20877,7 +21616,9 @@ function fulfillApplyLang() {
   if (typeof fulfillRenderAll === 'function') fulfillRenderAll();
 }
 function fulfillSetLang(lang) {
-  fulfill.lang = (lang === 'en') ? 'en' : 'fr';
+  // Delegate to the unified switcher so every surface stays in sync.
+  if (typeof window.appSetLang === 'function') { window.appSetLang(lang); return; }
+  fulfill.lang = (lang === 'en' || lang === 'ar') ? lang : 'fr';
   try { localStorage.setItem('rihab_ff_lang_v1', fulfill.lang); } catch (_) {}
   fulfillApplyLang();
 }
@@ -22677,7 +23418,7 @@ async function fulfillInit() {
       <div class="cmd-logo">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
       </div>
-      <span class="cmd-title">GMV Tracker</span>
+      <span class="cmd-title" dir="auto"><bdi>GMV Tracker</bdi></span>
     </div>
     <div class="cmd-spacer"></div>
     <button type="button" class="cmd-period" id="gmvPeriodBtn" title="Change the active period">
@@ -22981,7 +23722,1154 @@ async function fulfillInit() {
     #impersonationBanner { font-size:11px !important; padding:8px 10px !important; flex-wrap:wrap; gap:6px !important; }
     #impersonationStop { padding:6px 10px !important; font-size:11px !important; }
   }
-  /* RTL fine-tuning for Arabic */
+  /* === MOBILE LAYOUT FIXES — fix_mobile_layout.py === */
+  /* Bug 13 — Safe-area for hamburger toggle (iOS notch). */
+  .as-toggle {
+    top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+    left: calc(env(safe-area-inset-left, 0px) + 12px) !important;
+  }
+
+  @media (max-width: 900px) {
+    /* Bug 2/8/9 — every feature pane needs space below the fixed
+       hamburger. The per-feature mobile blocks below override the
+       earlier .app padding-top rule, so we re-apply it here with
+       higher specificity. */
+    .app-main > .app,
+    .app-main > .ff-app,
+    .app-main > .gmv-app,
+    .app-main > .settings-app,
+    .app-main > #featurePlanner {
+      padding-top: 64px !important;
+      padding-bottom: 88px !important;
+    }
+
+    /* Bug 10 — let the document scroll, not an inner pane. */
+    html, body { height: auto !important; min-height: 100%; overflow-x: hidden; }
+    .app-shell { min-height: 100vh; height: auto; align-items: stretch; }
+    .app-sidebar { /* sticky on desktop, fixed on mobile already */ }
+
+    /* Bug 3 — auth chip must stay inside the viewport and not eat
+       the bottom row of content. */
+    .sb-auth-chip {
+      left: 8px !important; right: 8px !important;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+      max-width: calc(100vw - 16px);
+      flex-wrap: wrap; justify-content: center;
+    }
+    .sb-auth-chip .sb-auth-email { max-width: calc(100vw - 140px); }
+
+    /* Bug 4 — stepper: scrollable + visible scrollbar so users see
+       there is more content to the side. */
+    .stepper {
+      flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scroll-snap-type: x proximity;
+      padding-bottom: 4px;
+    }
+    .stepper::-webkit-scrollbar { height: 4px; }
+    .stepper::-webkit-scrollbar-thumb { background: rgba(15,23,42,.18); border-radius: 99px; }
+    .stepper .step-chip { scroll-snap-align: start; flex-shrink: 0; }
+
+    /* Bug 5 — Order Fulfillment table scrollers always show their
+       scrollbar so users discover the right-hand columns. */
+    .ff-table-wrap, .ff-tabs {
+      scrollbar-width: thin;
+    }
+    .ff-table-wrap::-webkit-scrollbar,
+    .ff-tabs::-webkit-scrollbar { height: 6px; }
+    .ff-table-wrap::-webkit-scrollbar-thumb,
+    .ff-tabs::-webkit-scrollbar-thumb { background: rgba(15,23,42,.22); border-radius: 99px; }
+    /* Fade affordance on the right edge of horizontally scrollable
+       wrappers so the cut-off content is obvious. */
+    .ff-table-wrap, .stepper, .ff-tabs, .gmv-pagebar {
+      background-image: linear-gradient(to right, transparent calc(100% - 24px), rgba(15,23,42,.06));
+      background-position: right top;
+      background-size: 24px 100%;
+      background-repeat: no-repeat;
+    }
+
+    /* Bug 7 — Planner page-nav: scrollable pill bar instead of wrap. */
+    .page-nav {
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      padding-bottom: 4px;
+    }
+    .page-nav::-webkit-scrollbar { height: 4px; }
+    .page-nav::-webkit-scrollbar-thumb { background: rgba(15,23,42,.18); border-radius: 99px; }
+    .page-nav-btn { flex: 0 0 auto !important; white-space: nowrap; }
+  }
+/* === END MOBILE LAYOUT FIXES === */
+
+  /* === GMV MOBILE PASS — fix_gmv_mobile.py === */
+  /* Engagement sub-tab segmented control (Bug 4) */
+  .gmv-engtab-bar {
+    display: flex;
+    gap: 4px;
+    margin: 0 0 14px;
+    padding: 4px;
+    background: #f1f5f9;
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px #e2e8f0;
+  }
+  .gmv-engtab {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 8px 12px;
+    border: 0;
+    background: transparent;
+    color: #475569;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: background-color .15s, color .15s, box-shadow .15s;
+  }
+  .gmv-engtab:hover { color: #0f172a; }
+  .gmv-engtab.active {
+    background: #0f172a;
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .25);
+  }
+
+  /* Role badge — when mounted inside .gmv-inner it inherits page
+     padding; this is a small polish for spacing + RTL. */
+  #gmvRoleBadge {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1e40af;
+    font-size: 12px;
+    border: 1px solid #bfdbfe;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 768px) {
+    /* Bug 9 — make the page title visible on mobile. */
+    .gmv-cmdbar { flex-wrap: wrap; padding: 10px 12px; }
+    .gmv-cmdbar .cmd-title { font-size: 16px; font-weight: 700; }
+    .gmv-cmdbar .cmd-period { padding: 6px 10px; font-size: 12px; }
+    .gmv-cmdbar .cmd-period .period-dates { display: none; }
+    /* Sub-tabs wrap on phones if labels are too long for one row. */
+    .gmv-engtab-bar { flex-wrap: wrap; }
+    .gmv-engtab { flex: 1 1 calc(50% - 4px); font-size: 12px; padding: 9px 8px; }
+    /* Role badge gets a touch more breathing room on mobile. */
+    #gmvRoleBadge { font-size: 12px; padding: 10px 12px; }
+  }
+
+  /* RTL: flip badge border + ensure cmd-brand reads correctly. */
+  [dir="rtl"] #gmvRoleBadge { text-align: right; }
+  .gmv-cmdbar .cmd-brand .cmd-title { unicode-bidi: plaintext; }
+/* === END GMV MOBILE PASS === */
+
+  /* === GLOBAL LANG SWITCH — add_global_lang_switch.py === */
+  .app-lang-switch {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    right: calc(env(safe-area-inset-right, 0px) + 12px);
+    z-index: 1002;
+    display: inline-flex;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .08);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .app-lang-switch button {
+    border: 0;
+    background: transparent;
+    color: #475569;
+    padding: 6px 10px;
+    cursor: pointer;
+    min-width: 36px;
+    line-height: 1;
+    transition: background-color .12s, color .12s;
+    font: inherit;
+  }
+  .app-lang-switch button:hover { background: #f1f5f9; color: #0f172a; }
+  .app-lang-switch button.active { background: #0f172a; color: #fff; }
+  .app-lang-switch button + button { border-left: 1px solid #e2e8f0; }
+  body.is-locked .app-lang-switch { display: none; }
+  @media (max-width: 768px) {
+    .app-lang-switch { font-size: 10px; }
+    .app-lang-switch button { padding: 6px 8px; min-width: 32px; }
+  }
+/* === END GLOBAL LANG SWITCH === */
+
+  /* === ENGAGEMENT REDESIGN — fix_engagement_design.py === */
+  /* Sub-tabs: 3 equal columns on one row, no wrap. (#2) */
+  .gmv-engtab-bar {
+    flex-wrap: nowrap !important;
+  }
+  .gmv-engtab {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+  }
+
+  /* Sellers see only Engagement in the main page bar — hide it.
+     The body class is added by JS in gmvRenderPageBar. (#3) */
+  body.gmv-seller-only .gmv-pagebar { display: none !important; }
+
+  @media (max-width: 768px) {
+    /* Give the engagement page a top safe-area on phones so the
+       hamburger never sits over the sub-tab strip. (#1) */
+    body.gmv-seller-only #gmvResultsWrap { padding-top: 12px; }
+    .gmv-engtab { font-size: 11.5px; padding: 9px 6px; }
+  }
+
+  /* KPI cards: distinct accent stripes + soft icon badge. (#5) */
+  .eng-kpi {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .eng-kpi::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--kpi-accent, #94a3b8);
+  }
+  [dir="rtl"] .eng-kpi::before { inset: 0 0 0 auto; }
+  .eng-kpi.is-empty { background: #f8fafc; }
+  .eng-kpi-row { display: flex; align-items: center; gap: 14px; }
+  .eng-kpi-row > .eng-kpi-icon {
+    flex-shrink: 0;
+    width: 64px; height: 64px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--kpi-accent-soft, #f1f5f9);
+    color: var(--kpi-accent, #475569);
+  }
+  .eng-kpi-body { flex: 1; min-width: 0; }
+  .eng-kpi-label {
+    font-size: 11px; color: #64748b;
+    text-transform: uppercase; letter-spacing: .05em; font-weight: 600;
+  }
+  .eng-kpi-value {
+    font-size: 22px; font-weight: 800; color: #0f172a;
+    margin-top: 2px; line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .eng-kpi-value .eng-kpi-total {
+    font-size: 14px; color: #94a3b8; font-weight: 500;
+  }
+  .eng-kpi-hint { font-size: 11.5px; color: #64748b; margin-top: 4px; }
+  .eng-kpi.is-done { background: linear-gradient(135deg, #f0fdf4 0%, #fff 60%); border-color: #bbf7d0; }
+  .eng-kpi.is-done .eng-kpi-hint { color: #16a34a; font-weight: 600; }
+
+  /* Soft hero variant (when seller has 0 achievements). */
+  .eng-hero-soft {
+    background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%);
+    border: 1px solid #c7d2fe;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .eng-hero-soft .eng-hero-emoji { font-size: 36px; margin-bottom: 6px; }
+  .eng-hero-soft .eng-hero-title { font-size: 16px; font-weight: 700; color: #312e81; }
+  .eng-hero-soft .eng-hero-sub { font-size: 12.5px; color: #4338ca; margin-top: 4px; line-height: 1.5; }
+
+  /* === ROUE DE LA FORTUNE THEME — redesign_gmv_roue.py === */
+  :root {
+    --rf-orange:       #F6624A;
+    --rf-orange-dark:  #D54B33;
+    --rf-orange-light: #FFE8E2;
+    --rf-orange-soft:  #FFF5F3;
+    --rf-green:        #3B8083;
+    --rf-bronze:       #B57032;
+    --rf-silver:       #6B7B8C;
+    --rf-gold:         #C9A227;
+  }
+
+  /* ---------- Engagement campaign hero band ---------- */
+  .rf-hero {
+    position: relative;
+    background: linear-gradient(135deg, var(--rf-orange) 0%, var(--rf-orange-dark) 100%);
+    color: #fff;
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin: 0 0 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(246, 98, 74, 0.18);
+  }
+  .rf-hero::before {
+    content: "";
+    position: absolute;
+    inset-inline-end: -60px;
+    top: -60px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    border: 10px dashed rgba(255, 255, 255, 0.18);
+    animation: rf-spin 60s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes rf-spin { to { transform: rotate(360deg); } }
+  .rf-hero-inner {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  }
+  .rf-hero-text { flex: 1; min-width: 200px; }
+  .rf-hero-pill {
+    display: inline-block;
+    background: rgba(255,255,255,0.22);
+    padding: 3px 10px; border-radius: 99px;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700; margin-bottom: 8px;
+  }
+  .rf-hero-title { font-size: 22px; font-weight: 800; margin: 0; line-height: 1.15; letter-spacing: -0.01em; }
+  .rf-hero-sub   { font-size: 12.5px; opacity: 0.92; margin: 4px 0 0; line-height: 1.4; }
+
+  /* ---------- Mini fortune wheel ---------- */
+  .rf-wheel { width: 96px; height: 96px; flex-shrink: 0; position: relative; filter: drop-shadow(0 4px 14px rgba(0,0,0,0.18)); }
+  .rf-wheel-rim {
+    position: absolute; inset: -3px; border-radius: 50%;
+    background: conic-gradient(from 0deg, #FFD27A, #C9A227, #FFD27A, #B57032, #FFD27A, #6B7B8C, #FFD27A, #B57032, #FFD27A, #C9A227, #FFD27A);
+    animation: rf-spin 30s linear infinite;
+    box-shadow: 0 0 14px rgba(201, 162, 39, 0.55), inset 0 0 8px rgba(0,0,0,0.18);
+  }
+  .rf-wheel-inner {
+    width: 100%; height: 100%; border-radius: 50%; position: relative; overflow: hidden;
+    box-shadow: inset 0 0 0 2px #fff, inset 0 4px 10px rgba(255,255,255,0.45), inset 0 -8px 18px rgba(0,0,0,0.20);
+    animation: rf-spin 30s linear infinite;
+    background: conic-gradient(from 0deg, #B57032 0deg, #D58F4F 60deg, #B57032 120deg, #6B7B8C 120deg, #95A5B5 180deg, #6B7B8C 240deg, #C9A227 240deg, #F4D656 300deg, #C9A227 360deg);
+  }
+  .rf-wheel-inner::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(ellipse at 30% 25%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 35%), radial-gradient(ellipse at 70% 75%, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 50%);
+    pointer-events: none;
+  }
+  .rf-wheel-hub {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 42px; height: 42px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff 0%, #fdf3eb 60%, #ffd6c8 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Times New Roman", serif; color: var(--rf-orange-dark);
+    font-size: 22px; font-weight: 800; font-style: italic;
+    box-shadow: 0 0 0 3px var(--rf-orange), 0 0 0 4px #fff, 0 0 12px rgba(246,98,74,0.45);
+    z-index: 3;
+  }
+  .rf-wheel-pointer {
+    position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 9px solid transparent; border-right: 9px solid transparent;
+    border-top: 16px solid var(--rf-orange-dark);
+    z-index: 4; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.30));
+  }
+
+  /* ---------- "How it works" 4-step row ---------- */
+  .rf-steps {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    margin: 0 0 14px;
+  }
+  .rf-step {
+    position: relative; padding: 10px 12px 10px 38px;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  }
+  .rf-step-num {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--rf-orange); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 11.5px;
+  }
+  .rf-step-title { margin: 0; font-size: 11.5px; font-weight: 800; color: #111827; line-height: 1.2; }
+  .rf-step-desc  { margin: 2px 0 0; font-size: 10.5px; color: #6B7280; line-height: 1.3; }
+  @media (max-width: 768px) {
+    .rf-steps { grid-template-columns: 1fr 1fr; }
+    .rf-hero-title { font-size: 18px; }
+  }
+  @media (max-width: 480px) {
+    .rf-steps { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- Bronze / Silver / Gold prize chips ---------- */
+  .rf-medals { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .rf-medal {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px 4px 6px; border-radius: 99px;
+    background: #fff; border: 1px solid var(--rf-border, #e5e7eb);
+    font-size: 10.5px; font-weight: 600; color: #1f2937;
+    max-width: 100%; min-width: 0;
+  }
+  .rf-medal .rf-medal-dot {
+    width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.45), 0 1px 2px rgba(0,0,0,0.15);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 8px; color: #fff; font-weight: 800;
+  }
+  .rf-medal-1 { border-color: var(--rf-bronze); }
+  .rf-medal-1 .rf-medal-dot { background: linear-gradient(135deg, #D58F4F, var(--rf-bronze)); }
+  .rf-medal-2 { border-color: var(--rf-silver); }
+  .rf-medal-2 .rf-medal-dot { background: linear-gradient(135deg, #95A5B5, var(--rf-silver)); }
+  .rf-medal-3 { border-color: var(--rf-gold); }
+  .rf-medal-3 .rf-medal-dot { background: linear-gradient(135deg, #F4D656, var(--rf-gold)); }
+  .rf-medal-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+/* === END ROUE DE LA FORTUNE THEME === */
+  /* === PALIER CARD PREMIUM REDESIGN — redesign_palier_card.py === */
+  .pcard {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 1px rgba(15, 23, 42, .02);
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .pcard:hover { border-color: #d1d5db; box-shadow: 0 2px 6px rgba(15, 23, 42, .06); }
+  .pcard-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+  .pcard-name {
+    font-size: 16px; font-weight: 700; color: #0f172a; line-height: 1.25;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .pcard-phone {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; color: #94a3b8; margin-top: 3px; letter-spacing: .02em;
+  }
+  .pcard-badge {
+    background: #eef2ff; color: #4338ca;
+    padding: 4px 10px; border-radius: 99px;
+    font-size: 10.5px; font-weight: 700; white-space: nowrap;
+    border: 1px solid #c7d2fe; line-height: 1.4;
+  }
+
+  .pcard-hero {
+    position: relative;
+    background: linear-gradient(135deg, var(--rf-orange-soft, #fff5f3) 0%, #fff 80%);
+    border: 1px solid #fed7aa; border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 14px;
+  }
+  .pcard-hero.is-done {
+    background: linear-gradient(135deg, #ecfdf5 0%, #fff 80%);
+    border-color: #86efac;
+  }
+  .pcard-hero-eyebrow {
+    font-size: 10px; font-weight: 800; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--rf-orange-dark, #d54b33);
+  }
+  .pcard-hero.is-done .pcard-hero-eyebrow { color: #15803d; }
+  .pcard-hero-title {
+    font-size: 20px; font-weight: 800; color: #0f172a;
+    margin: 6px 0 0; line-height: 1.1; letter-spacing: -.01em;
+  }
+  .pcard-hero-meta {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 8px; flex-wrap: wrap;
+    font-size: 12.5px; color: #475569; margin: 12px 0 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .pcard-hero-meta b { color: #0f172a; font-weight: 700; }
+  .pcard-hero-pct { font-weight: 700; color: var(--rf-orange-dark, #d54b33); }
+  .pcard-hero.is-done .pcard-hero-pct { color: #15803d; }
+  .pcard-progress {
+    height: 8px; background: rgba(15, 23, 42, .06);
+    border-radius: 99px; overflow: hidden;
+  }
+  .pcard-progress > span {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--rf-orange, #f6624a), var(--rf-orange-dark, #d54b33));
+    border-radius: 99px;
+    transition: width .8s cubic-bezier(.2,.7,.3,1);
+  }
+  .pcard-hero.is-done .pcard-progress > span {
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+  }
+  .pcard-hero-remaining { font-size: 11.5px; color: #6b7280; margin-top: 8px; line-height: 1.4; }
+
+  .pcard-prizes { margin-top: 14px; }
+  .pcard-prizes-label {
+    font-size: 10px; font-weight: 800; letter-spacing: .12em;
+    text-transform: uppercase; color: #6b7280; margin: 0 0 8px;
+  }
+  .pcard-prize-list { display: flex; flex-direction: column; gap: 6px; }
+  .pcard-prize {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px 8px 8px;
+    background: #fff;
+    border: 1px solid #e5e7eb; border-left: 3px solid;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .pcard-prize-medal {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: #fff;
+    flex-shrink: 0;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,.45), 0 1px 2px rgba(0,0,0,.15);
+  }
+  .pcard-prize-1 { border-left-color: var(--rf-bronze, #b57032); }
+  .pcard-prize-1 .pcard-prize-medal { background: linear-gradient(135deg, #d58f4f, var(--rf-bronze, #b57032)); }
+  .pcard-prize-2 { border-left-color: var(--rf-silver, #6b7b8c); }
+  .pcard-prize-2 .pcard-prize-medal { background: linear-gradient(135deg, #95a5b5, var(--rf-silver, #6b7b8c)); }
+  .pcard-prize-3 { border-left-color: var(--rf-gold, #c9a227); }
+  .pcard-prize-3 .pcard-prize-medal { background: linear-gradient(135deg, #f4d656, var(--rf-gold, #c9a227)); }
+  .pcard-prize-name {
+    flex: 1; min-width: 0; color: #1f2937;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .pcard-prize-tag {
+    font-size: 9.5px; font-weight: 800; color: #6b7280;
+    text-transform: uppercase; letter-spacing: .08em; flex-shrink: 0;
+  }
+
+  .pcard-commit {
+    padding: 14px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    margin-bottom: 14px;
+  }
+  .pcard-commit-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+  }
+  .pcard-commit-label { font-size: 12px; color: #475569; flex: 1; min-width: 0; font-weight: 500; }
+  .pcard-commit-count {
+    font-size: 18px; font-weight: 800; color: #0f172a;
+    font-variant-numeric: tabular-nums; flex-shrink: 0;
+  }
+  .pcard-commit-count.is-low { color: #dc2626; }
+  .pcard-commit-count.is-ok  { color: #16a34a; }
+  .pcard-commit-count .denom { font-size: 12px; font-weight: 500; color: #94a3b8; }
+  .pcard-commit-btn {
+    background: #0f172a; color: #fff;
+    border: 0; padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; flex-shrink: 0;
+    min-height: 36px;
+    transition: background .12s, transform .08s;
+  }
+  .pcard-commit-btn:hover  { background: #1e293b; }
+  .pcard-commit-btn:active { transform: scale(.97); }
+  .pcard-commit-bar {
+    height: 5px; background: #e5e7eb;
+    border-radius: 99px; margin-top: 10px; overflow: hidden;
+  }
+  .pcard-commit-bar > span {
+    display: block; height: 100%;
+    background: #3b82f6;
+    border-radius: 99px;
+    transition: width .6s cubic-bezier(.2,.7,.3,1);
+  }
+  .pcard-commit-bar.is-ok > span { background: #16a34a; }
+
+  .pcard-milestones {
+    padding: 4px 0 0;
+  }
+  .pcard-milestones-label {
+    font-size: 10px; font-weight: 800; letter-spacing: .12em;
+    text-transform: uppercase; color: #6b7280; margin: 0 0 8px;
+  }
+  .pcard-milestone {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+  }
+  .pcard-milestone + .pcard-milestone { margin-top: 8px; }
+  .pcard-milestone.is-open { border-color: #86efac; background: #f0fdf4; }
+  .pcard-milestone-icon {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #f1f5f9; color: #94a3b8;
+    font-size: 13px; flex-shrink: 0;
+  }
+  .pcard-milestone.is-open .pcard-milestone-icon { background: #dcfce7; color: #16a34a; }
+  .pcard-milestone-text  { flex: 1; min-width: 0; }
+  .pcard-milestone-name  { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .pcard-milestone.is-open .pcard-milestone-name { color: #14532d; }
+  .pcard-milestone-meta  {
+    font-size: 11px; color: #6b7280; margin-top: 2px;
+    display: flex; gap: 10px; flex-wrap: wrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .pcard-milestone-meta b { color: #0f172a; font-weight: 700; }
+  .pcard-milestone-meta b.is-ok { color: #16a34a; }
+  .pcard-milestone-status {
+    font-size: 9.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .08em;
+    padding: 4px 8px; border-radius: 99px;
+    flex-shrink: 0; line-height: 1.4;
+  }
+  .pcard-milestone-status.is-open   { background: #dcfce7; color: #15803d; }
+  .pcard-milestone-status.is-locked { background: #f1f5f9; color: #94a3b8; }
+
+  @media (max-width: 768px) {
+    .pcard { padding: 14px; border-radius: 14px; }
+    .pcard-name { font-size: 15px; }
+    .pcard-hero { padding: 12px 14px; }
+    .pcard-hero-title { font-size: 18px; }
+    .pcard-prize { padding: 7px 9px 7px 7px; gap: 8px; font-size: 11.5px; }
+    .pcard-prize-medal { width: 22px; height: 22px; font-size: 10.5px; }
+    .pcard-commit-count { font-size: 16px; }
+    .pcard-milestone { padding: 10px 12px; gap: 10px; }
+    .pcard-milestone-name { font-size: 12.5px; }
+    .pcard-milestone-icon { width: 26px; height: 26px; }
+  }
+/* === END PALIER CARD PREMIUM REDESIGN === */
+  /* === PCARD COLLAPSE/EXPAND — compact_paliers.py === */
+  .pcard { padding: 0; cursor: default; }
+  .pcard-head {
+    margin: 0; padding: 14px 16px;
+    cursor: pointer; user-select: none;
+    transition: background .12s;
+  }
+  .pcard-head:hover { background: #f9fafb; border-radius: 16px 16px 0 0; }
+  .pcard:not(.pcard--open) .pcard-head:hover { border-radius: 16px; }
+  .pcard-head-right {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  }
+  .pcard-chevron {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #f1f5f9; color: #475569;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; flex-shrink: 0;
+    transition: transform .2s, background .12s;
+  }
+  .pcard--open .pcard-chevron { transform: rotate(180deg); background: #e2e8f0; }
+
+  /* Collapsed summary row beneath the head, visible only when closed. */
+  .pcard-summary {
+    padding: 0 16px 14px;
+    display: block;
+  }
+  .pcard--open .pcard-summary { display: none; }
+  .pcard-summary-line {
+    display: flex; align-items: baseline; gap: 8px; justify-content: space-between;
+    font-size: 12px; color: #475569;
+    margin-bottom: 6px; flex-wrap: wrap;
+  }
+  .pcard-summary-line b { color: #0f172a; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .pcard-summary-pct {
+    font-weight: 800; font-variant-numeric: tabular-nums;
+    color: var(--rf-orange-dark, #d54b33);
+  }
+  .pcard-summary-pct.is-done { color: #15803d; }
+  .pcard-summary-bar {
+    height: 5px; background: #f1f5f9;
+    border-radius: 99px; overflow: hidden; margin-bottom: 10px;
+  }
+  .pcard-summary-bar > span {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--rf-orange, #f6624a), var(--rf-orange-dark, #d54b33));
+    border-radius: 99px;
+    transition: width .6s cubic-bezier(.2,.7,.3,1);
+  }
+  .pcard-summary-bar.is-done > span { background: linear-gradient(90deg, #22c55e, #16a34a); }
+  .pcard-summary-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pcard-summary-chip {
+    font-size: 10.5px; font-weight: 700;
+    padding: 4px 10px; border-radius: 99px;
+    background: #f1f5f9; color: #6b7280;
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid #e5e7eb;
+  }
+  .pcard-summary-chip.is-open { background: #dcfce7; color: #15803d; border-color: #86efac; }
+
+  /* Expanded panel: holds the hero, commit, milestones. */
+  .pcard-body {
+    padding: 0 16px 16px;
+    display: block;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 14px;
+  }
+  .pcard:not(.pcard--open) .pcard-body { display: none; }
+
+  /* Tighten the bulk paddings/margins inside the expanded panel. */
+  .pcard-body .pcard-hero { margin-bottom: 12px; }
+  .pcard-body .pcard-commit { margin-bottom: 12px; }
+  .pcard-body .pcard-milestone + .pcard-milestone { margin-top: 6px; }
+
+  /* Header toolbar: expand-all / collapse-all controls. */
+  .pal-toolbar {
+    display: flex; gap: 6px; align-items: center;
+    margin: 0 0 10px;
+  }
+  .pal-toolbar-btn {
+    background: #fff; border: 1px solid #e5e7eb;
+    color: #475569;
+    padding: 6px 10px; border-radius: 8px;
+    font-size: 11px; font-weight: 600;
+    cursor: pointer; line-height: 1.3;
+  }
+  .pal-toolbar-btn:hover { background: #f9fafb; color: #0f172a; }
+
+  /* Optional desktop 2-column grid for very wide screens. */
+  @media (min-width: 900px) {
+    .pal-cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .pal-cards-grid > .pcard { margin-bottom: 0; }
+  }
+/* === END PCARD COLLAPSE/EXPAND === */
+  /* === PALIER SECTIONS — tile_paliers_sections.py === */
+  .pal-section {
+    margin-bottom: 18px;
+  }
+  .pal-section-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; cursor: pointer; user-select: none;
+    background: #fff;
+    border: 1px solid #e5e7eb; border-radius: 12px;
+    transition: background .12s, border-color .12s;
+  }
+  .pal-section-head:hover { background: #f9fafb; border-color: #d1d5db; }
+  .pal-section--open .pal-section-head { border-radius: 12px 12px 0 0; border-bottom-color: transparent; }
+  .pal-section-icon {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .pal-section--won .pal-section-icon  { background: #fff7ed; color: #c2410c; box-shadow: inset 0 0 0 1px #fed7aa; }
+  .pal-section--ok .pal-section-icon   { background: #f0fdf4; color: #15803d; box-shadow: inset 0 0 0 1px #86efac; }
+  .pal-section--idle .pal-section-icon { background: #f1f5f9; color: #64748b; box-shadow: inset 0 0 0 1px #cbd5e1; }
+  .pal-section-title {
+    flex: 1; min-width: 0;
+    font-size: 14px; font-weight: 700; color: #0f172a; line-height: 1.2;
+  }
+  .pal-section-sub {
+    font-size: 11px; color: #64748b; margin-top: 2px; font-weight: 500;
+  }
+  .pal-section-count {
+    background: #f1f5f9; color: #475569;
+    padding: 3px 10px; border-radius: 99px;
+    font-size: 11.5px; font-weight: 800;
+    font-variant-numeric: tabular-nums; flex-shrink: 0;
+  }
+  .pal-section--won .pal-section-count  { background: #fff7ed; color: #c2410c; }
+  .pal-section--ok .pal-section-count   { background: #f0fdf4; color: #15803d; }
+  .pal-section--idle .pal-section-count { background: #f1f5f9; color: #475569; }
+  .pal-section-chev {
+    width: 20px; height: 20px; flex-shrink: 0; color: #94a3b8;
+    transition: transform .2s;
+  }
+  .pal-section--open .pal-section-chev { transform: rotate(180deg); color: #0f172a; }
+  .pal-section-body {
+    border: 1px solid #e5e7eb; border-top: 0;
+    border-radius: 0 0 12px 12px;
+    padding: 12px;
+    background: #fafafa;
+  }
+  .pal-section:not(.pal-section--open) .pal-section-body { display: none; }
+  .pal-section-body .pcard { background: #fff; }
+  .pal-section-body .pal-cards-grid > .pcard { margin-bottom: 0; }
+  .pal-section-empty {
+    padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;
+    background: #fff; border-radius: 8px; border: 1px dashed #e5e7eb;
+  }
+/* === END PALIER SECTIONS === */
+  /* === SCOREBOARD REDESIGN — redesign_scoreboard.py === */
+  .sb-hero {
+    position: relative; overflow: hidden;
+    background: linear-gradient(135deg, var(--rf-orange, #f6624a) 0%, var(--rf-orange-dark, #d54b33) 100%);
+    color: #fff; border-radius: 16px;
+    padding: 20px 22px; margin: 0 0 14px;
+    box-shadow: 0 4px 14px rgba(246, 98, 74, .2);
+  }
+  .sb-hero::before {
+    content: ""; position: absolute;
+    inset-inline-end: -60px; top: -60px;
+    width: 200px; height: 200px; border-radius: 50%;
+    border: 10px dashed rgba(255,255,255,.18);
+    animation: rf-spin 60s linear infinite; pointer-events: none;
+  }
+  .sb-hero-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; opacity: .85; }
+  .sb-hero-name    { font-size: 22px; font-weight: 800; line-height: 1.15; margin: 4px 0 0; letter-spacing: -.01em; }
+  .sb-hero-stats   {
+    display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px;
+    font-size: 12.5px; font-variant-numeric: tabular-nums; position: relative;
+  }
+  .sb-hero-stat b  { font-size: 20px; font-weight: 800; display: block; line-height: 1.1; }
+  .sb-hero-stat span { opacity: .85; font-size: 11px; letter-spacing: .04em; }
+
+  .sb-kpi-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px; margin: 0 0 16px;
+  }
+  .sb-kpi {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .sb-kpi:hover { border-color: #d1d5db; box-shadow: 0 2px 6px rgba(15, 23, 42, .06); }
+  .sb-kpi-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .sb-kpi-body  { flex: 1; min-width: 0; }
+  .sb-kpi-value {
+    font-size: 22px; font-weight: 800; color: #0f172a;
+    line-height: 1.1; letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .sb-kpi-label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: #6b7280; margin-top: 3px;
+  }
+  .sb-kpi--won  .sb-kpi-icon { background: #fff7ed; color: #c2410c; }
+  .sb-kpi--ok   .sb-kpi-icon { background: #f0fdf4; color: #15803d; }
+  .sb-kpi--idle .sb-kpi-icon { background: #f1f5f9; color: #475569; }
+  .sb-kpi--gmv  .sb-kpi-icon { background: #eef2ff; color: #4338ca; }
+
+  .sb-status {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+    padding: 16px 18px; margin: 0 0 14px;
+  }
+  .sb-status-title {
+    font-size: 10.5px; font-weight: 800; letter-spacing: .12em;
+    text-transform: uppercase; color: #6b7280; margin: 0 0 12px;
+  }
+  .sb-status-bar {
+    display: flex; height: 10px; border-radius: 99px; overflow: hidden;
+    background: #f1f5f9; margin: 0 0 12px;
+  }
+  .sb-status-bar > span { display: block; transition: width .6s cubic-bezier(.2,.7,.3,1); }
+  .sb-status-bar > span.won  { background: linear-gradient(90deg, #fdba74, var(--rf-orange-dark, #d54b33)); }
+  .sb-status-bar > span.ok   { background: linear-gradient(90deg, #4ade80, #16a34a); }
+  .sb-status-bar > span.idle { background: #cbd5e1; }
+  .sb-status-legend {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+  }
+  .sb-status-leg {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px;
+  }
+  .sb-status-leg-dot {
+    width: 10px; height: 10px; border-radius: 99px; flex-shrink: 0;
+  }
+  .sb-status-leg .won  { background: var(--rf-orange-dark, #d54b33); }
+  .sb-status-leg .ok   { background: #16a34a; }
+  .sb-status-leg .idle { background: #cbd5e1; }
+  .sb-status-leg b   { color: #0f172a; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .sb-status-leg span { color: #6b7280; font-size: 11px; }
+
+  /* Leaderboard (creator view) */
+  .sb-podium {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px; margin: 0 0 18px;
+  }
+  .sb-podium-card {
+    background: #fff; border: 2px solid; border-radius: 14px;
+    padding: 18px; text-align: center;
+  }
+  .sb-podium-card .medal { font-size: 28px; margin-bottom: 4px; }
+  .sb-podium-card .name  { font-size: 14px; font-weight: 800; color: #0f172a; }
+  .sb-podium-card .big   {
+    font-size: 28px; font-weight: 800; margin-top: 8px;
+    font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  .sb-podium-card .meta  { font-size: 11px; color: #6b7280; margin-top: 6px; line-height: 1.4; }
+  .sb-podium-card.r1 { border-color: #fbbf24; }
+  .sb-podium-card.r1 .big { color: #d97706; }
+  .sb-podium-card.r2 { border-color: #94a3b8; }
+  .sb-podium-card.r2 .big { color: #475569; }
+  .sb-podium-card.r3 { border-color: #a3754f; }
+  .sb-podium-card.r3 .big { color: #92400e; }
+
+  .sb-table-wrap {
+    background: #fff; border: 1px solid #e5e7eb;
+    border-radius: 12px; overflow: hidden;
+  }
+  .sb-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sb-table th {
+    text-align: start; padding: 10px 12px;
+    font-size: 10px; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase; color: #6b7280;
+    background: #f9fafb;
+  }
+  .sb-table th.num { text-align: end; }
+  .sb-table td { padding: 10px 12px; border-top: 1px solid #f1f5f9; }
+  .sb-table td.num { text-align: end; font-weight: 700; color: #0f172a; }
+
+  @media (max-width: 600px) {
+    .sb-hero { padding: 16px 18px; border-radius: 14px; }
+    .sb-hero-name { font-size: 18px; }
+    .sb-hero-stat b { font-size: 17px; }
+    .sb-kpi-grid { grid-template-columns: 1fr 1fr; }
+    .sb-kpi-value { font-size: 19px; }
+  }
+/* === END SCOREBOARD REDESIGN === */
+  /* === PALIERS POLISH — polish_paliers_page.py === */
+  .pal-searchbar {
+    position: relative; flex: 1; min-width: 200px;
+  }
+  .pal-searchbar svg {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; color: #94a3b8; pointer-events: none;
+  }
+  [dir="rtl"] .pal-searchbar svg { left: auto; right: 12px; }
+  .pal-searchbar input {
+    width: 100%; height: 40px; padding: 0 14px 0 38px;
+    border: 1px solid #e5e7eb; border-radius: 10px;
+    font-size: 13.5px; background: #fff;
+    transition: border-color .12s, box-shadow .12s;
+    box-sizing: border-box;
+  }
+  [dir="rtl"] .pal-searchbar input { padding: 0 38px 0 14px; }
+  .pal-searchbar input:hover  { border-color: #cbd5e1; }
+  .pal-searchbar input:focus  { outline: 0; border-color: var(--rf-orange, #f6624a); box-shadow: 0 0 0 3px rgba(246, 98, 74, .12); }
+
+  .pal-save-btn {
+    background: #0f172a; color: #fff;
+    border: 0; padding: 0 18px; height: 40px;
+    border-radius: 10px;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; flex-shrink: 0;
+    transition: background .12s, transform .08s;
+  }
+  .pal-save-btn:hover  { background: #1e293b; }
+  .pal-save-btn:active { transform: scale(.97); }
+
+  /* Next-prize preview chip on collapsed cards. */
+  .pcard-summary-prize {
+    margin-top: 8px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    background: #fff7ed; border: 1px solid #fed7aa;
+    border-radius: 8px;
+    font-size: 11.5px; color: #9a3412;
+  }
+  .pcard-summary-prize svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .pcard-summary-prize-name {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-weight: 600;
+  }
+  .pcard-summary-prize-tag {
+    font-size: 9px; font-weight: 800; letter-spacing: .08em;
+    text-transform: uppercase; color: #c2410c;
+    background: #ffedd5; padding: 2px 6px; border-radius: 99px; flex-shrink: 0;
+  }
+/* === END PALIERS POLISH === */
+  /* === PRODUCT SETUP SURFACE — highlight_product_selection.py === */
+  /* Top-of-page setup nudge. */
+  .pal-setup-banner {
+    position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border: 1px solid #fde68a;
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin: 0 0 14px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .pal-setup-banner-icon {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: #fef3c7; color: #b45309;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px #fcd34d;
+  }
+  .pal-setup-banner-text { flex: 1; min-width: 0; }
+  .pal-setup-banner-title {
+    font-size: 14px; font-weight: 800; color: #78350f;
+    line-height: 1.3;
+  }
+  .pal-setup-banner-sub {
+    font-size: 12px; color: #92400e; margin-top: 3px; line-height: 1.4;
+  }
+  .pal-setup-banner-btn {
+    background: #b45309; color: #fff; border: 0;
+    padding: 9px 16px; border-radius: 10px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    flex-shrink: 0; transition: background .12s, transform .08s;
+  }
+  .pal-setup-banner-btn:hover  { background: #92400e; }
+  .pal-setup-banner-btn:active { transform: scale(.97); }
+
+  /* Needs-setup state on the per-client card. */
+  .pcard.pcard--needs-setup {
+    border-color: #fcd34d;
+    background: linear-gradient(180deg, #fffbeb 0%, #fff 50%);
+    box-shadow: 0 1px 2px rgba(180, 83, 9, .08);
+  }
+  .pcard-needs-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: 99px;
+    background: #fef3c7; color: #b45309;
+    font-size: 10.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .06em;
+    border: 1px solid #fcd34d;
+    line-height: 1.4;
+  }
+
+  /* Big CTA inside an unset card. */
+  .pcard-setup-cta {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px;
+    background: #fff;
+    border: 1.5px dashed #fcd34d;
+    border-radius: 10px;
+    margin-top: 10px;
+    width: 100%;
+    cursor: pointer; user-select: none;
+    color: #78350f;
+    transition: background .12s, border-color .12s;
+  }
+  .pcard-setup-cta:hover { background: #fffbeb; border-color: #f59e0b; }
+  .pcard-setup-cta-icon {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #fef3c7; color: #b45309;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0; font-weight: 800;
+  }
+  .pcard-setup-cta-text { flex: 1; min-width: 0; }
+  .pcard-setup-cta-title {
+    font-size: 12.5px; font-weight: 800; color: #78350f; line-height: 1.2;
+  }
+  .pcard-setup-cta-sub {
+    font-size: 11px; color: #92400e; margin-top: 2px;
+  }
+  .pcard-setup-cta-arrow {
+    color: #b45309; font-size: 16px; flex-shrink: 0;
+  }
+/* === END PRODUCT SETUP SURFACE === */
+  /* === CAMPAIGN MONTHS LABEL — label_campaign_months.py === */
+  /* Campaign window pill in the portfolio hero. */
+  .sb-hero-window {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 10px;
+    padding: 4px 10px 4px 6px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 99px;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: .02em;
+    position: relative;
+  }
+  .sb-hero-window svg { width: 13px; height: 13px; flex-shrink: 0; }
+  .sb-hero-window b { font-weight: 800; }
+
+  /* Month coverage banner inside the expanded products picker. */
+  .pcard-prod-window {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    background: linear-gradient(135deg, var(--rf-orange-soft, #fff5f3) 0%, #fff 100%);
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 11.5px; color: #9a3412;
+    font-weight: 600;
+  }
+  .pcard-prod-window svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--rf-orange-dark, #d54b33); }
+/* === END CAMPAIGN MONTHS LABEL === */
+  /* === EXPLICIT UNLOCK RULE — explicit_unlock_rule.py === */
+  /* Two-condition milestone restructure. */
+  .pcard-milestone-v2 {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .pcard-milestone-v2 + .pcard-milestone-v2 { margin-top: 8px; }
+  .pcard-milestone-v2.is-open { border-color: #86efac; }
+
+  .pcard-milestone-v2-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: #fafafa;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .pcard-milestone-v2.is-open .pcard-milestone-v2-head { background: #f0fdf4; border-bottom-color: #86efac; }
+  .pcard-milestone-v2-icon {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #fff7ed; color: #c2410c;
+    box-shadow: inset 0 0 0 1px #fed7aa;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .pcard-milestone-v2.is-open .pcard-milestone-v2-icon {
+    background: #dcfce7; color: #15803d; box-shadow: inset 0 0 0 1px #86efac;
+  }
+  .pcard-milestone-v2-text { flex: 1; min-width: 0; }
+  .pcard-milestone-v2-name {
+    font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.2;
+  }
+  .pcard-milestone-v2.is-open .pcard-milestone-v2-name { color: #14532d; }
+  .pcard-milestone-v2-sub {
+    font-size: 10.5px; color: #6b7280; margin-top: 2px;
+  }
+
+  .pcard-milestone-v2-conds { padding: 6px 0; background: #fff; }
+  .pcard-milestone-v2.is-open .pcard-milestone-v2-conds { background: #f0fdf4; }
+  .pcard-mile-cond {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+  .pcard-mile-cond + .pcard-mile-cond {
+    border-top: 1px solid #f1f5f9;
+  }
+  .pcard-milestone-v2.is-open .pcard-mile-cond + .pcard-mile-cond { border-top-color: #bbf7d0; }
+  .pcard-mile-cond-icon {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; flex-shrink: 0;
+    background: #f1f5f9; color: #94a3b8;
+  }
+  .pcard-mile-cond.is-met .pcard-mile-cond-icon {
+    background: #16a34a; color: #fff;
+  }
+  .pcard-mile-cond-text {
+    flex: 1; min-width: 0; color: #475569; line-height: 1.35;
+  }
+  .pcard-mile-cond.is-met .pcard-mile-cond-text { color: #14532d; font-weight: 600; }
+  .pcard-mile-cond-value {
+    font-size: 11.5px; font-variant-numeric: tabular-nums; color: #0f172a;
+    flex-shrink: 0; white-space: nowrap;
+  }
+  .pcard-mile-cond-value b { font-weight: 800; }
+  .pcard-mile-cond.is-met .pcard-mile-cond-value b { color: #16a34a; }
+
+  .pcard-milestone-v2-status {
+    font-size: 9.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .08em;
+    padding: 4px 9px; border-radius: 99px;
+    flex-shrink: 0; line-height: 1.4;
+    background: #f1f5f9; color: #94a3b8;
+  }
+  .pcard-milestone-v2.is-open .pcard-milestone-v2-status {
+    background: #dcfce7; color: #15803d;
+  }
+/* === END EXPLICIT UNLOCK RULE === */
+  /* === GIFT IMAGES — add_gift_images.py === */
+  /* Image thumb inside a prize row in the hero. */
+  .pcard-prize-img {
+    width: 44px; height: 44px; border-radius: 8px;
+    object-fit: cover; flex-shrink: 0;
+    background: #f8fafc; border: 1px solid #e5e7eb;
+    padding: 2px; box-sizing: border-box;
+  }
+  .pcard-prize-1.has-img { padding-left: 8px; }
+  .pcard-prize-1.has-img .pcard-prize-img { box-shadow: inset 0 0 0 2px var(--rf-bronze, #b57032); }
+  .pcard-prize-2.has-img .pcard-prize-img { box-shadow: inset 0 0 0 2px var(--rf-silver, #6b7b8c); }
+  .pcard-prize-3.has-img .pcard-prize-img { box-shadow: inset 0 0 0 2px var(--rf-gold, #c9a227); }
+
+  /* Image thumb inside the collapsed-card next-prize chip. */
+  .pcard-summary-prize-img {
+    width: 26px; height: 26px; border-radius: 6px;
+    object-fit: cover; flex-shrink: 0;
+    background: #fff; border: 1px solid #fed7aa;
+    padding: 1px; box-sizing: border-box;
+  }
+/* === END GIFT IMAGES === */
+/* === END ENGAGEMENT REDESIGN === */  /* RTL fine-tuning for Arabic */
   #featureFulfill[dir="rtl"] .ff-table { direction:rtl; }
   #featureFulfill[dir="rtl"] .ff-table thead th { text-align:right; }
   #featureFulfill[dir="rtl"] .ff-num, #featureFulfill[dir="rtl"] .ff-table thead th.ff-num { text-align:left; }
@@ -23286,6 +25174,121 @@ async function fulfillInit() {
   </main>
 </div><!-- .app-shell -->
 
+
+<script>
+/* GLS_BEGIN */
+(function () {
+  // Unified language setter that drives every i18n surface in the app:
+  //   1. Planner (data-i18n) — only knows en/fr; ar collapses to en.
+  //   2. Order Fulfillment / Engagement / GMV — fulfill.lang, fr/en/ar.
+  //   3. Document <html lang/dir> for RTL.
+  function appSetLang(next) {
+    if (next !== "fr" && next !== "en" && next !== "ar") next = "en";
+    // 1) Persist to both legacy keys so any feature that reads either picks it up.
+    try {
+      localStorage.setItem("rihab_app_lang_v1", next);
+      // Planner clamps to en/fr.
+      var plannerLang = (next === "fr") ? "fr" : "en";
+      localStorage.setItem("rihab_lang_v1", plannerLang);
+      // OF/Engagement carry full fr/en/ar.
+      localStorage.setItem("rihab_ff_lang_v1", next);
+    } catch (_) {}
+    // 2) Update <html lang/dir>.
+    try {
+      document.documentElement.lang = next;
+      document.documentElement.dir  = (next === "ar") ? "rtl" : "ltr";
+    } catch (_) {}
+    // 3) Drive Planner i18n if its setter is loaded.
+    try {
+      if (typeof setLanguage === "function") {
+        setLanguage((next === "fr") ? "fr" : "en");
+      }
+    } catch (_) {}
+    // 4) Drive Order Fulfillment / Engagement / GMV.
+    try {
+      if (typeof fulfill !== "undefined" && fulfill) {
+        fulfill.lang = next;
+        if (typeof fulfillApplyLang === "function") fulfillApplyLang();
+      }
+    } catch (_) {}
+    // 5) Re-render GMV / Engagement when visible.
+    try {
+      var gmvFeat = document.getElementById("featureGmvMaker");
+      if (gmvFeat && gmvFeat.style.display !== "none") {
+        if (typeof gmvRenderAll === "function") gmvRenderAll();
+        else if (typeof gmvRenderResults === "function") gmvRenderResults();
+      }
+    } catch (_) {}
+    // 6) Update active-pill state on every visible switcher
+    //    (the global one + any in-feature ones still in the DOM).
+    document.querySelectorAll("#appLangSwitch button[data-applang]").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-applang") === next);
+    });
+    document.querySelectorAll(".ff-lang-btn[data-fflang]").forEach(function (b) {
+      var on = b.getAttribute("data-fflang") === next;
+      b.classList.toggle("active", on);
+      if (b.style) {
+        b.style.background = on ? "#0f172a" : "#fff";
+        b.style.color = on ? "#fff" : "#475569";
+      }
+    });
+    document.querySelectorAll(".lang-btn[data-lang]").forEach(function (b) {
+      var on = b.getAttribute("data-lang") === ((next === "fr") ? "fr" : "en");
+      b.classList.toggle("active", on);
+    });
+  }
+  window.appSetLang = appSetLang;
+
+  // Pick the default language:
+  //   1. The unified switcher choice (rihab_app_lang_v1) wins — ONLY this
+  //      key counts as an explicit user action. Legacy per-feature keys
+  //      (rihab_lang_v1, rihab_ff_lang_v1) used to be read here, but they
+  //      get set by side-effects of other code paths and would override
+  //      the seller default, which we don't want.
+  //   2. Sellers (gmvSellerName() truthy) default to Arabic.
+  //   3. Everyone else defaults to English.
+  function pickDefault() {
+    try {
+      var saved = localStorage.getItem("rihab_app_lang_v1");
+      if (saved === "fr" || saved === "en" || saved === "ar") return saved;
+    } catch (_) {}
+    try {
+      if (typeof gmvSellerName === "function" && gmvSellerName()) return "ar";
+    } catch (_) {}
+    return "en";
+  }
+
+  // Wire the switcher buttons.
+  document.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest && e.target.closest("#appLangSwitch button[data-applang]");
+    if (!btn) return;
+    appSetLang(btn.getAttribute("data-applang"));
+  });
+
+  // Apply initial language once the page settles. Re-apply after auth
+  // resolves (a seller signing in late should flip to Arabic if they
+  // never chose another language).
+  function applyInitial() {
+    try { appSetLang(pickDefault()); } catch (_) {}
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", applyInitial);
+  } else {
+    setTimeout(applyInitial, 0);
+  }
+  try {
+    if (typeof sb !== "undefined" && sb && sb.auth) {
+      sb.auth.onAuthStateChange(function () {
+        // Only auto-flip if the user has not made an explicit choice yet.
+        try {
+          if (!localStorage.getItem("rihab_app_lang_v1")) applyInitial();
+        } catch (_) {}
+      });
+    }
+  } catch (_) {}
+})();
+/* GLS_END */
+</script>
 </body>
 </html>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
