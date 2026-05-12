@@ -15509,18 +15509,27 @@ try {
     const applySellerSidebarLock = () => {
       const isSeller = (typeof gmvIsSeller === 'function') && gmvIsSeller();
       const isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
-      const sellerAllowed = ['fulfill', 'fulfill_v2', 'gmv'];
+      // [patch: seller_respects_perms] A seller is allowed into a feature
+      // either by the default bundle OR by an explicit <feature>.access perm.
+      const _needMap = { planner: 'delivery.access', gmv: 'gmv.access', fulfill: 'fulfill.access', fulfill_v2: 'confirm_orders.access' };
+      const defaultSellerAllowed = ['fulfill', 'fulfill_v2', 'gmv'];
+      const sellerAllowsFeature = (f) => {
+        if (defaultSellerAllowed.indexOf(f) >= 0) return true;
+        const perm = _needMap[f];
+        if (!perm) return false;
+        return (typeof userHasPermission === 'function') && userHasPermission(perm);
+      };
       document.querySelectorAll('.as-feature').forEach(b => {
         const f = b.dataset.feature || '';
         if (f === 'settings') {
           b.style.display = isCreator ? '' : 'none';
         } else {
-          b.style.display = (isSeller && !sellerAllowed.includes(f)) ? 'none' : '';
+          b.style.display = (isSeller && !sellerAllowsFeature(f)) ? 'none' : '';
         }
       });
       if (isSeller) {
         const active = document.querySelector('.as-feature.active');
-        if (!active || !sellerAllowed.includes(active.dataset.feature)) {
+        if (!active || !sellerAllowsFeature(active.dataset.feature)) {
           const ff = document.querySelector('.as-feature[data-feature="fulfill"]');
           if (ff) ff.click();
         }
@@ -15570,10 +15579,15 @@ try {
     document.querySelectorAll('.as-feature').forEach(btn => {
       btn.addEventListener('click', () => {
         if (btn.classList.contains('coming-soon')) return;
-        // Sellers may only enter Order Fulfillment, Confirm Orders, or GMV Tracker.
+        // [patch: seller_respects_perms] Sellers default to fulfill /
+        // fulfill_v2 / gmv, but also any feature where they have the
+        // explicit <feature>.access permission granted in Settings.
         if ((typeof gmvIsSeller === 'function') && gmvIsSeller()) {
           const f = btn.dataset.feature;
-          if (f !== 'fulfill' && f !== 'fulfill_v2' && f !== 'gmv') {
+          const _needMap = { planner: 'delivery.access', gmv: 'gmv.access', fulfill: 'fulfill.access', fulfill_v2: 'confirm_orders.access' };
+          const defaultOk = (f === 'fulfill' || f === 'fulfill_v2' || f === 'gmv');
+          const permOk = _needMap[f] && (typeof userHasPermission === 'function') && userHasPermission(_needMap[f]);
+          if (!defaultOk && !permOk) {
             const ff = document.querySelector('.as-feature[data-feature="fulfill"]');
             if (ff) ff.click();
             return;
