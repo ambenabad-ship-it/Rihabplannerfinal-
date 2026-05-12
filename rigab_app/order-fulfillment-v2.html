@@ -2146,7 +2146,15 @@ function applyRole(role){
 
 /* ============================== PHASE ============================== */
 function applyPhase(phase){
+  var _prev = CURRENT_PHASE;
   CURRENT_PHASE = phase;
+  // [patch: phase_router_broadcast] Tell the parent the phase changed so
+  // the URL hash (#/confirm/p1..p4) stays in sync. Skipped if not embedded.
+  try {
+    if (_prev !== phase && window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'co:phaseChanged', phase: phase }, '*');
+    }
+  } catch(_){}
   const cfg = PHASES[phase];
   const pill = document.getElementById('phasePill');
   pill.className = 'm-phase-pill ' + cfg.cls;
@@ -2892,6 +2900,12 @@ window.addEventListener('resize', updateTabIndicator);
         console.log('[confirm_orders] data —', Object.keys(CO.clients).length, 'clients,', CO.orders.length, 'orders, seller:', CO.seller);
         renderRealClients();
         updateRealStats();
+      } else if (m.type === 'co:setPhase' && m.phase) {
+        // [patch: phase_router_broadcast] Parent (router) is telling us to
+        // jump to a specific phase, e.g. after refreshing on #/confirm/p3.
+        // Lock the auto-clock so it doesn't override the chosen phase.
+        try { _phaseLocked = true; } catch(_){}
+        try { if (typeof applyPhase === 'function') applyPhase(m.phase); } catch(_){}
       }
     });
     post({ type: 'co:ready', role: role });
@@ -2905,9 +2919,82 @@ window.addEventListener('resize', updateTabIndicator);
       if (t >= (10*60+59) && t < (11*60+59)) return 'p4';
       return 'p1';
     }
-    function applyRealPhase(){ try { if (typeof applyPhase === 'function') applyPhase(computePhase()); } catch (_) {} }
+    // [patch: creator_phase_override] When the creator picks a phase manually
+    // (for testing), we stop following the real clock and stick to their pick.
+    var _phaseLocked = false;
+    function applyRealPhase(){
+      if (_phaseLocked) return;
+      try { if (typeof applyPhase === 'function') applyPhase(computePhase()); } catch (_) {}
+    }
     applyRealPhase();
     setInterval(applyRealPhase, 60*1000);
+
+    // [patch: creator_phase_override] Floating control — creator only.
+    if (role === 'creator') {
+      var phaseHost = document.createElement('div');
+      phaseHost.id = 'coPhaseDevBar';
+      phaseHost.setAttribute('dir', 'ltr');
+      phaseHost.innerHTML =
+        '<div class="co-phasebar-inner">' +
+          '<span class="co-phasebar-label">TEST PHASE</span>' +
+          '<button type="button" data-p="p1">P1</button>' +
+          '<button type="button" data-p="p2">P2</button>' +
+          '<button type="button" data-p="p3">P3</button>' +
+          '<button type="button" data-p="p4">P4</button>' +
+          '<button type="button" class="co-phasebar-auto" data-p="auto" title="Resume the real clock">AUTO</button>' +
+        '</div>';
+      document.body.appendChild(phaseHost);
+      var style = document.createElement('style');
+      style.textContent =
+        '#coPhaseDevBar{position:fixed;left:12px;bottom:12px;z-index:99999;' +
+        'background:rgba(15,23,42,.94);color:#fff;border-radius:12px;' +
+        'padding:6px 8px;box-shadow:0 6px 20px rgba(0,0,0,.28);' +
+        'font:600 11px ui-sans-serif,system-ui,sans-serif;letter-spacing:.04em;}' +
+        '#coPhaseDevBar .co-phasebar-inner{display:flex;align-items:center;gap:5px}' +
+        '#coPhaseDevBar .co-phasebar-label{opacity:.65;margin-inline-end:4px;font-size:9.5px}' +
+        '#coPhaseDevBar button{height:26px;min-width:32px;padding:0 9px;border-radius:7px;' +
+        'background:#1f2937;color:#e5e7eb;border:0;font:inherit;cursor:pointer;' +
+        'transition:background .12s ease,transform .08s ease}' +
+        '#coPhaseDevBar button:hover{background:#374151}' +
+        '#coPhaseDevBar button:active{transform:scale(.94)}' +
+        '#coPhaseDevBar button.on{background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;' +
+        'box-shadow:0 0 0 1px rgba(255,255,255,.10) inset}' +
+        '#coPhaseDevBar button.co-phasebar-auto{background:#0f5b46;color:#d1fae5}' +
+        '#coPhaseDevBar button.co-phasebar-auto.on{background:linear-gradient(135deg,#10b981,#0d8c63)}';
+      document.head.appendChild(style);
+      function refreshPhaseBar(){
+        var curP = (typeof window.CURRENT_PHASE === 'string') ? window.CURRENT_PHASE : 'p1';
+        phaseHost.querySelectorAll('button').forEach(function(b){
+          var p = b.getAttribute('data-p');
+          var on = _phaseLocked ? (p === curP) : (p === 'auto');
+          b.classList.toggle('on', on);
+        });
+      }
+      phaseHost.addEventListener('click', function(e){
+        var btn = e.target.closest('button[data-p]');
+        if (!btn) return;
+        var p = btn.getAttribute('data-p');
+        if (p === 'auto') {
+          _phaseLocked = false;
+          applyRealPhase();
+        } else {
+          _phaseLocked = true;
+          try { if (typeof applyPhase === 'function') applyPhase(p); } catch(_){}
+        }
+        refreshPhaseBar();
+      });
+      try { window.CURRENT_PHASE = (typeof CURRENT_PHASE !== 'undefined') ? CURRENT_PHASE : 'p1'; } catch(_){}
+      if (typeof window.applyPhase === 'function') {
+        var _wrap = window.applyPhase;
+        window.applyPhase = function(p){
+          var r = _wrap.apply(this, arguments);
+          try { window.CURRENT_PHASE = p; } catch(_){}
+          refreshPhaseBar();
+          return r;
+        };
+      }
+      refreshPhaseBar();
+    }
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
     function initials(name){ var s=String(name||'?').trim(); var p=s.split(/\s+/).filter(Boolean); return ((p[0]||'?').charAt(0) + (p[1]?p[1].charAt(0):'')).toUpperCase(); }

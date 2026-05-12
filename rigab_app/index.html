@@ -20253,6 +20253,19 @@ async function gmvLoadEngagement() {
       if (Array.isArray(gmvEngagement.paliers) && gmvEngagement.paliers.length > 0) break;
     }
     gmvEngagement.loaded = true;
+    // [patch: family_rollup] Ensure every family is tracked so order rollup
+    // can attribute deliveries to it. Idempotent — only adds missing keys.
+    try { if (typeof gmvSeedFamiliesIntoFocus === 'function') gmvSeedFamiliesIntoFocus(); } catch(_){}
+    // [patch: pull_fulfill_for_gmv] Pull Order-Fulfillment orders so the
+    // family rollup has source data. Previously fulfill.orders was only
+    // populated when the seller opened Confirm Orders — sellers landing
+    // straight on GMV saw 0 delivered for every family.
+    try {
+      const _needFulfill = !(typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders) && fulfill.orders.length);
+      if (_needFulfill && typeof fulfillPullFromCloud === 'function') {
+        await fulfillPullFromCloud();
+      }
+    } catch (e) { console.warn('[gmv] fulfillPullFromCloud failed:', e); }
     if ((!gmvEngagement.paliers || gmvEngagement.paliers.length === 0) &&
         typeof gmvIsCreator === 'function' && !gmvIsCreator()) {
       setTimeout(async () => {
@@ -20359,15 +20372,22 @@ const ENG_CLIENT_MILESTONE_BOTH = 10;
 // Per-(seller, phone, period) qty/gmv for each focus product.
 function gmvComputeSoldForSellerClient(seller, phone, period) {
   // [patch: engagement_delivered_only] Only DELIVERED rows count toward
-  // focus-product achievement. Pending / canceled / returned / to-deliver
-  // are surfaced via gmvComputeStatusBreakdownForSellerClient for insight.
+  // focus-product achievement.
+  // [patch: family_rollup] Each order line's productCode is mapped to its
+  // family via FOCUS_FAMILY_MAP, then aggregated under the family bucket if
+  // that family is tracked in gmvEngagement.focusProducts. Falls back to
+  // per-SKU behavior for backward compatibility with the old data shape.
   const out = {};
   const useFulfillOrders = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders) && fulfill.orders.length);
   const sourceLines = useFulfillOrders ? fulfill.orders : (gmv.orders || []);
   sourceLines.forEach(o => {
     if (!o || !o.productCode || o.phone !== phone) return;
     if (o.status !== 'DELIVERED') return;
-    if (!gmvEngagement.focusProducts[o.productCode]) return;
+    const fam = (typeof gmvFamilyForSku === 'function') ? gmvFamilyForSku(o.productCode) : null;
+    let bucketKey = null;
+    if (fam && gmvEngagement.focusProducts[fam]) bucketKey = fam;
+    else if (gmvEngagement.focusProducts[o.productCode]) bucketKey = o.productCode;
+    if (!bucketKey) return;
     const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
     if (!d || isNaN(d.getTime())) return;
     const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
@@ -20375,9 +20395,9 @@ function gmvComputeSoldForSellerClient(seller, phone, period) {
     const cl = (gmv.clients || {})[o.phone] || {};
     const assigned = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '';
     if (assigned !== seller) return;
-    if (!out[o.productCode]) out[o.productCode] = { qty: 0, gmv: 0 };
-    out[o.productCode].qty += (typeof o.qty === 'number' ? o.qty : 1);
-    out[o.productCode].gmv += (o.amount || 0);
+    if (!out[bucketKey]) out[bucketKey] = { qty: 0, gmv: 0 };
+    out[bucketKey].qty += (typeof o.qty === 'number' ? o.qty : 1);
+    out[bucketKey].gmv += (o.amount || 0);
   });
   return out;
 }
@@ -20403,7 +20423,13 @@ function gmvComputeStatusBreakdownForSellerClient(seller, phone, period) {
   const empty = () => ({ delivered:{qty:0,gmv:0}, pending:{qty:0,gmv:0}, canceled:{qty:0,gmv:0}, returned:{qty:0,gmv:0}, todeliver:{qty:0,gmv:0}, inprogress:{qty:0,gmv:0} });
   sourceLines.forEach(o => {
     if (!o || !o.productCode || o.phone !== phone) return;
-    if (!gmvEngagement.focusProducts[o.productCode]) return;
+    // [patch: family_rollup] Same family-first rollup as the delivered-only
+    // helper. Tracks family-level pipeline when the family is in focusProducts.
+    const fam = (typeof gmvFamilyForSku === 'function') ? gmvFamilyForSku(o.productCode) : null;
+    let bucketKey = null;
+    if (fam && gmvEngagement.focusProducts[fam]) bucketKey = fam;
+    else if (gmvEngagement.focusProducts[o.productCode]) bucketKey = o.productCode;
+    if (!bucketKey) return;
     const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
     if (!d || isNaN(d.getTime())) return;
     const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
@@ -20413,9 +20439,9 @@ function gmvComputeStatusBreakdownForSellerClient(seller, phone, period) {
     if (assigned !== seller) return;
     const b = bucket(o.status);
     if (!b) return;
-    if (!out[o.productCode]) out[o.productCode] = empty();
-    out[o.productCode][b].qty += (typeof o.qty === 'number' ? o.qty : 1);
-    out[o.productCode][b].gmv += (o.amount || 0);
+    if (!out[bucketKey]) out[bucketKey] = empty();
+    out[bucketKey][b].qty += (typeof o.qty === 'number' ? o.qty : 1);
+    out[bucketKey][b].gmv += (o.amount || 0);
   });
   return out;
 }
@@ -20425,8 +20451,10 @@ function gmvClientAchievedM1(seller, phone, codes) {
   let achieved = 0;
   (codes || []).forEach(code => {
     const meta = gmvEngagement.focusProducts[code] || {};
-    const s = sold[code] || { qty: 0 };
-    if (meta.min && s.gmv >= meta.min) achieved++;
+    const s = sold[code] || { qty: 0, gmv: 0 };
+    // [patch: achieved_allow_min_zero] Same rule as the cumulative helper.
+    const ok = meta.min ? ((s.gmv || 0) >= meta.min) : ((s.gmv || 0) > 0);
+    if (ok) achieved++;
   });
   return achieved;
 }
@@ -20438,7 +20466,11 @@ function gmvClientAchievedBoth(seller, phone, codes) {
   (codes || []).forEach(code => {
     const meta = gmvEngagement.focusProducts[code] || {};
     const g = ((m1[code] && m1[code].gmv) || 0) + ((m2[code] && m2[code].gmv) || 0);
-    if (meta.min && g >= meta.min) achieved++;
+    // [patch: achieved_allow_min_zero] If creator set a MAD target, require it.
+    // Otherwise count any non-zero delivered MAD (auto-seeded families with
+    // min=0 still count once activity arrives).
+    const ok = meta.min ? (g >= meta.min) : (g > 0);
+    if (ok) achieved++;
   });
   return achieved;
 }
@@ -20972,15 +21004,147 @@ const ENG_MIN_PRODUCTS = 10;     // minimum products to pick
 const ENG_MILESTONE_M1 = 5;      // products that must hit min qty by end of May
 const ENG_MILESTONE_BOTH = 10;   // products that must hit min qty by end of June (cumulative)
 
+// [patch: focus_family_map] Focus products are 23 FAMILIES, not individual SKUs.
+// Each SKU in the order data rolls up to a family below. Achievement & UI
+// will look up the family for an order line via gmvFamilyForSku(code).
+const FOCUS_FAMILIES = [
+  'Al Itkrans + Presto', 'Blandoux', 'Calin RP', 'Calin VP',
+  'Dalaa VP / Baqqal / RP', 'Douceur', 'Kelloggs', 'Maresol', 'Mia',
+  'Mio Javel', 'Mio Liquid Vaisselle', 'Mio Matic', 'Mio main (1k+500gr)',
+  'Nova', 'Papillon Papier', 'Prima', 'SANGO', 'Shiwame', 'TAJ SAHARA',
+  'TAKYS', 'Tawil', 'The Al Itkane', 'Tobigo'
+];
+const FOCUS_FAMILY_MAP = (function(){
+  const M = {};
+  const add = (codes, family) => codes.forEach(c => { M[String(c).trim().toUpperCase()] = family; });
+
+  add(['CF35250','ART00968','CF35266','CF35267','CF35298','CF35516','CF35517','CF35518',
+       'ART00221','ART00222','ART00223','ART00224','ART00225','ART00226','ART00227','ART00228',
+       'ART00229','ART00230','ART00232','ART00294','ART00295','ART00356','ART00357','ART00525',
+       'ART00523','ART00524','ART00530','ART00531','ART00532','ART00682','ART00744','ART00745',
+       'ART00810','ART00811','ART00953','ART00969','ART00979','ART01161','ART01454','ART01475',
+       'ART01476','CF35524','CF35525','CF35529','CF35531','ART03301','ART03300','ART03302',
+       'CF35172','CF35217','CF35218','CF35219','CF35221','CF35226','CF35227','CF35235','CF35237',
+       'CF35238','CF35240','CF35241','CF35249','CF35901','CF35902','CF35903','CF35904','CF35914',
+       'CF35916','CF35208','CF35210','CF35212','CF35213','CF35900','CF35246','CF35245','CF35171',
+       'CF35198','CF35199','CF35223','CF35224','CF35225','CF35239','CF35242','CF35265','CF35530',
+       'CF35120','CF35121','CF35122','CF35178','CF35197','CF35118','CF35127'], 'Tobigo');
+
+  add(['ART03422','ART03417','CF34026','CF34069','CF34070','CF34027','CF34029','CF34030',
+       'CF34046','CF34062','CF34063','CF34068',
+       'CF34000','CF34001','CF34002','CF34006','CF34007','CF34008','CF34009'], 'The Al Itkane');
+
+  add(['ART03641','ART03642','ART03643','ART03644','ART03645','ART03646','ART03647','ART03649',
+       'ART03650','ART03651','ART03652','ART03653','ART03648','ART03663','ART03675','ART03668',
+       'ART03996','ART03670','ART03658','ART03661','ART03673','ART03654','ART03655','ART03656',
+       'ART03657','ART03659','ART03660','ART03662','ART03664','ART03665','ART03666','ART03667',
+       'ART03669','ART03671','ART03672','ART03674','ART03676'], 'Tawil');
+
+  add(['ART03703','ART03704','ART03705','ART03706','ART03707','ART03984'], 'TAKYS');
+  add(['ART03709','ART03711','ART03710'], 'TAJ SAHARA');
+  add(['ART01192','ART01193','ART01194','ART01195','CF33352','CF33353','CF33354','CF33355'], 'Shiwame');
+
+  add(['ART01389','ART01390','ART01391','ART01392',
+       'ART02965','ART02966','ART02967','ART02968','ART02969','ART02970','ART02971',
+       'ART03210','ART03211','ART03212','ART03447'], 'SANGO');
+
+  add(['ART00513','ART00509','ART00512','ART02943','ART02944','ART03998','ART03999'], 'Prima');
+  add(['ART03315','ART03498','ART03499','ART03500'], 'Papillon Papier');
+
+  add(['ART01381','ART00014','ART01873','ART01902','ART01206','ART01210','ART01211','ART01453',
+       'ART02942','ART03164','ART03189'], 'Nova');
+
+  add(['ART02699','ART02033','ART02034','ART02066','ART02071','ART02696','ART02692','ART02695',
+       'ART02694','ART02697','ART02698','ART02700','ART02693','ART03746'], 'Mio Matic');
+
+  add(['ART00292','ART01960','ART01967','ART01963','ART01968','ART00291','ART00299','ART00300',
+       'ART01985','ART01971','ART03997'], 'Mio main (1k+500gr)');
+
+  add(['ART01972','ART02032','ART02059','ART01973','ART01974','ART01981','ART01982','ART02027',
+       'ART02701','ART02702','ART02703','ART02704','ART02705','ART02706','ART02707','ART02708'], 'Mio Liquid Vaisselle');
+
+  add(['ART02710','ART02711','ART02712','ART02713','ART02714','ART00297','ART01989','ART01990',
+       'ART02709','ART02715','ART02716','ART02717','ART01991'], 'Mio Javel');
+
+  add(['ART00103','ART00301','ART00134','ART00333','ART00186','ART00013','ART02125','ART00675',
+       'ART00857','ART02300','ART02140','ART02974','ART02973','ART03989','ART03988','ART02972',
+       'ART03213','ART03214','ART03986','ART03987'], 'Mia');
+
+  add(['ART04049','ART04050','ART04051','ART04053','ART04052','ART04054','ART04055','ART04056',
+       'ART04048'], 'Maresol');
+
+  add(['ART03779','ART03780','ART03781','ART03782','ART03783','ART03784','ART03785'], 'Kelloggs');
+  add(['ART03604','ART03603'], 'Douceur');
+
+  add(['ART01203','ART00956','ART00009','ART00008','ART00007','ART00011','ART01130','ART00010',
+       'ART00409','ART00410','ART00955','ART01131','ART01201','ART01202','ART01204','ART01205',
+       'ART01311','ART01398','ART01399','ART01401','ART01402','ART01448',
+       'ART02951','ART02953','ART02952','ART02950','ART02960','ART02949','ART02962','ART02963',
+       'ART02961','ART02983','ART02959','ART03193','ART03203','ART03204','ART03205','ART03180',
+       'ART03163','ART03192','ART03207','ART03208','ART03209','ART03239'], 'Dalaa VP / Baqqal / RP');
+
+  add(['ART01673','ART01674','ART01671','ART01672','ART01675','ART01304','ART01305','ART01306',
+       'ART01307','ART01308','ART02946','ART02947','ART02948','ART02945'], 'Calin VP');
+
+  add(['ART00049','ART00052','ART00050','ART00051','ART01318','ART01326','ART01327','ART01328',
+       'ART01375','ART01376','ART01377','ART01378','ART01379','ART01380','ART00053'], 'Calin RP');
+
+  add(['ART03744'], 'Blandoux');
+
+  add(['ART01618','ART01616','ART01617','ART01615','ART00367','ART01678','ART00516','ART00369',
+       'ART02277','ART00365','ART00366','ART00368','ART00370','ART00371','ART00372','ART00373',
+       'ART00374','ART00514','ART00515','ART00517','ART00533','ART00546','ART00547','ART00807',
+       'ART03148',
+       'CF33017','CF33018','CF33019','CF33020','CF33000','CF33002','CF33003','CF33005','CF33006',
+       'CF33009','CF33010','CF33011','CF33013','CF33014','CF33015','CF33016','CF33021','CF33022',
+       'CF33023','CF33024','CF33025','CF33026','CF33027','CF33028','CF33029','CF33030','CF33031',
+       'CF33032','CF33033','CF33034','CF33035','CF33063','CF33071','CF33104','CF33072','CF33075',
+       'CF33076','CF33079','CF33081','CF33082','CF33083','CF33084','CF33086','CF33092','CF33097',
+       'CF33098','CF33099','CF33102','CF33105','CF33115','CF33116','CF33117','CF33125','CF33137',
+       'CF33319','CF400978','CF400980','CF401649','CF401651','CF33080','CF33112','CF401650',
+       'CF401648','CF400981','CF400979','CF33067'], 'Al Itkrans + Presto');
+
+  return M;
+})();
+// Look up the focus family for an order-line SKU. Case-insensitive.
+// Returns null when the SKU isn't part of any tracked family.
+function gmvFamilyForSku(code) {
+  if (!code) return null;
+  return FOCUS_FAMILY_MAP[String(code).trim().toUpperCase()] || null;
+}
+function gmvAllFocusFamilies() { return FOCUS_FAMILIES.slice(); }
+
+// [patch: family_rollup] Make sure every family has an entry in
+// gmvEngagement.focusProducts. Called after gmvLoadEngagement so the data is
+// loaded first; we ADD missing families (preserving any existing min/name
+// the creator already set). Without this seed, the compute helpers would
+// reject every order line because no family is "tracked" yet.
+function gmvSeedFamiliesIntoFocus() {
+  if (!gmvEngagement || !gmvEngagement.focusProducts) return false;
+  let added = 0;
+  FOCUS_FAMILIES.forEach(fam => {
+    if (!gmvEngagement.focusProducts[fam]) {
+      gmvEngagement.focusProducts[fam] = { family: fam, min: 0, name: fam };
+      added++;
+    }
+  });
+  return added > 0;
+}
+
 function gmvComputeSoldForSeller(seller, period) {
-  // Returns { code: { qty, gmv } } per focus product — uses line.qty/amount
-  // when available, falls back to 1 per line for GMV-only orders.
+  // [patch: family_rollup] Returns { key: { qty, gmv } } where key is the
+  // family if tracked, else the SKU. Mirrors gmvComputeSoldForSellerClient
+  // for portfolio-level aggregation.
   const out = {};
   const useFulfillOrders = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders) && fulfill.orders.length);
   const sourceLines = useFulfillOrders ? fulfill.orders : (gmv.orders || []);
   sourceLines.forEach(o => {
     if (!o || !o.productCode) return;
-    if (!gmvEngagement.focusProducts[o.productCode]) return;
+    const fam = (typeof gmvFamilyForSku === 'function') ? gmvFamilyForSku(o.productCode) : null;
+    let bucketKey = null;
+    if (fam && gmvEngagement.focusProducts[fam]) bucketKey = fam;
+    else if (gmvEngagement.focusProducts[o.productCode]) bucketKey = o.productCode;
+    if (!bucketKey) return;
     const d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
     if (!d || isNaN(d.getTime())) return;
     const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
@@ -20988,9 +21152,9 @@ function gmvComputeSoldForSeller(seller, period) {
     const cl = (gmv.clients || {})[o.phone] || {};
     const assigned = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '';
     if (assigned !== seller) return;
-    if (!out[o.productCode]) out[o.productCode] = { qty: 0, gmv: 0 };
-    out[o.productCode].qty += (typeof o.qty === 'number' ? o.qty : 1);
-    out[o.productCode].gmv += (o.amount || 0);
+    if (!out[bucketKey]) out[bucketKey] = { qty: 0, gmv: 0 };
+    out[bucketKey].qty += (typeof o.qty === 'number' ? o.qty : 1);
+    out[bucketKey].gmv += (o.amount || 0);
   });
   return out;
 }
@@ -21396,14 +21560,14 @@ function gmvRenderEngagementFocus(panel, mySeller, isCreator) {
           </div>
           ${isSel ? `
             <div style="margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9;">
+              <!-- [patch: picker_mad_only] Progress line shows MAD only (was qty). -->
               <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
-                <span style="color:#64748b;">${engT('eng_sold')} <b style="color:#0f172a;">${s.qty.toLocaleString()}</b> / ${minQ.toLocaleString()}</span>
+                <span style="color:#64748b;">${engT('eng_gmv')}: <b style="color:#0f172a;">${fmt(s.gmv)}</b> / ${minQ.toLocaleString()} MAD</span>
                 <span style="color:${qPct >= 100 ? '#16a34a' : '#64748b'}; font-weight:700;">${qPct.toFixed(0)}%</span>
               </div>
               <div style="height:4px; background:#f1f5f9; border-radius:99px; overflow:hidden;">
                 <div style="height:100%; width:${qPct}%; background:${qPct >= 100 ? '#16a34a' : curColor}; transition:width .4s;"></div>
               </div>
-              <div style="margin-top:8px; font-size:11px; color:#475569;">${engT('eng_gmv')} : <b style="color:#0f172a;">${fmt(s.gmv)}</b> MAD</div>
             </div>
           ` : `
             <div style="margin-top:8px; font-size:11px; color:#94a3b8;">${engT('eng_check_to_commit')}</div>
@@ -22011,15 +22175,28 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
     const nextPalier = paliers.find(p => (p.threshold || 0) > cBoth) || null;
     const productCodes = Object.keys(cFocus[phone] || {}).filter(k => cFocus[phone][k] && cFocus[phone][k].selected);
     const productsAchievedBoth = gmvClientAchievedBoth(seller, phone, productCodes);
-    // How many of THE FOCUS LIST products has this client actually ordered?
+    // [patch: buying_includes_pipeline] "Buying from list" now counts the
+    // full active pipeline — delivered + pending + to-deliver + in-progress.
+    // Canceled / returned excluded. Without this, a client with 265 pending
+    // units of Mia showed as 0 "buying from list" because nothing had been
+    // DELIVERED yet.
     let focusOrderedCount = 0;
     let focusOrderedMad = 0;
-    if (focusCodes.length && typeof gmvComputeSoldForSellerClient === 'function') {
-      const s1 = gmvComputeSoldForSellerClient(seller, phone, ENG_PERIOD_M1);
-      const s2 = gmvComputeSoldForSellerClient(seller, phone, ENG_PERIOD_M2);
+    if (focusCodes.length && typeof gmvComputeStatusBreakdownForSellerClient === 'function') {
+      const b1 = gmvComputeStatusBreakdownForSellerClient(seller, phone, ENG_PERIOD_M1);
+      const b2 = gmvComputeStatusBreakdownForSellerClient(seller, phone, ENG_PERIOD_M2);
+      const active = (rec) => {
+        if (!rec) return { q: 0, m: 0 };
+        return {
+          q: rec.delivered.qty + rec.pending.qty + rec.todeliver.qty + rec.inprogress.qty,
+          m: rec.delivered.gmv + rec.pending.gmv + rec.todeliver.gmv + rec.inprogress.gmv
+        };
+      };
       focusCodes.forEach(code => {
-        const q = ((s1[code] && s1[code].qty) || 0) + ((s2[code] && s2[code].qty) || 0);
-        const m = ((s1[code] && s1[code].gmv) || 0) + ((s2[code] && s2[code].gmv) || 0);
+        const a1 = active(b1[code]);
+        const a2 = active(b2[code]);
+        const q = a1.q + a2.q;
+        const m = a1.m + a2.m;
         if (q > 0) focusOrderedCount++;
         focusOrderedMad += m;
       });
@@ -22130,7 +22307,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       flt_all: 'All', flt_buying: 'Buying from list', flt_won: 'Won', flt_ontrack: 'On track', flt_atrisk: 'At risk', flt_cold: 'Inactive', flt_noprod: 'No products',
       st_won: 'Gift won', st_ontrack: 'On track', st_atrisk: 'At risk', st_cold: 'Cold',
       empty: 'No clients match your filters.', noClients: 'No clients yet.', lastOrder: 'Last order', daysAgo: 'd ago', never: 'never',
-      products: 'products', done: 'All paliers cleared',
+      products: 'products', done: 'All paliers cleared', fromList: 'from list',
     },
     fr: { title: 'Performance de mes clients', sub: 'Vue priorisée — les clients à voir d\'abord apparaissent en haut.',
       kTotal: 'GMV total', kGifts: 'Cadeaux gagnés', kActive: 'Achètent de la liste', kProgress: 'Progression paliers',
@@ -22143,7 +22320,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       flt_all: 'Tous', flt_buying: 'Achètent de la liste', flt_won: 'Gagnés', flt_ontrack: 'En bonne voie', flt_atrisk: 'À risque', flt_cold: 'Inactifs', flt_noprod: 'Sans produits',
       st_won: 'Cadeau gagné', st_ontrack: 'En bonne voie', st_atrisk: 'À risque', st_cold: 'Froid',
       empty: 'Aucun résultat.', noClients: 'Aucun client.', lastOrder: 'Dernière commande', daysAgo: 'j', never: 'jamais',
-      products: 'produits', done: 'Tous paliers franchis',
+      products: 'produits', done: 'Tous paliers franchis', fromList: 'de la liste',
     },
     ar: { title: 'أداء زبنائي', sub: 'العرض حسب الأولوية — الزبائن المحتاجون لاهتمامك أولًا.',
       kTotal: 'إجمالي GMV', kGifts: 'الهدايا المربوحة', kActive: 'يشترون من القائمة', kProgress: 'تقدم الأهداف',
@@ -22156,7 +22333,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       flt_all: 'الكل', flt_buying: 'يشترون من القائمة', flt_won: 'مربوحة', flt_ontrack: 'على المسار', flt_atrisk: 'بخطر', flt_cold: 'زبائن غير نشطين', flt_noprod: 'بدون منتجات',
       st_won: 'هدية مربوحة', st_ontrack: 'على المسار', st_atrisk: 'بخطر', st_cold: 'غير نشط',
       empty: 'لا نتائج.', noClients: 'لا يوجد زبائن.', lastOrder: 'آخر طلب', daysAgo: 'يوم', never: 'أبدًا',
-      products: 'منتجات', done: 'تم اجتياز جميع الأهداف',
+      products: 'منتجات', done: 'تم اجتياز جميع الأهداف', fromList: 'من القائمة',
     },
   };
   const T = _i18n[engLang()] || _i18n.en;
@@ -22217,15 +22394,21 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
     const prodTone = r.productsAchieved >= r.productsMin ? 'is-met' : '';
     const barFill  = r.pctToNext;
     // Pipeline chips — only show non-zero buckets.
+    // [patch: pipe_labels_i18n] Translated labels per current language.
+    const _pipeLabels = ({
+      en: { todeliver:'To deliver', inprogress:'In progress', pending:'Pending', returned:'Returned', canceled:'Canceled' },
+      fr: { todeliver:'À livrer',   inprogress:'En cours',    pending:'En attente', returned:'Retour', canceled:'Annulé' },
+      ar: { todeliver:'للتوصيل',     inprogress:'في الطريق',   pending:'قيد الانتظار', returned:'مرتجع', canceled:'ملغى' },
+    })[engLang()] || { todeliver:'To deliver', inprogress:'In progress', pending:'Pending', returned:'Returned', canceled:'Canceled' };
     const chip = (cls, label, val) => val > 0
       ? '<span class="gmv-cp-pipe gmv-cp-pipe--' + cls + '" title="' + label + '">' + label + ' <b>' + fmt(val) + '</b></span>'
       : '';
     const pipelineHtml =
-      chip('todeliver', 'To deliver',     r.stToDeliver) +
-      chip('inprogress','In progress',    r.stInProgress) +
-      chip('pending',   'Pending',        r.stPending) +
-      chip('returned',  'Returned',       r.stReturned) +
-      chip('canceled',  'Canceled',       r.stCanceled);
+      chip('todeliver',  _pipeLabels.todeliver,  r.stToDeliver) +
+      chip('inprogress', _pipeLabels.inprogress, r.stInProgress) +
+      chip('pending',    _pipeLabels.pending,    r.stPending) +
+      chip('returned',   _pipeLabels.returned,   r.stReturned) +
+      chip('canceled',   _pipeLabels.canceled,   r.stCanceled);
     // [patch: prize_roulette] Cycle through all available next-palier gifts
     // as a 2/3-image roulette so sellers see every prize they're playing for.
     const _palImgs   = r.nextPalier ? [r.nextPalier.image1, r.nextPalier.image2, r.nextPalier.image3].filter(Boolean) : [];
@@ -22244,21 +22427,18 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
     return (
       // [patch: gmv_handoff_fix1] Whole row opens the new client perf page;
       // the cog inside opens the legacy product-targeting screen.
+      // [patch: bugA_cog_to_end] Cog moved out of row-top (was causing the row
+      // to wrap mid-card on narrow widths, splitting the white card visually).
+      // It now lives in row-end alongside the prize thumb and pct.
       '<button type="button" class="gmv-cp-row" data-cp-perf="' + esc(r.phone) + '">' +
         '<div class="gmv-cp-row-avatar" aria-hidden="true">' + esc(initial) + '</div>' +
         '<div class="gmv-cp-row-main">' +
           '<div class="gmv-cp-row-top">' +
             '<div class="gmv-cp-row-name">' + esc(r.name) + '</div>' +
             statusPill(r.status) +
-            '<button type="button" class="client-settings-btn" data-cp-settings="' + esc(r.phone) + '" aria-label="إعدادات المنتجات">' +
-              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-                '<circle cx="12" cy="12" r="3"/>' +
-                '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>' +
-              '</svg>' +
-            '</button>' +
           '</div>' +
           '<div class="gmv-cp-row-phone">' + esc(r.phone) + ' · ' + T.lastOrder + ': ' + lastOrderTxt +
-            (r.focusOrderedCount > 0 ? ' · <span class="gmv-cp-row-buying"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> ' + r.focusOrderedCount + ' from list</span>' : '') +
+            (r.focusOrderedCount > 0 ? ' · <span class="gmv-cp-row-buying"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> ' + r.focusOrderedCount + ' ' + T.fromList + '</span>' : '') +
           '</div>' +
           '<div class="gmv-cp-row-progress">' +
             '<div class="gmv-cp-progress"><span style="width:' + barFill + '%"></span></div>' +
@@ -22271,6 +22451,12 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
           (pipelineHtml ? '<div class="gmv-cp-row-pipeline">' + pipelineHtml + '</div>' : '') +
         '</div>' +
         '<div class="gmv-cp-row-end">' +
+          '<button type="button" class="client-settings-btn" data-cp-settings="' + esc(r.phone) + '" aria-label="إعدادات المنتجات">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+              '<circle cx="12" cy="12" r="3"/>' +
+              '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>' +
+            '</svg>' +
+          '</button>' +
           prizeThumb +
           '<div class="gmv-cp-row-pct">' + r.pctToNext + '%</div>' +
         '</div>' +
@@ -22528,29 +22714,201 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
       { v: row.stToDeliver   || 0, l: L.kToDeliver   },
       { v: row.stInProgress  || 0, l: L.kInProgress  },
     ];
-    // [patch: gmv_handoff_fix1] List the seller's focus products for THIS client.
+    // [patch: family_pipeline_per_client] Per-family pipeline view built from
+    // the real fulfill.orders rollup (May + June). Shows every family that
+    // has ANY activity for this client with delivered / pending / to-deliver
+    // / canceled / returned / in-progress side-by-side. Committed families
+    // get a ★ and a "min" progress line.
     var prodList = '';
     try {
-      var focus = (typeof gmvEngagement !== 'undefined' && gmvEngagement.commitments
-                   && gmvEngagement.commitments[mySeller]
+      var brkM1 = (typeof gmvComputeStatusBreakdownForSellerClient === 'function')
+        ? gmvComputeStatusBreakdownForSellerClient(mySeller, phone, ENG_PERIOD_M1) : {};
+      var brkM2 = (typeof gmvComputeStatusBreakdownForSellerClient === 'function')
+        ? gmvComputeStatusBreakdownForSellerClient(mySeller, phone, ENG_PERIOD_M2) : {};
+      // [patch: all_families_split] Show ALL 23 families (not just ones with
+      // activity). Committed/selected families come first; rest follow. Both
+      // groups sort by activity (MAD) within themselves.
+      var unique = (typeof FOCUS_FAMILIES !== 'undefined') ? FOCUS_FAMILIES.slice() : [];
+      var allKeys = Object.keys(brkM1).concat(Object.keys(brkM2));
+      var seen = {}; unique.forEach(function(k){ seen[k] = 1; });
+      allKeys.forEach(function(k){ if (!seen[k]) { unique.push(k); seen[k] = 1; } });
+      // [patch: family_pipeline_amount] Rank + pill values use MAD amount
+      // (rec.*.gmv) instead of unit counts (rec.*.qty).
+      function activity(rec){
+        if (!rec) return 0;
+        return (rec.delivered.gmv + rec.pending.gmv + rec.todeliver.gmv +
+                rec.inprogress.gmv + rec.canceled.gmv + rec.returned.gmv);
+      }
+      var focus = (gmvEngagement.commitments && gmvEngagement.commitments[mySeller]
                    && gmvEngagement.commitments[mySeller].clientFocus
-                   && gmvEngagement.commitments[mySeller].clientFocus[phone]) || null;
-      var codes = focus ? Object.keys(focus) : [];
-      if (codes.length === 0) {
+                   && gmvEngagement.commitments[mySeller].clientFocus[phone]) || {};
+      // [patch: all_families_split] Committed first, then non-committed.
+      // Inside each group, sort by total MAD activity descending.
+      var committedFams = unique.filter(function(f){ return !!(focus[f] && focus[f].selected); });
+      var otherFams     = unique.filter(function(f){ return !(focus[f] && focus[f].selected); });
+      function actSum(f){ return activity(brkM1[f]) + activity(brkM2[f]); }
+      committedFams.sort(function(a, b){ return actSum(b) - actSum(a); });
+      otherFams.sort(function(a, b){
+        var d = actSum(b) - actSum(a);
+        return d !== 0 ? d : a.localeCompare(b);
+      });
+      unique = committedFams.concat(otherFams);
+      var chipLabels = ({
+        en: { d:'Delivered', p:'Pending', t:'To deliver', i:'In progress', c:'Canceled', r:'Returned', target:'min' },
+        fr: { d:'Livré',     p:'En attente', t:'À livrer', i:'En cours',  c:'Annulé',   r:'Retour', target:'min' },
+        ar: { d:'موصّل',     p:'قيد الانتظار', t:'للتوصيل', i:'في الطريق', c:'ملغى', r:'مرتجع', target:'الحد الأدنى' },
+      })[engLang()] || { d:'Delivered', p:'Pending', t:'To deliver', i:'In progress', c:'Canceled', r:'Returned', target:'min' };
+      if (!unique.length) {
         prodList = '<div style="color:#64748b;font-size:13px;">' + esc2(L.noProds) + '</div>';
       } else {
-        prodList = codes.map(function(code){
-          var p = focus[code] || {};
-          var name = (p.name || code);
-          var min  = p.minQty || 0;
-          var done = (p.deliveredQty || 0);
-          return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9">' +
-                   '<span>' + esc2(name) + '</span>' +
-                   '<span style="font-family:ui-monospace,monospace;font-weight:600;color:#0f172a">' + done + ' / ' + min + '</span>' +
+        // [patch: family_pipeline_amount] Pills show MAD amounts (rounded to
+        // whole dirhams), not unit counts. min progress also uses MAD.
+        prodList = unique.map(function(fam){
+          var m1 = brkM1[fam] || { delivered:{qty:0,gmv:0},pending:{qty:0,gmv:0},todeliver:{qty:0,gmv:0},inprogress:{qty:0,gmv:0},canceled:{qty:0,gmv:0},returned:{qty:0,gmv:0} };
+          var m2 = brkM2[fam] || { delivered:{qty:0,gmv:0},pending:{qty:0,gmv:0},todeliver:{qty:0,gmv:0},inprogress:{qty:0,gmv:0},canceled:{qty:0,gmv:0},returned:{qty:0,gmv:0} };
+          var delivered = m1.delivered.gmv + m2.delivered.gmv;
+          var pending   = m1.pending.gmv   + m2.pending.gmv;
+          var todeliver = m1.todeliver.gmv + m2.todeliver.gmv;
+          var inprog    = m1.inprogress.gmv + m2.inprogress.gmv;
+          var canceled  = m1.canceled.gmv  + m2.canceled.gmv;
+          var returned  = m1.returned.gmv  + m2.returned.gmv;
+          var committed = !!(focus[fam] && focus[fam].selected);
+          var minMad = (focus[fam] && (focus[fam].minMad || focus[fam].minQty)) || 0;
+          var fmtMad = function(n){
+            // NBSP for thousands so RTL doesn't reorder digit groups.
+            return Math.round(Number(n) || 0).toLocaleString('en-US').replace(/,/g, String.fromCharCode(0xA0));
+          };
+          var pill = function(label, amt, bg, color){
+            if (!amt) return '';
+            return '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;background:' + bg + ';color:' + color + ';font-size:11px;font-weight:600;white-space:nowrap"><span>' + esc2(label) + '</span><b style="font-variant-numeric:tabular-nums">' + fmtMad(amt) + '</b></span>';
+          };
+          var pills =
+            pill(chipLabels.d, delivered, '#dcfce7', '#065f46') +
+            pill(chipLabels.p, pending,   '#fef3c7', '#92400e') +
+            pill(chipLabels.t, todeliver, '#dbeafe', '#1e40af') +
+            pill(chipLabels.i, inprog,    '#e0e7ff', '#3730a3') +
+            pill(chipLabels.c, canceled,  '#fee2e2', '#991b1b') +
+            pill(chipLabels.r, returned,  '#ffedd5', '#9a3412');
+          var commitBadge = committed
+            ? '<span style="margin-inline-start:6px;font-size:10.5px;font-weight:700;color:#0f5b46;background:#bbf7d0;padding:1px 7px;border-radius:99px">★</span>'
+            : '';
+          var minLine = (committed && minMad)
+            ? '<div style="font-size:10.5px;color:#64748b;margin-top:2px">' + esc2(chipLabels.target) + ': <b>' + fmtMad(delivered) + ' / ' + fmtMad(minMad) + ' MAD</b></div>'
+            : '';
+          // [patch: per_sku_in_family] Build per-SKU breakdown for this family.
+          // Clicking the card header reveals each productCode with its
+          // delivered + pending split.
+          var perSku = {};
+          fulfill.orders.forEach(function(o){
+            if (!o || !o.productCode || o.phone !== phone) return;
+            if (gmvFamilyForSku(o.productCode) !== fam) return;
+            var d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
+            if (!d || isNaN(d.getTime())) return;
+            var k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            if (k !== ENG_PERIOD_M1 && k !== ENG_PERIOD_M2) return;
+            if (!perSku[o.productCode]) {
+              perSku[o.productCode] = { name: o.productName || o.productCode, d:0, p:0, t:0, i:0, c:0, r:0 };
+            }
+            var amt = (o.amount || 0);
+            if (o.status === 'DELIVERED') perSku[o.productCode].d += amt;
+            else if (o.status === 'PENDING' || o.status === 'REPLANED' || o.status === 'RESCHEDULED') perSku[o.productCode].p += amt;
+            else if (o.status === 'TO_DELIVER') perSku[o.productCode].t += amt;
+            else if (o.status === 'DELIVERY_IN_PROGRESS') perSku[o.productCode].i += amt;
+            else if (o.status === 'CANCELED') perSku[o.productCode].c += amt;
+            else if (o.status === 'RETURNED') perSku[o.productCode].r += amt;
+            if (o.productName && (!perSku[o.productCode].name || perSku[o.productCode].name === o.productCode)) {
+              perSku[o.productCode].name = o.productName;
+            }
+          });
+          var skuCodes = Object.keys(perSku).sort(function(a, b){
+            var aTot = perSku[a].d + perSku[a].p + perSku[a].t + perSku[a].i + perSku[a].c + perSku[a].r;
+            var bTot = perSku[b].d + perSku[b].p + perSku[b].t + perSku[b].i + perSku[b].c + perSku[b].r;
+            return bTot - aTot;
+          });
+          var miniPill = function(label, amt, bg, color){
+            if (!amt) return '';
+            return '<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:99px;background:' + bg + ';color:' + color + ';font-size:10px;font-weight:600;white-space:nowrap"><span>' + esc2(label) + '</span><b style="font-variant-numeric:tabular-nums">' + fmtMad(amt) + '</b></span>';
+          };
+          var skuRows = skuCodes.map(function(code){
+            var p = perSku[code];
+            var pills2 =
+              miniPill(chipLabels.d, p.d, '#dcfce7', '#065f46') +
+              miniPill(chipLabels.p, p.p, '#fef3c7', '#92400e') +
+              miniPill(chipLabels.t, p.t, '#dbeafe', '#1e40af') +
+              miniPill(chipLabels.i, p.i, '#e0e7ff', '#3730a3') +
+              miniPill(chipLabels.c, p.c, '#fee2e2', '#991b1b') +
+              miniPill(chipLabels.r, p.r, '#ffedd5', '#9a3412');
+            return '<div style="padding:6px 8px;border-top:1px dashed #e2e8f0;background:#fafbfc">' +
+                     '<div style="min-width:0">' +
+                       '<div style="font-family:ui-monospace,monospace;font-size:10px;font-weight:700;color:#475569">' + esc2(code) + '</div>' +
+                       '<div style="font-size:11.5px;color:#0f172a;line-height:1.25;margin-top:1px">' + esc2(p.name) + '</div>' +
+                     '</div>' +
+                     '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;direction:ltr">' + pills2 + '</div>' +
+                   '</div>';
+          }).join('');
+          var hasSkus = skuCodes.length > 0;
+          var caret = hasSkus
+            ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="opacity:.55;transition:transform .15s"><polyline points="9 18 15 12 9 6"></polyline></svg>'
+            : '';
+          // [patch: all_families_split] Card carries data-cp-committed +
+          // a flat searchable text blob so the search input can match the
+          // family name, all its SKU codes, and all SKU names quickly.
+          var searchBlob = (fam + ' ' + skuCodes.join(' ') + ' ' +
+                            skuCodes.map(function(c){return perSku[c].name;}).join(' ')).toLowerCase();
+          return '<div class="cp-fam-card" data-fam-key="' + esc2(fam) + '"' +
+                 ' data-cp-committed="' + (committed ? '1' : '0') + '"' +
+                 ' data-search-text="' + esc2(searchBlob) + '"' +
+                 ' style="padding:8px 0;border-bottom:1px solid #f1f5f9">' +
+                   '<div class="cp-fam-head" data-fam-toggle="' + esc2(fam) + '" style="display:flex;align-items:center;gap:6px;cursor:' + (hasSkus ? 'pointer' : 'default') + '">' + caret +
+                     '<div style="font-weight:600;color:#0f172a;font-size:13px">' + esc2(fam) + commitBadge + '</div>' +
+                   '</div>' +
+                   '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;direction:ltr">' + (pills || '<span style="color:#94a3b8;font-size:11px">—</span>') + '</div>' +
+                   minLine +
+                   (hasSkus
+                     ? '<div class="cp-fam-skus" data-fam-body="' + esc2(fam) + '" style="display:none;margin-top:6px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">' + skuRows + '</div>'
+                     : '') +
                  '</div>';
         }).join('');
+        // [patch: all_families_split] Wrap with search input + group headers.
+        // The headers + the search bar live OUTSIDE the cards so they don't
+        // get hidden when a filter narrows to one group.
+        var searchPh = (engLang() === 'ar' ? 'البحث عن منتج…'
+                       : (engLang() === 'fr' ? 'Rechercher un produit…' : 'Search a product…'));
+        var hdrCommitted = (engLang() === 'ar' ? 'مختارة'
+                           : (engLang() === 'fr' ? 'Sélectionnées' : 'Selected'));
+        var hdrOthers    = (engLang() === 'ar' ? 'غير مختارة'
+                           : (engLang() === 'fr' ? 'Non sélectionnées' : 'Not selected'));
+        var sectionHeaderStyle = 'font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin:10px 0 4px';
+        // Slice prodList into two: committed cards vs the rest.
+        // Cards already have data-cp-committed="0|1" so we can split by
+        // looking for transition. Simpler: rebuild by running the map twice.
+        var temp = document.createElement('div');
+        temp.innerHTML = prodList;
+        var allCards = Array.from(temp.children);
+        var committedHtml = allCards.filter(function(c){ return c.getAttribute('data-cp-committed') === '1'; })
+                                    .map(function(c){ return c.outerHTML; }).join('');
+        var otherHtml     = allCards.filter(function(c){ return c.getAttribute('data-cp-committed') === '0'; })
+                                    .map(function(c){ return c.outerHTML; }).join('');
+        prodList =
+          '<div class="cp-fam-search-wrap" style="margin-bottom:8px">' +
+            '<input type="search" id="cpFamSearch" placeholder="' + esc2(searchPh) + '" autocomplete="off"' +
+              ' style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font:inherit;background:#fff" />' +
+          '</div>' +
+          (committedHtml
+            ? '<div class="cp-fam-section" data-section="committed">' +
+                '<div style="' + sectionHeaderStyle + '">' + esc2(hdrCommitted) + '</div>' +
+                committedHtml +
+              '</div>'
+            : '') +
+          (otherHtml
+            ? '<div class="cp-fam-section" data-section="others">' +
+                '<div style="' + sectionHeaderStyle + '">' + esc2(hdrOthers) + '</div>' +
+                otherHtml +
+              '</div>'
+            : '');
       }
-    } catch(_) {
+    } catch(err) {
+      console.error('[family_pipeline_per_client] failed:', err);
       prodList = '<div style="color:#64748b;font-size:13px;">' + esc2(L.noProds) + '</div>';
     }
     // Save current HTML so back-button can restore in one shot.
@@ -22636,11 +22994,45 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
       gmvEngagement.assignEditClient = phone;
       gmvEngagement.assignProductSearch = '';
       gmvEngagement.activeSubtab = 'assign';
-      // Clear cp-prev cache so back to list re-renders fresh after editing.
       try { delete panel.dataset.cpPrevHtml; delete panel.dataset.cpPrevSaved; } catch(_){}
       var wrap = panel.closest('#gmvResultsWrap') || panel.parentElement;
       if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
     });
+    // [patch: per_sku_in_family] Expand/collapse SKU list when the family
+    // header is tapped. Rotates the caret 90° while open.
+    panel.querySelectorAll('[data-fam-toggle]').forEach(function(h){
+      h.addEventListener('click', function(){
+        var key = h.getAttribute('data-fam-toggle');
+        var sel = '[data-fam-body="' + key.replace(/"/g, '\\"') + '"]';
+        var body = panel.querySelector(sel);
+        if (!body) return;
+        var open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : '';
+        var caret = h.querySelector('svg');
+        if (caret) caret.style.transform = open ? '' : 'rotate(90deg)';
+      });
+    });
+    // [patch: all_families_split] Search bar — filter cards by family name
+    // OR any SKU code/name inside (data-search-text holds the flattened blob).
+    var searchInput = panel.querySelector('#cpFamSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', function(){
+        var q = (searchInput.value || '').trim().toLowerCase();
+        var cards = panel.querySelectorAll('.cp-fam-card');
+        var visibleByCommitted = { '1': 0, '0': 0 };
+        cards.forEach(function(c){
+          var blob = c.getAttribute('data-search-text') || '';
+          var ok = !q || blob.indexOf(q) >= 0;
+          c.style.display = ok ? '' : 'none';
+          if (ok) visibleByCommitted[c.getAttribute('data-cp-committed') || '0']++;
+        });
+        // Hide section header if no cards in that section
+        var cSec = panel.querySelector('[data-section="committed"]');
+        var oSec = panel.querySelector('[data-section="others"]');
+        if (cSec) cSec.style.display = visibleByCommitted['1'] ? '' : 'none';
+        if (oSec) oSec.style.display = visibleByCommitted['0'] ? '' : 'none';
+      });
+    }
   } catch(err) {
     console.error('[gmv_handoff_fix1] openClientPerformance failed:', err);
   }
@@ -28492,10 +28884,18 @@ async function fulfillInit() {
 
   .gmv-cp-empty { padding: 48px 20px; text-align: center; color: var(--text-soft); font-size: 14px; background: var(--bg-muted); border-radius: var(--radius-md); border: 1px dashed var(--border); }
 
+  /* [patch: bugA_keep_end_col_on_mobile] Previously this stripped the 3rd
+     column on mobile, pushing the cog + thumb + pct in row-end INSIDE the
+     card grid into row 2 (visually OUTSIDE the white card boundary).
+     Keep all 3 columns; shrink the end content so it still fits on a phone. */
   @media (max-width: 720px) {
-    .gmv-cp-row { grid-template-columns: auto 1fr; }
-    .gmv-cp-row-pct { grid-column: 1/-1; text-align: start; padding-top: 4px; }
-    .gmv-cp-row-pct::before { content: ''; }
+    .gmv-cp-row { grid-template-columns: auto 1fr auto; gap: 8px; padding: 12px 12px; }
+    .gmv-cp-row-end { min-width: 0; gap: 4px; }
+    .gmv-cp-row-end .gmv-cp-row-prize,
+    .gmv-cp-row-end .gmv-cp-row-prize-wheel { width: 32px; height: 32px; }
+    .gmv-cp-row-end .gmv-cp-row-prize-wheel img { width: 32px; height: 32px; }
+    .gmv-cp-row-end .client-settings-btn { width: 26px; height: 26px; }
+    .gmv-cp-row-pct { font-size: 14px; }
   }
 
   /* [patch: seller_mobile_first] — Phone-only optimizations for the
