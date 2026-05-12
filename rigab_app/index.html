@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Z · Delivery Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4304,6 +4304,355 @@
     vertical-align: -2px; margin-right: 4px;
   }
   @keyframes awal-spin { to { transform: rotate(360deg); } }
+</style>
+<style>
+  /* ===========================================================
+     [patch: gmv_handoff_fixes] CSS bundle for fixes #2, #4, #5,
+     #6, #7 from GMV-TRACKER-FIXES-HANDOFF.md.
+     =========================================================== */
+
+  /* Fix #2 — hide percentages on hero banner, levels modal, client rows */
+  .gmv-cp-hero-pct,
+  .gmv-cp-row-pct { display: none !important; }
+
+  /* Fix #6 — bigger primary section tabs (Assign / My clients / My perf) */
+  .gmv-engtab-bar {
+    height: auto;
+    padding: 6px;
+    gap: 6px;
+    border-radius: 14px;
+    background: #f1f5f9;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+    margin: 16px 0;
+  }
+  .gmv-engtab {
+    height: 52px;
+    padding: 12px 24px;
+    font-size: 17px;
+    font-weight: 700;
+    color: #334155;
+    border-radius: 10px;
+    letter-spacing: 0.2px;
+    transition: background .15s ease, color .15s ease;
+    cursor: pointer;
+  }
+  .gmv-engtab:hover {
+    background: rgba(15,23,42,0.06);
+    color: #0f172a;
+  }
+  .gmv-engtab.active,
+  .gmv-engtab.is-active,
+  .gmv-engtab[aria-selected="true"] {
+    background: #0f172a;
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 2px 6px rgba(15,23,42,0.25);
+  }
+
+  /* Fix #7 — block touch zoom */
+  html, body {
+    touch-action: pan-x pan-y;
+    -ms-content-zooming: none;
+    overscroll-behavior: none;
+  }
+  * {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Fix #4 — count badge inside filter pills */
+  .gmv-cp-filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(15,23,42,0.08);
+    color: #0f172a;
+    font-size: 11px;
+    font-weight: 700;
+    margin-inline-start: 4px;
+  }
+  .gmv-cp-filter.is-active .gmv-cp-filter-count,
+  .gmv-cp-filter.active   .gmv-cp-filter-count {
+    background: rgba(255,255,255,0.25);
+    color: #fff;
+  }
+
+  /* Fix #5 — wheel hub holds the business logo, not the serif "z" */
+  .rf-wheel-hub {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    overflow: hidden;
+    background: #fff;
+  }
+  .rf-wheel-hub-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  /* Fix #1 — Client Performance Page chrome */
+  #clientPerfPage {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 16px;
+    font-family: var(--font-ar, 'Tajawal','Cairo',sans-serif);
+    direction: rtl;
+  }
+  .cp-back {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; border: 0;
+    color: #475569; font-size: 14px; font-weight: 600;
+    padding: 8px 12px; cursor: pointer; margin-bottom: 12px;
+  }
+  .cp-back:hover { color: #0f172a; }
+  .cp-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px; background: #fff;
+    border: 1px solid #e2e8f0; border-radius: 14px;
+    margin-bottom: 14px;
+  }
+  .cp-avatar {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: linear-gradient(135deg,#fef0ec,#fcd5c9);
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 18px; color: #BF3A22;
+    flex-shrink: 0;
+  }
+  .cp-header h1 { margin: 0; font-size: 18px; font-weight: 700; color: #0f172a; }
+  .cp-meta { font-size: 13px; color: #64748b; margin-top: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cp-phone-link {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 600;
+    color: #059669; background: #ecfdf5;
+    padding: 3px 8px; border-radius: 7px;
+    text-decoration: none; direction: ltr;
+  }
+  .cp-sep { color: #cbd5e1; }
+  .cp-level { font-weight: 600; color: #334155; }
+  .cp-gmv   { font-weight: 700; color: #0f172a; }
+  .cp-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-bottom: 14px;
+  }
+  .cp-kpi {
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 10px; padding: 12px; text-align: center;
+  }
+  .cp-kpi .val { font-size: 22px; font-weight: 700; color: #0f172a; letter-spacing: -0.02em; }
+  .cp-kpi .lbl { font-size: 11px; color: #64748b; margin-top: 4px; }
+  .cp-block {
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 14px; padding: 16px; margin-bottom: 12px;
+  }
+  .cp-block h2 { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: #0f172a; }
+  #cpNotes {
+    width: 100%; min-height: 80px; padding: 10px;
+    border: 1px solid #e2e8f0; border-radius: 8px;
+    font-family: inherit; resize: vertical;
+  }
+  /* Settings cog on each client row */
+  .client-settings-btn {
+    width: 32px; height: 32px;
+    border: 0; background: transparent;
+    color: #64748b; cursor: pointer;
+    border-radius: 8px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .client-settings-btn:hover { background: #f1f5f9; color: #0f172a; }
+
+  /* [patch: merge_rf_into_carousel] When the carousel has class .rf-tinted
+     it carries the orange gradient (was .rf-hero) AND it has a header row
+     with the fortune-wheel + title + period + seller. Saves one whole
+     section worth of vertical space. */
+  .gmv-cp-hero.rf-tinted {
+    background: linear-gradient(135deg, var(--rf-orange) 0%, var(--rf-orange-dark) 100%) !important;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(246, 98, 74, 0.18) !important;
+    position: relative;
+    overflow: hidden;
+  }
+  .gmv-cp-hero.rf-tinted::before {
+    content: "";
+    position: absolute;
+    inset-inline-end: -60px;
+    top: -60px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    border: 10px dashed rgba(255, 255, 255, 0.18);
+    animation: rf-spin 60s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .gmv-cp-hero.rf-tinted > * { position: relative; z-index: 1; }
+  .gmv-cp-hero-rfhead {
+    display: flex; align-items: center; gap: 16px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  }
+  .gmv-cp-hero-rfhead .rf-wheel { flex-shrink: 0; }
+  .gmv-cp-hero-rfhead .rf-hero-text { flex: 1; min-width: 0; }
+  .gmv-cp-hero-rfhead .rf-hero-pill {
+    display: inline-block;
+    background: rgba(255,255,255,0.22);
+    padding: 3px 10px; border-radius: 99px;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700; margin-bottom: 5px;
+    color: #fff;
+  }
+  .gmv-cp-hero-rfhead .rf-hero-title { font-size: 18px; font-weight: 800; margin: 0; line-height: 1.15; color: #fff; }
+  .gmv-cp-hero-rfhead .rf-hero-sub   { font-size: 11.5px; opacity: 0.92; margin: 3px 0 0; line-height: 1.35; color: #fff; }
+  /* The .gmv-cp-hero base is dark — when .rf-tinted is on, prize-card chips
+     adopt a subtle white-on-orange tint so they read well. */
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-eyebrow { color: rgba(255,255,255,0.85) !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-title   { color: #fff; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-sub     { color: rgba(255,255,255,0.86); }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-bar     { background: rgba(255,255,255,0.18); }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-bar span{ background: #fff; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize   { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.16); }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-tag  { color: rgba(255,255,255,0.9); }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-name { color: #fff; }
+  @keyframes rf-spin { to { transform: rotate(360deg); } }
+
+  /* [patch: rtl_numbers_ltr] In Arabic RTL container, "0 / 300 000" gets
+     visually reordered to "300 000 / 0" because the two LTR digit runs swap
+     across a neutral character. Forcing direction: ltr + unicode-bidi:
+     isolate on the element keeps the logical order visible. Applied app-
+     wide to common number-pair selectors so the rule travels everywhere. */
+  [dir="rtl"] .num-pair,
+  [dir="rtl"] .rfhead-title,
+  [dir="rtl"] .rfhead-sub,
+  [dir="rtl"] .rfhead-pct,
+  [dir="rtl"] .gmv-cp-hero-title,
+  [dir="rtl"] .gmv-cp-hero-sub,
+  [dir="rtl"] .gmv-cp-row-meta,
+  [dir="rtl"] .gmv-cp-row-meta span,
+  [dir="rtl"] .gmv-cp-hero-prize-name,
+  [dir="rtl"] .gmv-cp-kpi-value,
+  [dir="rtl"] .gmv-allgifts-prize-name,
+  [dir="rtl"] .cp-gmv,
+  [dir="rtl"] .cp-meta .cp-level,
+  [dir="rtl"] .gmv-cp-pipe b {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+  [dir="rtl"] .rfhead-title,
+  [dir="rtl"] .rfhead-sub {
+    text-align: end;
+  }
+
+  /* [patch: header_slide_same_row] One-row header layout: wheel | pill +
+     palier title + sub | pct%. The slide's own head/pct are hidden because
+     they're mirrored into the header via JS. */
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-rfhead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-rfhead .rf-hero-text { flex: 1; min-width: 0; }
+  .gmv-cp-hero.rf-tinted .rfhead-title {
+    font-size: 14px; font-weight: 800; color: #fff; line-height: 1.15;
+    margin-top: 2px; letter-spacing: -0.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .gmv-cp-hero.rf-tinted .rfhead-sub {
+    font-size: 10.5px; color: rgba(255,255,255,0.86); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .gmv-cp-hero.rf-tinted .rfhead-pct {
+    font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.02em;
+    flex-shrink: 0; padding-inline-start: 8px;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.18);
+  }
+  /* Slide title/sub/pct are duplicated in the header above — hide them in body */
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-head { display: none !important; }
+
+  /* [patch: compact_merged_orange_card] Tightly pack the merged orange card
+     (wheel header + slide + nav) so it sits in ~190px instead of ~300px. */
+  .gmv-cp-hero.rf-tinted.compact { padding: 10px 12px !important; margin-bottom: 8px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-rfhead {
+    gap: 10px !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 6px !important;
+  }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-rfhead .rf-wheel { width: 56px !important; height: 56px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-rfhead .rf-wheel-hub {
+    width: 24px !important; height: 24px !important; font-size: 13px !important;
+  }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-rfhead .rf-hero-pill {
+    font-size: 9px !important; padding: 2px 7px !important; margin-bottom: 3px !important;
+  }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-rfhead .rf-hero-title { font-size: 15px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-rfhead .rf-hero-sub  { font-size: 10.5px !important; margin-top: 2px !important; }
+
+  /* Slide body — bar + smaller prize chips */
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-stack { min-height: 0 !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-head { margin-bottom: 6px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-eyebrow { font-size: 9px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-title { font-size: 13px !important; margin-top: 1px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-sub { font-size: 10.5px !important; margin-top: 1px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-bar { height: 4px !important; margin-bottom: 8px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prizes { gap: 6px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize { padding: 5px 6px !important; gap: 6px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-img,
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-placeholder { width: 36px !important; height: 36px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-imgs img { width: 28px !important; height: 28px !important; margin-left: -8px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-tag { font-size: 8.5px !important; letter-spacing: .06em !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-name { font-size: 10.5px !important; line-height: 1.2 !important; -webkit-line-clamp: 1 !important; }
+
+  /* Slimmer nav row */
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-nav {
+    margin-top: 6px !important;
+    padding-top: 6px !important;
+    gap: 6px !important;
+  }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-arrow { width: 24px !important; height: 24px !important; font-size: 13px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-all   { padding: 4px 9px !important; font-size: 10.5px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-dot   { width: 5px !important; height: 5px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-dot.is-active { width: 14px !important; }
+
+  /* [patch: shrink_engagement_hero_v3] Dark palier carousel reverted — it
+     stays at original size so the 3 gift cards (Bronze/Silver/Gold) keep
+     showing. Only the orange wheel hero + 4-step row get trimmed below. */
+
+  /* Orange fortune-wheel hero — keep wheel + title + sub, just trim. */
+  .rf-hero {
+    padding: 12px 18px !important;
+    margin: 0 0 10px !important;
+    border-radius: 12px !important;
+  }
+  .rf-hero::before { width: 150px !important; height: 150px !important; top: -50px !important; }
+  .rf-hero-pill   { margin-bottom: 4px !important; }
+  .rf-hero-title  { font-size: 18px !important; }
+  .rf-hero-sub    { font-size: 12px !important; margin-top: 3px !important; }
+  .rf-wheel       { width: 80px !important; height: 80px !important; }
+  .rf-wheel-hub   { width: 36px !important; height: 36px !important; font-size: 18px !important; }
+
+  /* 4 step cards — narrower padding, same text. */
+  .rf-steps {
+    gap: 6px !important;
+    margin: 0 0 10px !important;
+  }
+  .rf-step {
+    padding: 8px 10px 8px 34px !important;
+    border-radius: 9px !important;
+  }
+  .rf-step-num {
+    width: 20px !important; height: 20px !important; font-size: 11px !important;
+    left: 8px !important;
+  }
+  .rf-step-title { font-size: 11.5px !important; }
+  .rf-step-desc  { font-size: 10.5px !important; line-height: 1.3 !important; }
 </style>
 </head>
 <body class="is-locked">
@@ -19870,8 +20219,11 @@ function gmvCurrentPeriodKey() {
 
 async function gmvLoadEngagement() {
   if (typeof sb === 'undefined' || !sb) return;
-  try {
-    // Focus products + paliers from creator's user_data row (shared via RLS).
+  // [patch: paliers_retry_on_empty] First cross-row read of engage_paliers
+  // can race with Supabase auth/RLS warm-up. Retry up to 3x; also kick a
+  // background retry after 3s if still empty. Without this, sellers see no
+  // gift carousel until they manually refresh.
+  const attempt = async () => {
     const [fp, pa, ce] = await Promise.all([
       typeof gmvReadShared === 'function' ? gmvReadShared('engage_focus') : null,
       typeof gmvReadShared === 'function' ? gmvReadShared('engage_paliers') : null,
@@ -19882,9 +20234,6 @@ async function gmvLoadEngagement() {
     if (ce && Array.isArray(ce.data)) {
       const map = {};
       ce.data.forEach(r => {
-        // Per-client product commitments are stashed under focus.__byClient
-        // so we don't need a Supabase schema change. Extract into
-        // commitment.clientFocus for the in-memory shape.
         const f = (r && r.focus && typeof r.focus === 'object') ? r.focus : {};
         const byClient = (f && f.__byClient && typeof f.__byClient === 'object') ? f.__byClient : {};
         const clean = {};
@@ -19895,7 +20244,28 @@ async function gmvLoadEngagement() {
       });
       gmvEngagement.commitments = map;
     }
+  };
+  try {
+    const BACKOFF = [0, 400, 1200];
+    for (let i = 0; i < BACKOFF.length; i++) {
+      if (BACKOFF[i]) await new Promise(r => setTimeout(r, BACKOFF[i]));
+      try { await attempt(); } catch (e) { console.warn('[paliers] attempt', i + 1, 'failed:', e); }
+      if (Array.isArray(gmvEngagement.paliers) && gmvEngagement.paliers.length > 0) break;
+    }
     gmvEngagement.loaded = true;
+    if ((!gmvEngagement.paliers || gmvEngagement.paliers.length === 0) &&
+        typeof gmvIsCreator === 'function' && !gmvIsCreator()) {
+      setTimeout(async () => {
+        try {
+          const pa = await gmvReadShared('engage_paliers');
+          if (Array.isArray(pa) && pa.length > 0) {
+            gmvEngagement.paliers = pa;
+            const wrap = document.getElementById('gmvResultsWrap');
+            if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
+          }
+        } catch (_) {}
+      }, 3000);
+    }
   } catch (e) { console.warn('engagement load failed:', e); }
 }
 
@@ -20380,7 +20750,47 @@ async function gmvRenderEngagement(wrap) {
           palier: 'المستوى', mad: 'درهم', bronze: 'برونزي', silver: 'فضي', gold: 'ذهبي', pcs: 'قطع' },
   })[engLang()] || { ach: '✓ Achieved', next: 'Next', up: 'Upcoming', all: 'See all gifts',
                      palier: 'Palier', mad: 'MAD', bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD', pcs: 'pcs' };
-  const heroCarouselHtml = _paliersAll.length ? (() => {
+  // [patch: always_render_rf_card] Orange card now renders unconditionally so
+  // the wheel/title/period header shows even before paliers finish loading.
+  // If paliers is empty, the body is a small skeleton; once data arrives the
+  // next render replaces it with real slides.
+  const _alwaysRfHeader = (function(){
+    var _rfPill = (_paliersAll.length || '...') + ' ' + _eyDict.palier + ' · 3 ' +
+                  (engLang() === 'ar' ? 'هدايا' : (engLang() === 'fr' ? 'cadeaux' : 'gifts'));
+    // [patch: header_slide_same_row] The static brand title + period sub are
+    // dropped. The header now reserves slots that JS fills with the ACTIVE
+    // palier's title + progress + pct, so user sees ONE row with [wheel +
+    // pill + palier info + pct%] instead of two stacked rows.
+    return '<div class="gmv-cp-hero-rfhead">' +
+        '<div class="rf-wheel" aria-hidden="true">' +
+          '<div class="rf-wheel-rim"></div>' +
+          '<div class="rf-wheel-pointer"></div>' +
+          '<div class="rf-wheel-inner"></div>' +
+          '<div class="rf-wheel-hub"><img src="Logo.jpeg" alt="Z" class="rf-wheel-hub-logo" onerror="this.parentNode.textContent=\'z\'"></div>' +
+        '</div>' +
+        '<div class="rf-hero-text">' +
+          '<span class="rf-hero-pill">' + _esc(_rfPill) + '</span>' +
+          '<div class="rfhead-title" data-rfhead-title></div>' +
+          '<div class="rfhead-sub"   data-rfhead-sub></div>' +
+        '</div>' +
+        '<div class="rfhead-pct" data-rfhead-pct></div>' +
+      '</div>';
+  })();
+  const heroCarouselHtml = (function(){
+    if (!_paliersAll.length) {
+      // Empty state — still show the orange card with header + a loading hint.
+      return (
+        '<section class="gmv-cp-hero compact rf-tinted" data-hero-active="0">' +
+          _alwaysRfHeader +
+          '<div class="gmv-cp-hero-stack" style="min-height:80px; display:flex; align-items:center; justify-content:center;">' +
+            '<div style="color:rgba(255,255,255,0.85); font-size:12px;">' +
+              (engLang() === 'ar' ? 'جاري تحميل الهدايا...'
+                : (engLang() === 'fr' ? 'Chargement des cadeaux…' : 'Loading gifts…')) +
+            '</div>' +
+          '</div>' +
+        '</section>'
+      );
+    }
     const activeIdx = _nextIdx >= 0 ? _nextIdx : 0;
     const slides = _paliersAll.map((p, idx) => {
       const achieved = _portfolioGmv >= (p.threshold || 0);
@@ -20425,8 +20835,10 @@ async function gmvRenderEngagement(wrap) {
     const dots = _paliersAll.map((p, idx) =>
       '<button type="button" class="gmv-cp-hero-dot' + (idx === activeIdx ? ' is-active' : '') + '" data-hero-go="' + idx + '" aria-label="Palier ' + p.palier + '"></button>'
     ).join('');
+    // [patch: merge_rf_into_carousel] Reuses _alwaysRfHeader defined above.
     return (
-      '<section class="gmv-cp-hero compact" data-hero-active="' + activeIdx + '">' +
+      '<section class="gmv-cp-hero compact rf-tinted" data-hero-active="' + activeIdx + '">' +
+        _alwaysRfHeader +
         '<div class="gmv-cp-hero-stack">' + slides + '</div>' +
         '<div class="gmv-cp-hero-nav">' +
           '<button type="button" class="gmv-cp-hero-all" data-hero-all>' + _eyDict.all + '</button>' +
@@ -20436,32 +20848,24 @@ async function gmvRenderEngagement(wrap) {
         '</div>' +
       '</section>'
     );
-  })() : '';
+  })();
 
-  // Roue de la Fortune hero — orange band with mini wheel + steps.
+  // [patch: merge_rf_into_carousel] The .rf-hero band moved INTO the gift
+  // carousel as a header (see _rfHeaderHtml above). Only the 4-step row
+  // remains here.
   const rfHero = `
-    <section class="rf-hero">
-      <div class="rf-hero-inner">
-        <div class="rf-wheel" aria-hidden="true">
-          <div class="rf-wheel-rim"></div>
-          <div class="rf-wheel-pointer"></div>
-          <div class="rf-wheel-inner"></div>
-          <div class="rf-wheel-hub">z</div>
-        </div>
-        <div class="rf-hero-text">
-          <span class="rf-hero-pill">${engT('rf_pill')}</span>
-          <h2 class="rf-hero-title">🎡 ${engT('rf_title')}</h2>
-          <p class="rf-hero-sub">${engT('rf_sub')}${mySeller ? ' · ' + engT('eng_seller_label') + ' ' + gmvEscapeHtmlEng(mySeller) : ''}</p>
-        </div>
-      </div>
-    </section>
     <div class="rf-steps">
       <div class="rf-step"><span class="rf-step-num">1</span><div class="rf-step-title">${engT('rf_step1_t')}</div><div class="rf-step-desc">${engT('rf_step1_d')}</div></div>
       <div class="rf-step"><span class="rf-step-num">2</span><div class="rf-step-title">${engT('rf_step2_t')}</div><div class="rf-step-desc">${engT('rf_step2_d')}</div></div>
       <div class="rf-step"><span class="rf-step-num">3</span><div class="rf-step-title">${engT('rf_step3_t')}</div><div class="rf-step-desc">${engT('rf_step3_d')}</div></div>
       <div class="rf-step"><span class="rf-step-num">4</span><div class="rf-step-title">${engT('rf_step4_t')}</div><div class="rf-step-desc">${engT('rf_step4_d')}</div></div>
     </div>`;
+  // [patch: seller_hero_pin] Render the seller's "MY PERFORMANCE · period"
+  // hero at the very top so it's always visible on every subtab. Empty if
+  // user has no clients or isn't logged in as a seller.
+  const _sellerHero = (mySeller && !isCreator) ? gmvBuildSellerHeroHtml(mySeller) : '';
   wrap.innerHTML = `
+    ${_sellerHero}
     ${heroCarouselHtml}
     ${rfHero}
     ${uploadsHtml}
@@ -20478,6 +20882,22 @@ async function gmvRenderEngagement(wrap) {
   if (_heroSec) {
     const _slides = Array.from(_heroSec.querySelectorAll('.gmv-cp-hero-slide'));
     const _dots = Array.from(_heroSec.querySelectorAll('.gmv-cp-hero-dot'));
+    // [patch: header_slide_same_row] Mirror the active slide's title/sub/pct
+    // into the rfhead so the user sees one combined row.
+    const _rfTitleEl = _heroSec.querySelector('[data-rfhead-title]');
+    const _rfSubEl   = _heroSec.querySelector('[data-rfhead-sub]');
+    const _rfPctEl   = _heroSec.querySelector('[data-rfhead-pct]');
+    const _syncRfHead = (idx) => {
+      if (!_slides.length) return;
+      const s = _slides[idx];
+      if (!s) return;
+      const tEl = s.querySelector('.gmv-cp-hero-title');
+      const uEl = s.querySelector('.gmv-cp-hero-sub');
+      const pEl = s.querySelector('.gmv-cp-hero-pct');
+      if (_rfTitleEl && tEl) _rfTitleEl.textContent = tEl.textContent;
+      if (_rfSubEl   && uEl) _rfSubEl.textContent   = uEl.textContent;
+      if (_rfPctEl   && pEl) _rfPctEl.textContent   = pEl.textContent;
+    };
     const _setActive = (idx) => {
       if (!_slides.length) return;
       const n = _slides.length;
@@ -20485,7 +20905,10 @@ async function gmvRenderEngagement(wrap) {
       _slides.forEach((s, j) => s.classList.toggle('is-active', j === i));
       _dots.forEach((d, j) => d.classList.toggle('is-active', j === i));
       _heroSec.setAttribute('data-hero-active', String(i));
+      _syncRfHead(i);
     };
+    // Initial sync — fill the rfhead with whichever slide is initially active.
+    _syncRfHead(parseInt(_heroSec.getAttribute('data-hero-active') || '0', 10) || 0);
     const _getActive = () => parseInt(_heroSec.getAttribute('data-hero-active') || '0', 10) || 0;
     if (window._gmvHeroTimer) { clearInterval(window._gmvHeroTimer); window._gmvHeroTimer = null; }
     window._gmvHeroTimer = setInterval(() => {
@@ -21661,7 +22084,8 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
   });
   const insightNoProducts = rows.filter(r => r.productsCount === 0);
 
-  if (!gmvEngagement.cpFilter)  gmvEngagement.cpFilter  = 'all';
+  // [patch: gmv_handoff_fix3] Default filter is now 'buying' (was 'all').
+  if (!gmvEngagement.cpFilter)  gmvEngagement.cpFilter  = 'buying';
   if (!gmvEngagement.cpSort)    gmvEngagement.cpSort    = 'priority';
   if (gmvEngagement.cpSearch == null) gmvEngagement.cpSearch = '';
   const fSearch  = (gmvEngagement.cpSearch || '').toLowerCase().trim();
@@ -21670,8 +22094,14 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
 
   let visible = rows.filter(r => {
     if (fSearch && !((r.name + ' ' + r.phone).toLowerCase().includes(fSearch))) return false;
+    // [patch: gmv_handoff_fix4] Filter set is now: buying / ontrack / won / cold / noprod.
+    // 'all' / 'atrisk' are gone — if cpFilter is still 'all' (legacy state) we
+    // treat it as no-filter for back-compat.
     if (fStatus === 'buying') return r.focusOrderedCount > 0;
-    if (fStatus !== 'all' && r.status !== fStatus) return false;
+    if (fStatus === 'noprod') return r.productsCount === 0;
+    if (fStatus === 'cold')   return r.daysSince !== null && r.daysSince >= 14;
+    if (fStatus === 'all')    return true;
+    if (r.status !== fStatus) return false;
     return true;
   });
   const priorityRank = { atrisk: 0, cold: 1, ontrack: 2, won: 3 };
@@ -21697,7 +22127,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       ins_noprod_t: 'No products assigned', ins_noprod_d: 'clients have no focus products',
       search: 'Search clients...', sort: 'Sort by',
       sort_priority: 'Priority', sort_gmv_desc: 'GMV (high to low)', sort_gmv_asc: 'GMV (low to high)', sort_name: 'Name', sort_lastorder: 'Recent activity',
-      flt_all: 'All', flt_buying: 'Buying from list', flt_won: 'Won', flt_ontrack: 'On track', flt_atrisk: 'At risk', flt_cold: 'Cold',
+      flt_all: 'All', flt_buying: 'Buying from list', flt_won: 'Won', flt_ontrack: 'On track', flt_atrisk: 'At risk', flt_cold: 'Inactive', flt_noprod: 'No products',
       st_won: 'Gift won', st_ontrack: 'On track', st_atrisk: 'At risk', st_cold: 'Cold',
       empty: 'No clients match your filters.', noClients: 'No clients yet.', lastOrder: 'Last order', daysAgo: 'd ago', never: 'never',
       products: 'products', done: 'All paliers cleared',
@@ -21710,7 +22140,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       ins_noprod_t: 'Aucun produit assigné', ins_noprod_d: 'clients n\'ont aucun produit focus',
       search: 'Rechercher des clients...', sort: 'Trier par',
       sort_priority: 'Priorité', sort_gmv_desc: 'GMV (↓)', sort_gmv_asc: 'GMV (↑)', sort_name: 'Nom', sort_lastorder: 'Activité récente',
-      flt_all: 'Tous', flt_buying: 'Achètent de la liste', flt_won: 'Gagnés', flt_ontrack: 'En bonne voie', flt_atrisk: 'À risque', flt_cold: 'Froids',
+      flt_all: 'Tous', flt_buying: 'Achètent de la liste', flt_won: 'Gagnés', flt_ontrack: 'En bonne voie', flt_atrisk: 'À risque', flt_cold: 'Inactifs', flt_noprod: 'Sans produits',
       st_won: 'Cadeau gagné', st_ontrack: 'En bonne voie', st_atrisk: 'À risque', st_cold: 'Froid',
       empty: 'Aucun résultat.', noClients: 'Aucun client.', lastOrder: 'Dernière commande', daysAgo: 'j', never: 'jamais',
       products: 'produits', done: 'Tous paliers franchis',
@@ -21723,7 +22153,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       ins_noprod_t: 'بدون منتجات', ins_noprod_d: 'زبون بدون منتجات مستهدفة',
       search: 'ابحث عن زبون...', sort: 'الفرز',
       sort_priority: 'الأولوية', sort_gmv_desc: 'GMV ↓', sort_gmv_asc: 'GMV ↑', sort_name: 'الاسم', sort_lastorder: 'النشاط الأخير',
-      flt_all: 'الكل', flt_buying: 'يشترون من القائمة', flt_won: 'مربوحة', flt_ontrack: 'على المسار', flt_atrisk: 'بخطر', flt_cold: 'غير نشط',
+      flt_all: 'الكل', flt_buying: 'يشترون من القائمة', flt_won: 'مربوحة', flt_ontrack: 'على المسار', flt_atrisk: 'بخطر', flt_cold: 'زبائن غير نشطين', flt_noprod: 'بدون منتجات',
       st_won: 'هدية مربوحة', st_ontrack: 'على المسار', st_atrisk: 'بخطر', st_cold: 'غير نشط',
       empty: 'لا نتائج.', noClients: 'لا يوجد زبائن.', lastOrder: 'آخر طلب', daysAgo: 'يوم', never: 'أبدًا',
       products: 'منتجات', done: 'تم اجتياز جميع الأهداف',
@@ -21755,8 +22185,12 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
     return '<span class="gmv-cp-pill gmv-cp-pill--' + status + '"><span class="gmv-cp-pill-dot"></span>' + (map[status] || status) + '</span>';
   };
 
-  const filterChip = (key, label) =>
-    '<button type="button" class="gmv-cp-filter' + (fStatus === key ? ' is-active' : '') + '" data-cp-filter="' + key + '">' + label + '</button>';
+  // [patch: gmv_handoff_fix4] Filter chips now carry an optional count badge.
+  const filterChip = (key, label, count) =>
+    '<button type="button" class="gmv-cp-filter' + (fStatus === key ? ' is-active' : '') + '" data-cp-filter="' + key + '">' +
+      label +
+      (typeof count === 'number' ? ' <span class="gmv-cp-filter-count">' + count + '</span>' : '') +
+    '</button>';
 
   const sortOpts = [
     ['priority',  T.sort_priority],
@@ -21808,12 +22242,20 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       '</div>';
     }
     return (
-      '<button type="button" class="gmv-cp-row" data-cp-open="' + esc(r.phone) + '">' +
+      // [patch: gmv_handoff_fix1] Whole row opens the new client perf page;
+      // the cog inside opens the legacy product-targeting screen.
+      '<button type="button" class="gmv-cp-row" data-cp-perf="' + esc(r.phone) + '">' +
         '<div class="gmv-cp-row-avatar" aria-hidden="true">' + esc(initial) + '</div>' +
         '<div class="gmv-cp-row-main">' +
           '<div class="gmv-cp-row-top">' +
             '<div class="gmv-cp-row-name">' + esc(r.name) + '</div>' +
             statusPill(r.status) +
+            '<button type="button" class="client-settings-btn" data-cp-settings="' + esc(r.phone) + '" aria-label="إعدادات المنتجات">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                '<circle cx="12" cy="12" r="3"/>' +
+                '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>' +
+              '</svg>' +
+            '</button>' +
           '</div>' +
           '<div class="gmv-cp-row-phone">' + esc(r.phone) + ' · ' + T.lastOrder + ': ' + lastOrderTxt +
             (r.focusOrderedCount > 0 ? ' · <span class="gmv-cp-row-buying"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> ' + r.focusOrderedCount + ' from list</span>' : '') +
@@ -21918,13 +22360,8 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
         kpiCard(T.kActive,   kpiActive + ' <span class="gmv-cp-kpi-unit">/ ' + allPhones.length + '</span>', '') +
         kpiCard(T.kProgress, kpiPctPaliers + '<span class="gmv-cp-kpi-unit">%</span>', '') +
       '</div>' +
-      ((insightCloseToGift.length + insightCold.length + insightNeedsOneMoreProduct.length + insightNoProducts.length) > 0 ?
-        '<div class="gmv-cp-insights">' +
-          insightCard('green',  T.ins_close_t,  insightCloseToGift.length,        T.ins_close_d,  'close') +
-          insightCard('orange', T.ins_needs_t,  insightNeedsOneMoreProduct.length, T.ins_needs_d, 'needs') +
-          insightCard('red',    T.ins_cold_t,   insightCold.length,                T.ins_cold_d,  'cold') +
-          insightCard('grey',   T.ins_noprod_t, insightNoProducts.length,          T.ins_noprod_d,'noprod') +
-        '</div>' : '') +
+      // [patch: gmv_handoff_fix4] Insight cards removed — their data now lives
+      // as count badges on the filter pills below.
       '<div class="gmv-cp-tools">' +
         '<div class="gmv-cp-search">' + searchIcon +
           '<input type="search" id="gmvCpSearch" placeholder="' + esc(T.search) + '" value="' + esc(fSearch) + '" autocomplete="off">' +
@@ -21933,13 +22370,13 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
           sortOpts.map(o => '<option value="' + o[0] + '"' + (fSort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') +
         '</select>' +
       '</div>' +
+      // [patch: gmv_handoff_fix3 + fix4] Final filter set: buying / ontrack / won / cold / noprod.
       '<div class="gmv-cp-filters">' +
-        filterChip('all',     T.flt_all) +
         filterChip('buying',  T.flt_buying) +
-        filterChip('atrisk',  T.flt_atrisk) +
-        filterChip('cold',    T.flt_cold) +
         filterChip('ontrack', T.flt_ontrack) +
         filterChip('won',     T.flt_won) +
+        filterChip('cold',    T.flt_cold,   insightCold.length) +
+        filterChip('noprod',  T.flt_noprod, insightNoProducts.length) +
       '</div>' +
       '<div class="gmv-cp-list">' + rowHtml + '</div>' +
     '</section>';
@@ -21968,22 +22405,34 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       gmvRenderClientsPerformance(panel, mySeller, isCreator);
     });
   });
-  panel.querySelectorAll('[data-cp-insight]').forEach(b => {
-    b.addEventListener('click', () => {
-      const k = b.dataset.cpInsight;
-      const map = { close: 'ontrack', needs: 'atrisk', cold: 'cold', noprod: 'cold' };
-      gmvEngagement.cpFilter = map[k] || 'all';
-      gmvRenderClientsPerformance(panel, mySeller, isCreator);
-    });
-  });
-  panel.querySelectorAll('[data-cp-open]').forEach(b => {
-    b.addEventListener('click', () => {
-      const phone = b.dataset.cpOpen;
+  // [patch: gmv_handoff_fix4] data-cp-insight handler dropped — those cards
+  // no longer exist; the same counts now sit as badges on filter pills.
+  // [patch: gmv_handoff_fix1] Settings cog → legacy product-targeting flow.
+  // The cog sits inside the row, so we stopPropagation so the row's own click
+  // (which now opens the perf page) doesn't fire.
+  panel.querySelectorAll('[data-cp-settings]').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const phone = b.dataset.cpSettings;
       gmvEngagement.assignEditClient = phone;
       gmvEngagement.assignProductSearch = '';
       gmvEngagement.activeSubtab = 'assign';
       const wrap = panel.closest('#gmvResultsWrap') || panel.parentElement;
       if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
+    });
+  });
+  // [patch: gmv_handoff_fix1] Row body → new Client Performance Page.
+  // Cache rows + translations globally so the hash-router (Fix #8) can
+  // re-open the perf page on browser back/forward + refresh.
+  try { window.__gmv_cp_rows = rows; window.__gmv_cp_T = T; } catch(_){}
+  panel.querySelectorAll('[data-cp-perf]').forEach(b => {
+    b.addEventListener('click', (e) => {
+      if (e.target.closest('.client-settings-btn')) return; // cog handled above
+      const phone = b.dataset.cpPerf;
+      if (window.RihabRouter) {
+        window.RihabRouter.push({ feature: 'gmv', subtab: 'clientperf', clientId: phone });
+      }
+      gmvOpenClientPerformance(phone, rows, panel, mySeller, isCreator, T);
     });
   });
 
@@ -22016,6 +22465,197 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
     const allBtn = heroSection.querySelector('[data-hero-all]');
     if (allBtn) allBtn.addEventListener('click', () => gmvOpenAllGifts(paliers, portfolioGmv));
   }
+}
+
+// [patch: gmv_handoff_fix1] Client Performance Page —
+//   Replaces the panel HTML with a per-client perf view. The seller (or
+//   creator) clicks a row, lands here, and the cog on the row opens the
+//   legacy product-targeting flow instead.
+//
+//   `rowsData` is the same shape gmvRenderClientsPerformance builds: an
+//   array of objects with name/phone/status/cBoth/nextPalier/products*/st*.
+//   `panel` is the same DOM node — we save its previous HTML and restore on
+//   "back" so we don't have to recompute the list.
+function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T) {
+  try {
+    var row = (rowsData || []).find(function(r){ return r && r.phone === phone; });
+    if (!row) return;
+    var L = (function(){
+      var lang = (typeof engLang === 'function' ? engLang() : 'en');
+      var dict = {
+        en: { back:'Back', level:'Level', gmv:'GMV',
+              kPending:'Pending', kDelivered:'Delivered', kReturned:'Returned',
+              kCanceled:'Canceled', kToDeliver:'To deliver', kInProgress:'In progress',
+              h_gift:'Gifts', h_level:'Level progress', h_products:'Products', h_activity:'Activity', h_notes:'Notes',
+              lastOrder:'Last order', never:'never', daysAgo:'d ago',
+              active:'Active', inactive:'Inactive', noProds:'No products targeted yet.',
+              notesPh:'Internal note about this client…',
+              targetBtn:'Targeted products' },
+        fr: { back:'Retour', level:'Palier', gmv:'GMV',
+              kPending:'En attente', kDelivered:'Livrées', kReturned:'Retournées',
+              kCanceled:'Annulées', kToDeliver:'À livrer', kInProgress:'En cours',
+              h_gift:'Cadeaux', h_level:'Progression palier', h_products:'Produits', h_activity:'Activité', h_notes:'Notes',
+              lastOrder:'Dernière commande', never:'jamais', daysAgo:'j',
+              active:'Actif', inactive:'Inactif', noProds:'Aucun produit ciblé.',
+              notesPh:'Note interne sur ce client…',
+              targetBtn:'Produits ciblés' },
+        ar: { back:'رجوع', level:'المستوى', gmv:'GMV',
+              kPending:'قيد الانتظار', kDelivered:'موصّلة', kReturned:'مرتجعة',
+              kCanceled:'ملغاة', kToDeliver:'للتوصيل', kInProgress:'في الطريق',
+              h_gift:'الهدايا', h_level:'تقدم المستوى', h_products:'المنتجات', h_activity:'النشاط', h_notes:'ملاحظات',
+              lastOrder:'آخر طلبية', never:'لا توجد', daysAgo:'يوم',
+              active:'نشط', inactive:'غير نشط', noProds:'لا توجد منتجات مستهدفة بعد.',
+              notesPh:'ملاحظة داخلية على هذا الزبون…',
+              targetBtn:'المنتجات المستهدفة' },
+      };
+      return dict[lang] || dict.en;
+    })();
+    function esc2(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(m){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
+    }); }
+    var firstLetter2 = function(s){ var m = String(s||'').match(/[\p{L}]/u); return m ? m[0].toUpperCase() : '?'; };
+    var fmtN = function(n){ return (Math.round(Number(n)||0)).toLocaleString(); };
+    var totalGmv = row.cBoth || 0;
+    var nextThr  = row.nextPalier ? (row.nextPalier.threshold || 0) : 0;
+    var pct      = (nextThr > 0) ? Math.min(100, Math.round((totalGmv / nextThr) * 100)) : 100;
+    var lastTxt  = row.lastTs ? (row.daysSince + ' ' + L.daysAgo) : L.never;
+    var isActive = row.daysSince !== null && row.daysSince < 14;
+    var kpis = [
+      { v: row.stPending     || 0, l: L.kPending     },
+      { v: row.stDelivered   || row.deliveredCount || 0, l: L.kDelivered },
+      { v: row.stReturned    || 0, l: L.kReturned    },
+      { v: row.stCanceled    || 0, l: L.kCanceled    },
+      { v: row.stToDeliver   || 0, l: L.kToDeliver   },
+      { v: row.stInProgress  || 0, l: L.kInProgress  },
+    ];
+    // [patch: gmv_handoff_fix1] List the seller's focus products for THIS client.
+    var prodList = '';
+    try {
+      var focus = (typeof gmvEngagement !== 'undefined' && gmvEngagement.commitments
+                   && gmvEngagement.commitments[mySeller]
+                   && gmvEngagement.commitments[mySeller].clientFocus
+                   && gmvEngagement.commitments[mySeller].clientFocus[phone]) || null;
+      var codes = focus ? Object.keys(focus) : [];
+      if (codes.length === 0) {
+        prodList = '<div style="color:#64748b;font-size:13px;">' + esc2(L.noProds) + '</div>';
+      } else {
+        prodList = codes.map(function(code){
+          var p = focus[code] || {};
+          var name = (p.name || code);
+          var min  = p.minQty || 0;
+          var done = (p.deliveredQty || 0);
+          return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9">' +
+                   '<span>' + esc2(name) + '</span>' +
+                   '<span style="font-family:ui-monospace,monospace;font-weight:600;color:#0f172a">' + done + ' / ' + min + '</span>' +
+                 '</div>';
+        }).join('');
+      }
+    } catch(_) {
+      prodList = '<div style="color:#64748b;font-size:13px;">' + esc2(L.noProds) + '</div>';
+    }
+    // Save current HTML so back-button can restore in one shot.
+    if (!panel.dataset.cpPrevSaved) {
+      panel.dataset.cpPrevHtml = panel.innerHTML;
+      panel.dataset.cpPrevSaved = '1';
+    }
+    var notesKey = 'rihab_cp_note__' + phone;
+    var noteVal  = '';
+    try { noteVal = localStorage.getItem(notesKey) || ''; } catch(_){}
+    panel.innerHTML =
+      '<div id="clientPerfPage" data-cp-phone="' + esc2(phone) + '">' +
+        '<button type="button" class="cp-back" data-cp-back>' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
+            '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>' +
+          '</svg> ' + esc2(L.back) +
+        '</button>' +
+        '<header class="cp-header">' +
+          '<div class="cp-avatar">' + esc2(firstLetter2(row.name)) + '</div>' +
+          '<div style="min-width:0;flex:1;">' +
+            '<h1>' + esc2(row.name) + '</h1>' +
+            '<div class="cp-meta">' +
+              '<a class="cp-phone-link" href="tel:' + esc2(row.phone) + '">' + esc2(row.phone) + '</a>' +
+              '<span class="cp-sep">·</span>' +
+              '<span class="cp-level">' + esc2(L.level) + ' ' + (row.nextPalier ? row.nextPalier.palier : '—') + '</span>' +
+              '<span class="cp-sep">·</span>' +
+              '<span class="cp-gmv">' + fmtN(totalGmv) + ' ' + esc2(L.gmv) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<button type="button" class="client-settings-btn" data-cp-perf-settings="' + esc2(phone) + '" title="' + esc2(L.targetBtn) + '" aria-label="' + esc2(L.targetBtn) + '">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+              '<circle cx="12" cy="12" r="3"/>' +
+              '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>' +
+            '</svg>' +
+          '</button>' +
+        '</header>' +
+        '<section class="cp-kpis">' +
+          kpis.map(function(k){
+            return '<div class="cp-kpi"><div class="val">' + k.v + '</div><div class="lbl">' + esc2(k.l) + '</div></div>';
+          }).join('') +
+        '</section>' +
+        '<section class="cp-block">' +
+          '<h2>' + esc2(L.h_level) + '</h2>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#475569;">' +
+            '<span>' + pct + '%</span>' +
+            '<span style="font-size:11px;">' + fmtN(totalGmv) + ' / ' + fmtN(nextThr) + ' MAD</span>' +
+          '</div>' +
+          '<div style="height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden;margin-top:6px">' +
+            '<div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#F7624A,#E04A2F)"></div>' +
+          '</div>' +
+        '</section>' +
+        '<section class="cp-block">' +
+          '<h2>' + esc2(L.h_products) + '</h2>' +
+          prodList +
+        '</section>' +
+        '<section class="cp-block">' +
+          '<h2>' + esc2(L.h_activity) + '</h2>' +
+          '<div style="font-size:13px;color:#334155;">' + esc2(L.lastOrder) + ': <strong>' + esc2(lastTxt) + '</strong></div>' +
+          '<span style="display:inline-block;margin-top:8px;padding:4px 10px;border-radius:999px;' +
+            'background:' + (isActive ? '#ecfdf5' : '#fef2f2') + ';color:' + (isActive ? '#065f46' : '#991b1b') + ';' +
+            'font-size:11px;font-weight:700">' + esc2(isActive ? L.active : L.inactive) + '</span>' +
+        '</section>' +
+        '<section class="cp-block">' +
+          '<h2>' + esc2(L.h_notes) + '</h2>' +
+          '<textarea id="cpNotes" placeholder="' + esc2(L.notesPh) + '">' + esc2(noteVal) + '</textarea>' +
+        '</section>' +
+      '</div>';
+    var backBtn = panel.querySelector('[data-cp-back]');
+    if (backBtn) backBtn.addEventListener('click', function(){
+      // [patch: gmv_handoff_fix8] Prefer history.back so URL stays in sync.
+      // Fallback to manual close if there's no entry to pop.
+      if (window.history && window.history.length > 1) {
+        try { history.back(); return; } catch(_){}
+      }
+      gmvCloseClientPerformance(panel, mySeller, isCreator);
+    });
+    var notes = panel.querySelector('#cpNotes');
+    if (notes) notes.addEventListener('input', function(){
+      try { localStorage.setItem(notesKey, notes.value || ''); } catch(_){}
+    });
+    var cog = panel.querySelector('[data-cp-perf-settings]');
+    if (cog) cog.addEventListener('click', function(){
+      gmvEngagement.assignEditClient = phone;
+      gmvEngagement.assignProductSearch = '';
+      gmvEngagement.activeSubtab = 'assign';
+      // Clear cp-prev cache so back to list re-renders fresh after editing.
+      try { delete panel.dataset.cpPrevHtml; delete panel.dataset.cpPrevSaved; } catch(_){}
+      var wrap = panel.closest('#gmvResultsWrap') || panel.parentElement;
+      if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
+    });
+  } catch(err) {
+    console.error('[gmv_handoff_fix1] openClientPerformance failed:', err);
+  }
+}
+function gmvCloseClientPerformance(panel, mySeller, isCreator) {
+  // Prefer the cached HTML (instant), fall back to a full re-render.
+  if (panel && panel.dataset && panel.dataset.cpPrevSaved) {
+    panel.innerHTML = panel.dataset.cpPrevHtml || '';
+    try { delete panel.dataset.cpPrevHtml; delete panel.dataset.cpPrevSaved; } catch(_){}
+    var wrap = panel.closest('#gmvResultsWrap') || panel.parentElement;
+    if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
+    return;
+  }
+  var wrap = panel.closest('#gmvResultsWrap') || panel.parentElement;
+  if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
 }
 
 // [patch: see_all_gifts] Full-screen modal listing every palier with its
@@ -22874,6 +23514,65 @@ function gmvRenderEngagementPaliers(panel, mySeller, isCreator) {
   });
 }
 
+// [patch: seller_hero_pin] Hoisted helpers so the orange MY PERFORMANCE
+// hero can render at the top of gmvRenderEngagement (above the carousel
+// + tabs). Previously they lived inside gmvRenderEngagementScoreboard, so
+// the seller only saw their stats on the My Performance subtab.
+function gmvPhonesForSeller(seller) {
+  const seen = new Set();
+  const out = [];
+  Object.entries(gmv.clients || {}).forEach(([phone, c]) => {
+    const claim = gmvClientAssignments && gmvClientAssignments.byPhone ? gmvClientAssignments.byPhone[phone] : null;
+    const assigned = (claim && claim.seller) || (c && c.seller) || '';
+    if (assigned === seller && !seen.has(phone)) { seen.add(phone); out.push(phone); }
+  });
+  Object.entries((gmvClientAssignments && gmvClientAssignments.byPhone) || {}).forEach(([phone, a]) => {
+    if (a.seller === seller && !seen.has(phone)) { seen.add(phone); out.push(phone); }
+  });
+  return out;
+}
+function gmvComputeSellerStats(seller) {
+  const phones = gmvPhonesForSeller(seller);
+  const commit = (gmvEngagement.commitments[seller] || {});
+  const cFocus = commit.clientFocus || {};
+  const caM1 = (typeof gmvCaPerClientPeriod === 'function') ? gmvCaPerClientPeriod(ENG_PERIOD_M1) : {};
+  const caM2 = (typeof gmvCaPerClientPeriod === 'function') ? gmvCaPerClientPeriod(ENG_PERIOD_M2) : {};
+  const sortedPaliers = (gmvEngagement.paliers || []).slice().sort((a, b) => (a.palier || 0) - (b.palier || 0));
+  let totalGmv = 0, m1Gifts = 0, bothGifts = 0;
+  phones.forEach(phone => {
+    const c1 = caM1[phone] || 0;
+    const c2 = caM2[phone] || 0;
+    const cBoth = c1 + c2;
+    totalGmv += cBoth;
+    const targetP = sortedPaliers.find(p => (p.threshold || 0) > cBoth) || null;
+    const myProds = Object.keys(cFocus[phone] || {}).filter(c => cFocus[phone][c] && cFocus[phone][c].selected);
+    const m1Count   = (typeof gmvClientAchievedM1   === 'function') ? gmvClientAchievedM1(seller, phone, myProds)   : 0;
+    const bothCount = (typeof gmvClientAchievedBoth === 'function') ? gmvClientAchievedBoth(seller, phone, myProds) : 0;
+    const m1Open   = !!(targetP && c1    >= (targetP.threshold || 0) && m1Count   >= ENG_CLIENT_MILESTONE_M1);
+    const bothOpen = !!(targetP && cBoth >= (targetP.threshold || 0) && bothCount >= ENG_CLIENT_MILESTONE_BOTH);
+    if (m1Open) m1Gifts++;
+    if (bothOpen) bothGifts++;
+  });
+  return { seller, clients: phones.length, totalGmv, giftsTotal: m1Gifts + bothGifts };
+}
+function gmvBuildSellerHeroHtml(seller) {
+  if (!seller) return '';
+  const s = gmvComputeSellerStats(seller);
+  if (!s.clients) return '';
+  const period = gmvCurrentPeriodKey();
+  const fmt = n => Math.round(n || 0).toLocaleString('en-US');
+  return `
+    <section class="sb-hero sb-hero-pinned">
+      <div class="sb-hero-eyebrow">${engT('sc_my_perf')} · ${period}</div>
+      <h2 class="sb-hero-name">${gmvEscapeHtmlEng(s.seller)}</h2>
+      <div class="sb-hero-stats">
+        <div class="sb-hero-stat"><b>${s.clients}</b><span>${engT('sb_stat_clients')}</span></div>
+        <div class="sb-hero-stat"><b>${s.giftsTotal}</b><span>${engT('sb_stat_gifts')}</span></div>
+        <div class="sb-hero-stat"><b>${fmt(s.totalGmv)}</b><span>MAD · ${engT('sb_stat_gmv')}</span></div>
+      </div>
+    </section>`;
+}
+
 function gmvRenderEngagementScoreboard(panel, mySeller, isCreator) {
   if (!panel) return;
   panel.setAttribute('dir', engLang() === 'ar' ? 'rtl' : 'ltr');
@@ -22956,17 +23655,10 @@ function gmvRenderEngagementScoreboard(panel, mySeller, isCreator) {
     const pctWon  = tot ? (me.won  / tot) * 100 : 0;
     const pctOk   = tot ? (me.atMin / tot) * 100 : 0;
     const pctIdle = tot ? (me.idle / tot) * 100 : 0;
+    // [patch: seller_hero_pin] The sb-hero block is now rendered at the top
+    // of gmvRenderEngagement (visible on every subtab), so we don't repeat
+    // it here. Scoreboard content starts directly with the KPI grid.
     panel.innerHTML = `
-      <section class="sb-hero">
-        <div class="sb-hero-eyebrow">${engT('sc_my_perf')} · ${period}</div>
-        <h2 class="sb-hero-name">${gmvEscapeHtmlEng(me.seller)}</h2>
-        <div class="sb-hero-stats">
-          <div class="sb-hero-stat"><b>${me.clients}</b><span>${engT('sb_stat_clients')}</span></div>
-          <div class="sb-hero-stat"><b>${me.giftsTotal}</b><span>${engT('sb_stat_gifts')}</span></div>
-          <div class="sb-hero-stat"><b>${fmt(me.totalGmv)}</b><span>MAD · ${engT('sb_stat_gmv')}</span></div>
-        </div>
-      </section>
-
       <div class="sb-kpi-grid">
         <article class="sb-kpi sb-kpi--idle">
           <div class="sb-kpi-icon">👥</div>
@@ -29187,6 +29879,254 @@ async function fulfillInit() {
   } catch (_) {}
 })();
 /* GLS_END */
+</script>
+<script>
+  /* [patch: gmv_handoff_fix8_full] Hash-based router for EVERY page.
+     Hash shape:
+       #/planner
+       #/gmv
+       #/gmv/performance | targets | clients | engagement
+       #/gmv/engagement/assign
+       #/gmv/engagement/assign/<phone>      (product-targeting per client)
+       #/gmv/engagement/clientperf
+       #/gmv/engagement/clientperf/<phone>  (client perf page)
+       #/gmv/engagement/myperf
+       #/gmv/engagement/allgifts            (all-gifts modal)
+       #/confirm | #/confirm/p1..p4
+       #/fulfill
+       #/settings | #/settings/account|team|permissions|impersonate
+  */
+  (function(){
+    function stateToHash(s){
+      if (!s || !s.feature) return '';
+      var h = '#/' + s.feature;
+      if (s.feature === 'gmv') {
+        if (s.page) h += '/' + s.page;
+        if (s.page === 'engagement' && s.subtab) {
+          h += '/' + s.subtab;
+          if (s.detail) h += '/' + encodeURIComponent(s.detail);
+        }
+      } else if (s.feature === 'settings' && s.tab) {
+        h += '/' + s.tab;
+      } else if (s.feature === 'confirm' && s.phase) {
+        h += '/' + s.phase;
+      }
+      return h;
+    }
+    function hashToState(hash){
+      var s = String(hash || '').replace(/^#\/?/, '');
+      if (!s) return { feature: 'planner' };
+      var parts = s.split('/');
+      var st = { feature: parts[0] };
+      if (parts[0] === 'gmv') {
+        if (parts[1]) st.page = parts[1];
+        if (st.page === 'engagement' && parts[2]) {
+          st.subtab = parts[2];
+          if (parts[3]) st.detail = decodeURIComponent(parts[3]);
+        }
+      } else if (parts[0] === 'settings') {
+        if (parts[1]) st.tab = parts[1];
+      } else if (parts[0] === 'confirm') {
+        if (parts[1]) st.phase = parts[1];
+      }
+      return st;
+    }
+    // Our router feature names ↔ sidebar data-feature values.
+    var FEAT_TO_SIDEBAR = { confirm: 'fulfill_v2' };
+    var SIDEBAR_TO_FEAT = { fulfill_v2: 'confirm' };
+    function clickFeatureBtn(featKey){
+      var sidebarKey = FEAT_TO_SIDEBAR[featKey] || featKey;
+      var btn = document.querySelector('.as-feature[data-feature="' + sidebarKey + '"]');
+      if (!btn) return false;
+      window.__router_silent = true;
+      btn.click();
+      window.__router_silent = false;
+      return true;
+    }
+    function applyGmvPage(page){
+      if (typeof gmv === 'undefined' || !page) return;
+      if (gmv.activePage === page) return;
+      gmv.activePage = page;
+      try {
+        if (typeof saveJSON === 'function' && typeof GMV_LS_PAGE !== 'undefined') {
+          saveJSON(GMV_LS_PAGE, page);
+        }
+      } catch(_){}
+      try { if (typeof gmvRenderPageBar === 'function') gmvRenderPageBar(); } catch(_){}
+      try { if (typeof gmvRenderResults === 'function') gmvRenderResults(); } catch(_){}
+    }
+    function applyState(st){
+      st = st || { feature: 'planner' };
+      clickFeatureBtn(st.feature || 'planner');
+      if (st.feature === 'gmv') {
+        applyGmvPage(st.page || 'engagement');
+        if ((st.page || 'engagement') === 'engagement') {
+          if (typeof gmvEngagement !== 'undefined') {
+            gmvEngagement.activeSubtab = st.subtab || 'assign';
+            if (st.subtab === 'assign' && st.detail) {
+              gmvEngagement.assignEditClient = st.detail;
+              gmvEngagement.assignProductSearch = '';
+            } else if (st.subtab === 'assign') {
+              gmvEngagement.assignEditClient = '';
+            }
+          }
+          try {
+            var wrap = document.getElementById('gmvResultsWrap');
+            if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
+          } catch(_){}
+          if (st.subtab === 'clientperf' && st.detail) {
+            setTimeout(function(){
+              try {
+                var panel = document.querySelector('#gmvResultsWrap .gmv-cp-panel') ||
+                            document.querySelector('#gmvResultsWrap [data-engagement-panel]') ||
+                            document.querySelector('#gmvResultsWrap > div');
+                var globalRows = window.__gmv_cp_rows || null;
+                if (panel && globalRows && typeof gmvOpenClientPerformance === 'function') {
+                  var mySeller  = (typeof gmvSellerName === 'function') ? gmvSellerName() : '';
+                  var isCreator = (typeof gmvIsCreator   === 'function') ? gmvIsCreator()   : false;
+                  var T = window.__gmv_cp_T || {};
+                  gmvOpenClientPerformance(st.detail, globalRows, panel, mySeller, isCreator, T);
+                }
+              } catch(_){}
+            }, 50);
+          }
+          if (st.subtab === 'allgifts') {
+            setTimeout(function(){
+              try {
+                if (typeof gmvOpenAllGifts === 'function') {
+                  var paliers = (typeof gmvEngagement !== 'undefined' && gmvEngagement.paliers) || [];
+                  var portfolio = window.__gmv_portfolio_gmv || 0;
+                  gmvOpenAllGifts(paliers, portfolio);
+                }
+              } catch(_){}
+            }, 80);
+          }
+        }
+      } else if (st.feature === 'settings' && st.tab) {
+        setTimeout(function(){
+          try { if (typeof settingsSetTab === 'function') settingsSetTab(st.tab); } catch(_){}
+        }, 30);
+      } else if (st.feature === 'confirm' && st.phase) {
+        setTimeout(function(){
+          try {
+            var iframe = document.querySelector('#featureFulfillV2 iframe');
+            if (iframe && iframe.contentWindow) {
+              iframe.contentWindow.postMessage({ type: 'co:setPhase', phase: st.phase }, '*');
+            }
+          } catch(_){}
+        }, 80);
+      }
+    }
+    window.RihabRouter = {
+      stateToHash: stateToHash,
+      hashToState: hashToState,
+      push: function(state){
+        try {
+          var h = stateToHash(state);
+          if (h === location.hash) return;
+          history.pushState(state, '', h);
+        } catch(_){}
+      },
+      replace: function(state){
+        try { history.replaceState(state, '', stateToHash(state)); } catch(_){}
+      },
+      applyState: applyState,
+      current: function(){ return hashToState(location.hash); }
+    };
+    window.addEventListener('popstate', function(e){
+      var st = e.state || hashToState(location.hash);
+      applyState(st);
+    });
+    window.addEventListener('DOMContentLoaded', function(){
+      var st = hashToState(location.hash);
+      try { history.replaceState(st, '', stateToHash(st)); } catch(_){}
+      applyState(st);
+    });
+    // ---------- Click hooks ----------
+    var __lastFeat = null;
+    // Sidebar features
+    document.addEventListener('click', function(e){
+      var btn = e.target.closest && e.target.closest('.as-feature[data-feature]');
+      if (!btn) return;
+      if (window.__router_silent) return;
+      setTimeout(function(){
+        if (!btn.classList.contains('active')) return;
+        var sidebarKey = btn.dataset.feature;
+        var feat = SIDEBAR_TO_FEAT[sidebarKey] || sidebarKey;
+        if (feat && feat !== __lastFeat) {
+          __lastFeat = feat;
+          window.RihabRouter.push({ feature: feat });
+        }
+      }, 0);
+    });
+    // GMV pagebar (performance / targets / clients / engagement)
+    document.addEventListener('click', function(e){
+      var t = e.target.closest && e.target.closest('.gmv-pagebtn[data-gpage]');
+      if (!t) return;
+      var pg = t.dataset.gpage;
+      if (!pg) return;
+      var cur = hashToState(location.hash);
+      if (cur.feature === 'gmv' && cur.page === pg) return;
+      window.RihabRouter.push({ feature: 'gmv', page: pg });
+    });
+    // GMV engagement subtabs (assign / clientperf / myperf)
+    document.addEventListener('click', function(e){
+      var t = e.target.closest && e.target.closest('[data-engtab]');
+      if (!t) return;
+      var sub = t.dataset.engtab;
+      if (!sub) return;
+      var cur = hashToState(location.hash);
+      if (cur.feature === 'gmv' && cur.page === 'engagement' && cur.subtab === sub) return;
+      window.RihabRouter.push({ feature: 'gmv', page: 'engagement', subtab: sub });
+    });
+    // Settings tabs (account / team / permissions / impersonate)
+    document.addEventListener('click', function(e){
+      var t = e.target.closest && e.target.closest('[data-st-tab]');
+      if (!t) return;
+      var tab = t.dataset.stTab;
+      if (!tab) return;
+      var cur = hashToState(location.hash);
+      if (cur.feature === 'settings' && cur.tab === tab) return;
+      window.RihabRouter.push({ feature: 'settings', tab: tab });
+    });
+    // All-gifts modal trigger
+    document.addEventListener('click', function(e){
+      var t = e.target.closest && e.target.closest('[data-hero-all]');
+      if (!t) return;
+      window.RihabRouter.push({ feature: 'gmv', page: 'engagement', subtab: 'allgifts' });
+    });
+    // Confirm Orders phase changes — listen for phase events from the iframe
+    window.addEventListener('message', function(e){
+      var m = e && e.data;
+      if (!m || m.type !== 'co:phaseChanged' || !m.phase) return;
+      var cur = hashToState(location.hash);
+      if (cur.feature === 'confirm' && cur.phase === m.phase) return;
+      window.RihabRouter.push({ feature: 'confirm', phase: m.phase });
+    });
+  })();
+  /* [patch: gmv_handoff_fix7] Block keyboard / wheel / gesture / double-tap zoom */
+  (function(){
+    try {
+      window.addEventListener('wheel', function (e) {
+        if (e.ctrlKey || e.metaKey) e.preventDefault();
+      }, { passive: false });
+      window.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) &&
+            ['+', '-', '=', '0', 'Add', 'Subtract'].indexOf(e.key) >= 0) {
+          e.preventDefault();
+        }
+      });
+      ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (evt) {
+        document.addEventListener(evt, function (e) { e.preventDefault(); }, { passive: false });
+      });
+      var __lastTouchEnd = 0;
+      document.addEventListener('touchend', function (e) {
+        var now = Date.now();
+        if (now - __lastTouchEnd <= 300) e.preventDefault();
+        __lastTouchEnd = now;
+      }, { passive: false });
+    } catch (_) {}
+  })();
 </script>
 </body>
 </html>
