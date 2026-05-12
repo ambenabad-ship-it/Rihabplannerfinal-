@@ -4297,8 +4297,8 @@
     </div>
     <form class="login-form" id="loginForm" autocomplete="on">
       <label class="login-field">
-        <span>Email</span>
-        <input type="email" id="loginEmail" autocomplete="email" required spellcheck="false" autocapitalize="none">
+        <span>Email or Username</span>
+        <input type="text" id="loginEmail" autocomplete="username" required spellcheck="false" autocapitalize="none" placeholder="anas or anas@company.com">
       </label>
       <label class="login-field">
         <span>Password</span>
@@ -13375,9 +13375,20 @@ async function sbInitSession() {
     return sbUser;
   } catch (e) { console.error(e); return null; }
 }
+// [patch: username_login] Accept a bare username (no "@") and append the
+// internal domain so creator-provisioned sellers can sign in with just
+// their name. Anyone typing a real email keeps the email path.
+const SELLER_USERNAME_DOMAIN = '@rihab.local';
+function _normalizeLoginIdentifier(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return s;
+  if (s.includes('@')) return s;
+  return s.toLowerCase().replace(/[^a-z0-9._-]/g, '') + SELLER_USERNAME_DOMAIN;
+}
 async function sbSignIn(email, password) {
   if (!sb) throw new Error('Supabase not configured');
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  const ident = _normalizeLoginIdentifier(email);
+  const { data, error } = await sb.auth.signInWithPassword({ email: ident, password });
   if (error) throw error;
   sbUser = data.user;
   return sbUser;
@@ -15509,29 +15520,32 @@ try {
     const applySellerSidebarLock = () => {
       const isSeller = (typeof gmvIsSeller === 'function') && gmvIsSeller();
       const isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
-      // [patch: seller_respects_perms] A seller is allowed into a feature
-      // either by the default bundle OR by an explicit <feature>.access perm.
+      // [patch: perms_only] Show a feature in the sidebar ONLY if the user
+      // has the explicit <feature>.access perm (creator passes via short-
+      // circuit in userHasPermission). No hidden defaults.
       const _needMap = { planner: 'delivery.access', gmv: 'gmv.access', fulfill: 'fulfill.access', fulfill_v2: 'confirm_orders.access' };
-      const defaultSellerAllowed = ['fulfill', 'fulfill_v2', 'gmv'];
-      const sellerAllowsFeature = (f) => {
-        if (defaultSellerAllowed.indexOf(f) >= 0) return true;
+      const allowsFeature = (f) => {
         const perm = _needMap[f];
-        if (!perm) return false;
+        if (!perm) return true; // unknown features (e.g., none registered) — let through
         return (typeof userHasPermission === 'function') && userHasPermission(perm);
       };
       document.querySelectorAll('.as-feature').forEach(b => {
         const f = b.dataset.feature || '';
         if (f === 'settings') {
           b.style.display = isCreator ? '' : 'none';
+        } else if (isCreator) {
+          b.style.display = '';
         } else {
-          b.style.display = (isSeller && !sellerAllowsFeature(f)) ? 'none' : '';
+          b.style.display = allowsFeature(f) ? '' : 'none';
         }
       });
       if (isSeller) {
         const active = document.querySelector('.as-feature.active');
-        if (!active || !sellerAllowsFeature(active.dataset.feature)) {
-          const ff = document.querySelector('.as-feature[data-feature="fulfill"]');
-          if (ff) ff.click();
+        if (!active || !allowsFeature(active.dataset.feature)) {
+          // Land on the first feature this seller is allowed to use.
+          const firstAllowed = Array.from(document.querySelectorAll('.as-feature'))
+            .find(b => b.dataset.feature !== 'settings' && allowsFeature(b.dataset.feature));
+          if (firstAllowed) firstAllowed.click();
         }
       }
     };
@@ -15548,6 +15562,25 @@ try {
       try { if (typeof applySettingsPermLock === 'function') applySettingsPermLock(); } catch (_) {}
       try { if (typeof gmvApplyRoleUI === 'function') gmvApplyRoleUI(); } catch (_) {}
       try { if (typeof gmvRenderPageBar === 'function') gmvRenderPageBar(); } catch (_) {}
+      // [patch: panel_state_reset_on_auth] If the currently-visible feature
+      // panel isn't allowed for this user (e.g. seller stuck on Settings
+      // from a previous creator session), force-switch to the first allowed.
+      try {
+        const _isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
+        const settingsEl = document.getElementById('featureSettings');
+        if (settingsEl && settingsEl.style.display !== 'none' && !_isCreator) {
+          settingsEl.style.display = 'none';
+          const _needMap = { planner: 'delivery.access', gmv: 'gmv.access', fulfill: 'fulfill.access', fulfill_v2: 'confirm_orders.access' };
+          const firstAllowed = Array.from(document.querySelectorAll('.as-feature'))
+            .find(b => {
+              const f = b.dataset.feature;
+              if (!f || f === 'settings') return false;
+              const perm = _needMap[f];
+              return perm && (typeof userHasPermission === 'function') && userHasPermission(perm);
+            });
+          if (firstAllowed) firstAllowed.click();
+        }
+      } catch (_) {}
     };
     _loadPermsAndReapply();
     if (typeof sb !== 'undefined' && sb && sb.auth) {
@@ -15579,24 +15612,20 @@ try {
     document.querySelectorAll('.as-feature').forEach(btn => {
       btn.addEventListener('click', () => {
         if (btn.classList.contains('coming-soon')) return;
-        // [patch: seller_respects_perms] Sellers default to fulfill /
-        // fulfill_v2 / gmv, but also any feature where they have the
-        // explicit <feature>.access permission granted in Settings.
-        if ((typeof gmvIsSeller === 'function') && gmvIsSeller()) {
-          const f = btn.dataset.feature;
-          const _needMap = { planner: 'delivery.access', gmv: 'gmv.access', fulfill: 'fulfill.access', fulfill_v2: 'confirm_orders.access' };
-          const defaultOk = (f === 'fulfill' || f === 'fulfill_v2' || f === 'gmv');
-          const permOk = _needMap[f] && (typeof userHasPermission === 'function') && userHasPermission(_needMap[f]);
-          if (!defaultOk && !permOk) {
-            const ff = document.querySelector('.as-feature[data-feature="fulfill"]');
-            if (ff) ff.click();
-            return;
-          }
-        }
-        // [patch: feature_access_gate] Per-feature permission check. Creator
-        // always passes via userHasPermission's creator short-circuit.
+        // [patch: perms_only] No more seller-default bundle. Sellers (and
+        // any non-creator) must have the explicit <feature>.access perm.
+        // The block below intentionally falls through to the generic perm
+        // gate that follows, so the toast is consistent.
+        // [patch: feature_access_gate] Per-feature permission check.
+        // Creator passes via userHasPermission short-circuit. Everyone
+        // else needs the explicit <feature>.access perm. Settings is
+        // creator-only — hard block for everyone else.
         const _need = { planner: 'delivery.access', gmv: 'gmv.access', fulfill: 'fulfill.access', fulfill_v2: 'confirm_orders.access' };
         const _featKey = btn.dataset.feature || '';
+        if (_featKey === 'settings' && !((typeof gmvIsCreator === 'function') && gmvIsCreator())) {
+          if (typeof settingsToast === 'function') settingsToast('Settings is creator-only', 'error');
+          return;
+        }
         const _perm = _need[_featKey];
         if (_perm && typeof userHasPermission === 'function' && !userHasPermission(_perm)) {
           if (typeof settingsToast === 'function') settingsToast('You do not have permission to open this feature', 'error');
@@ -15943,6 +15972,16 @@ async function loadKnownUsers() {
 
 let appPermissions = {};
 const APP_PERMS_KEY = 'app_permissions';
+// [patch: perm_lookup_ci] Case-insensitive email lookup so an entry stored
+// as "Anas@x.com" still matches the signed-in user "anas@x.com".
+function _findPermsRow(email) {
+  if (!email || !appPermissions) return null;
+  const direct = appPermissions[email];
+  if (direct) return direct;
+  const lower = String(email).toLowerCase();
+  const k = Object.keys(appPermissions).find(k => k.toLowerCase() === lower);
+  return k ? appPermissions[k] : null;
+}
 function userHasPermission(key) {
   if (typeof gmvIsCreator === 'function' && gmvIsCreator()) return true;
   if (!sbUser || !sbUser.email) return false;
@@ -15973,10 +16012,13 @@ function userHasPermission(key) {
       return !!(tp && tp[key]);
     }
   }
-  const p = appPermissions[sbUser.email.toLowerCase()];
+  const p = _findPermsRow(sbUser.email);
   return !!(p && p[key]);
 }
 async function loadAppPermissions() {
+  // [patch: perms_fresh_on_load] Always reset before fetching so a stale
+  // creator-session map doesn't leak to a seller signing in.
+  appPermissions = {};
   try {
     let cloud = null;
     if (typeof gmvReadShared === 'function') cloud = await gmvReadShared(APP_PERMS_KEY);
@@ -19998,6 +20040,26 @@ async function gmvOnUploadFocus(file) {
 // alongside rigab_app/. Path is URL-encoded (spaces → %20). Must be committed
 // to the deploy branch for sellers to see the images.
 const _IMG_ROOT = '../Pictures%20of%20gifts';
+// [patch: paliers_v4_multi_images] Per-tier images stored on the palier
+// object as `images1/2/3` arrays. After this declaration we backfill
+// `image1/2/3` (single) for backward compat with the existing render code.
+const _P = (b, file) => _IMG_ROOT + '/' + b + '/' + file;
+const _PALIER_IMAGES = {
+  1:  { c1: ['C1_vivo_Y04.jpg'],                  c2: ['C2_Samsung_Galaxy_A05.jpg'],          c3: ['C3_Samsung_50_4K_50U8000F.jpg'] },
+  2:  { c1: ['C1_Samsung_Galaxy_A05.jpg'],         c2: ['C2_Samsung_50_4K_50U8000F.jpg'],       c3: ['C3_Samsung_65_Crystal_65U8075F.jpg'] },
+  3:  { c1: ['C1_Sharp_Lave_linge_7kg.jpg'],       c2: ['C2_Thomson_GTV_55_QLED_Pro.jpg'],      c3: ['C3_Infiniton_SBS_668.jpg'] },
+  4:  { c1: ['C1_Samsung_50_4K_50U8000F.jpg'],     c2: ['C2_Samsung_65_Crystal_65U8075F.jpg'],  c3: ['C3_Samsung_85U8075.jpg'] },
+  5:  { c1: ['C1_Hisense_QLED_55.jpg'],            c2: ['C2_Samsung_75U8075.jpg'],              c3: ['C3_Triporteur.jpg'] },
+  6:  { c1: ['C1_Thomson_GTV_55_QLED_Pro.jpg'],    c2: ['C2_Infiniton_SBS_668.jpg'],            c3: ['C3a_Triporteur.jpg', 'C3b_Samsung_50_4K_50U8000F.jpg'] },
+  7:  { c1: ['C1_Samsung_65_Crystal_65U8075F.jpg'], c2: ['C2_Samsung_Tab_S10_Ultra_512.jpg'],   c3: ['C3a_Triporteur.jpg', 'C3b_Samsung_65_Crystal_65U8075F.jpg'] },
+  8:  { c1: ['C1_Samsung_75U8000F.jpg'],           c2: ['C2_Samsung_S26_Ultra.jpg'],            c3: ['C3a_Triporteur.jpg', 'C3b_Samsung_85U8075.jpg'] },
+  9:  { c1: ['C1_Samsung_75U8075.jpg'],            c2: ['C2_Triporteur.jpg'],                   c3: ['C3a_Triporteur.jpg', 'C3b_Samsung_Tab_S9_Ultra.jpg'] },
+  10: { c1: ['C1_Infiniton_SBS_668.jpg'],          c2: ['C2a_Triporteur.jpg', 'C2b_Samsung_50_4K_50U8000F.jpg'], c3: ['C3a_Triporteur.jpg', 'C3b_Samsung_Tab_S9_Ultra.jpg', 'C3c_Samsung_75U8000F.jpg'] },
+  11: { c1: ['C1_Samsung_Tab_S10_Ultra_256.jpg'],  c2: ['C2a_Triporteur.jpg', 'C2b_Thomson_GTV_55_QLED_Pro.jpg'], c3: ['C3a_Triporteur.jpg', 'C3b_Triporteur.jpg', 'C3c_Samsung_Tab_S10_Ultra_256.jpg'] },
+  12: { c1: ['C1_Samsung_85U8075.jpg'],            c2: ['C2a_Triporteur.jpg', 'C2b_Infiniton_SBS_668.jpg'], c3: ['C3a_Triporteur.jpg', 'C3b_Triporteur.jpg', 'C3c_Samsung_S26_Ultra.jpg', 'C3d_Revolution_75_4K.jpg'] },
+  13: { c1: ['C1_Triporteur.jpg'],                 c2: ['C2a_Triporteur.jpg', 'C2b_Samsung_Tab_S9_Ultra.jpg'], c3: ['C3a_Triporteur.jpg', 'C3b_Triporteur.jpg', 'C3c_Samsung_S26_Ultra.jpg', 'C3d_Samsung_85U8075.jpg', 'C3e_Samsung_50_4K_50U8000F.jpg'] },
+  14: { c1: ['C1a_Triporteur.jpg', 'C1b_Hisense_QLED_55.jpg'], c2: ['C2a_Triporteur.jpg', 'C2b_Samsung_Tab_S9_Ultra.jpg', 'C2c_Samsung_75U8075.jpg'], c3: ['C3a_Triporteur.jpg', 'C3b_Triporteur.jpg', 'C3c_Triporteur.jpg', 'C3d_Samsung_85U8075.jpg', 'C3e_Samsung_Tab_S9_Plus.jpg', 'C3f_Samsung_Tab_S10_Ultra_256.jpg'] },
+};
 const GMV_PALIERS_SEED_V2 = [
   { palier: 1,  threshold: 100000,   prize1: 'vivo Y04 6.7" 64Go ROM + 4GB',                                  prize2: 'Samsung Galaxy A05',                                                                          prize3: 'Samsung 50" UHD Crystal',                                                                                                                                                                                                                                                                                            image1: _IMG_ROOT + '/bundle_01/C1_vivo_Y04.jpg',                  image2: _IMG_ROOT + '/bundle_01/C2_Samsung_Galaxy_A05.jpg',          image3: _IMG_ROOT + '/bundle_01/C3_Samsung_50_4K_50U8000F.jpg' },
   { palier: 2,  threshold: 200000,   prize1: 'Samsung Galaxy A05',                                            prize2: 'Samsung 50" UHD Crystal',                                                                      prize3: 'Samsung 65" Crystal UHD 4K 65U8075F',                                                                                                                                                                                                                                                                                image1: _IMG_ROOT + '/bundle_02/C1_Samsung_Galaxy_A05.jpg',         image2: _IMG_ROOT + '/bundle_02/C2_Samsung_50_4K_50U8000F.jpg',       image3: _IMG_ROOT + '/bundle_02/C3_Samsung_65_Crystal_65U8075F.jpg' },
@@ -20014,9 +20076,21 @@ const GMV_PALIERS_SEED_V2 = [
   { palier: 13, threshold: 2000000,  prize1: 'Triporteur (hors Jumia) — 20 000 MAD',                          prize2: 'Triporteur + Samsung Galaxy Tab S9 Ultra 12GB+512GB',                                          prize3: '2× Triporteur + Samsung Galaxy S26 Ultra 16GB+1TB + Samsung 85" Crystal UHD 4K 85U8075 + Samsung 50" UHD Crystal',                                                                                                                                                                                                       image1: _IMG_ROOT + '/bundle_13/C1_Triporteur.jpg',                 image2: _IMG_ROOT + '/bundle_13/C2a_Triporteur.jpg',                  image3: _IMG_ROOT + '/bundle_13/C3a_Triporteur.jpg' },
   { palier: 14, threshold: 2500000,  prize1: 'Triporteur + Hisense Smart TV QLED 4K 55"',                     prize2: 'Triporteur + Samsung Galaxy Tab S9 Ultra 12GB+512GB + Samsung 75" Crystal UHD 4K 75U8075',     prize3: '3× Triporteur + Samsung 85" Crystal UHD 4K 85U8075 + Samsung Galaxy Tab S9+ 12GB+512GB + Samsung Tab S10 Ultra 14.6" 12GB+256GB',                                                                                                                                                                                          image1: _IMG_ROOT + '/bundle_14/C1a_Triporteur.jpg',                image2: _IMG_ROOT + '/bundle_14/C2a_Triporteur.jpg',                  image3: _IMG_ROOT + '/bundle_14/C3a_Triporteur.jpg' },
 ];
-// v3 marker (was v2) — bumped because images were added. Re-runs the seed
-// once on next creator open even if v2 was already applied.
-const GMV_PALIERS_SEED_KEY = 'rihab_gmv_paliers_seed_v3_applied';
+// [patch: paliers_v4_multi_images] Backfill images1/2/3 arrays from _PALIER_IMAGES
+GMV_PALIERS_SEED_V2.forEach(p => {
+  const bundle = 'bundle_' + String(p.palier).padStart(2, '0');
+  const m = _PALIER_IMAGES[p.palier] || {};
+  p.images1 = (m.c1 || []).map(f => _P(bundle, f));
+  p.images2 = (m.c2 || []).map(f => _P(bundle, f));
+  p.images3 = (m.c3 || []).map(f => _P(bundle, f));
+  // image1/2/3 kept as the first of each images array for backward compat
+  p.image1 = p.images1[0] || '';
+  p.image2 = p.images2[0] || '';
+  p.image3 = p.images3[0] || '';
+});
+// v4 marker — bumped because images arrays were added. Re-runs the seed
+// once on next creator open even if v3 was already applied.
+const GMV_PALIERS_SEED_KEY = 'rihab_gmv_paliers_seed_v4_applied';
 async function gmvMaybeSeedPaliers() {
   try {
     if (typeof gmvIsCreator !== 'function' || !gmvIsCreator()) return;
@@ -20173,6 +20247,89 @@ async function gmvRenderEngagement(wrap) {
       </span>
     </div>` : '';
 
+  // [patch: carousel_engagement_level] Build the palier carousel here so
+  // it appears ABOVE the rf-hero on every sub-page. Compact variant.
+  const _paliersAll = (gmvEngagement.paliers || []).slice().sort((a,b) => (a.palier||0)-(b.palier||0));
+  let _portfolioGmv = 0;
+  if (mySeller) {
+    const ca1 = (typeof gmvCaPerClientPeriod === 'function') ? gmvCaPerClientPeriod(ENG_PERIOD_M1) : {};
+    const ca2 = (typeof gmvCaPerClientPeriod === 'function') ? gmvCaPerClientPeriod(ENG_PERIOD_M2) : {};
+    const phones = (typeof gmvCollectSellerPhones === 'function') ? gmvCollectSellerPhones(mySeller) : [];
+    phones.forEach(p => { _portfolioGmv += (ca1[p] || 0) + (ca2[p] || 0); });
+  }
+  const _nextIdx = (() => {
+    for (let i = 0; i < _paliersAll.length; i++) if ((_paliersAll[i].threshold || 0) > _portfolioGmv) return i;
+    return _paliersAll.length ? _paliersAll.length - 1 : -1;
+  })();
+  const _fmt = (n) => Math.round(n || 0).toLocaleString('en-US');
+  const _esc = (s) => gmvEscapeHtmlEng(s);
+  const _eyDict = ({
+    en: { ach: '✓ Achieved', next: 'Next', up: 'Upcoming', all: 'See all gifts',
+          palier: 'Palier', mad: 'MAD', bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD', pcs: 'pcs' },
+    fr: { ach: '✓ Atteint',  next: 'Prochain', up: 'À venir', all: 'Tous les cadeaux',
+          palier: 'Palier', mad: 'MAD', bronze: 'BRONZE', silver: 'ARGENT', gold: 'OR', pcs: 'pcs' },
+    ar: { ach: '✓ تم',        next: 'التالي',     up: 'قادم',    all: 'كل الهدايا',
+          palier: 'المستوى', mad: 'درهم', bronze: 'برونزي', silver: 'فضي', gold: 'ذهبي', pcs: 'قطع' },
+  })[engLang()] || { ach: '✓ Achieved', next: 'Next', up: 'Upcoming', all: 'See all gifts',
+                     palier: 'Palier', mad: 'MAD', bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD', pcs: 'pcs' };
+  const heroCarouselHtml = _paliersAll.length ? (() => {
+    const activeIdx = _nextIdx >= 0 ? _nextIdx : 0;
+    const slides = _paliersAll.map((p, idx) => {
+      const achieved = _portfolioGmv >= (p.threshold || 0);
+      const isNext   = idx === _nextIdx && !achieved;
+      const eyebrow  = achieved ? _eyDict.ach : (isNext ? _eyDict.next : _eyDict.up);
+      const pct = (p.threshold || 0) > 0 ? Math.min(100, Math.round((_portfolioGmv / p.threshold) * 100)) : 0;
+      const prizes = [
+        { tag: _eyDict.bronze, prize: p.prize1 || '', images: p.images1 || (p.image1 ? [p.image1] : []) },
+        { tag: _eyDict.silver, prize: p.prize2 || '', images: p.images2 || (p.image2 ? [p.image2] : []) },
+        { tag: _eyDict.gold,   prize: p.prize3 || '', images: p.images3 || (p.image3 ? [p.image3] : []) },
+      ].filter(m => m.prize || (m.images && m.images.length));
+      const prizeCards = prizes.map((m, i) => {
+        const imgs = m.images || [];
+        const imgHtml = imgs.length > 1
+          ? '<div class="gmv-cp-hero-prize-imgs is-multi">' + imgs.map(src => '<img src="' + src + '" alt="" loading="lazy">').join('') + '</div>'
+          : (imgs[0]
+              ? '<img class="gmv-cp-hero-prize-img" src="' + imgs[0] + '" alt="" loading="lazy">'
+              : '<div class="gmv-cp-hero-prize-placeholder">' + (i + 1) + '</div>');
+        return '<div class="gmv-cp-hero-prize gmv-cp-hero-prize-' + (i + 1) + (imgs.length > 1 ? ' has-multi' : '') + '">' +
+          imgHtml +
+          '<div class="gmv-cp-hero-prize-meta">' +
+            '<div class="gmv-cp-hero-prize-tag">' + m.tag + (imgs.length > 1 ? ' · ' + imgs.length + ' ' + _eyDict.pcs : '') + '</div>' +
+            '<div class="gmv-cp-hero-prize-name">' + _esc(m.prize) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      return (
+        '<div class="gmv-cp-hero-slide' + (isNext ? ' is-active' : '') + (achieved ? ' is-achieved' : '') + '" data-hero-idx="' + idx + '">' +
+          '<div class="gmv-cp-hero-head">' +
+            '<div>' +
+              '<div class="gmv-cp-hero-eyebrow">' + eyebrow + '</div>' +
+              '<div class="gmv-cp-hero-title">' + _eyDict.palier + ' ' + p.palier + ' · ' + _fmt(p.threshold) + ' ' + _eyDict.mad + '</div>' +
+              '<div class="gmv-cp-hero-sub">' + _fmt(_portfolioGmv) + ' / ' + _fmt(p.threshold) + '</div>' +
+            '</div>' +
+            '<div class="gmv-cp-hero-pct">' + pct + '%</div>' +
+          '</div>' +
+          '<div class="gmv-cp-hero-bar"><span style="width:' + pct + '%"></span></div>' +
+          (prizeCards ? '<div class="gmv-cp-hero-prizes">' + prizeCards + '</div>' : '') +
+        '</div>'
+      );
+    }).join('');
+    const dots = _paliersAll.map((p, idx) =>
+      '<button type="button" class="gmv-cp-hero-dot' + (idx === activeIdx ? ' is-active' : '') + '" data-hero-go="' + idx + '" aria-label="Palier ' + p.palier + '"></button>'
+    ).join('');
+    return (
+      '<section class="gmv-cp-hero compact" data-hero-active="' + activeIdx + '">' +
+        '<div class="gmv-cp-hero-stack">' + slides + '</div>' +
+        '<div class="gmv-cp-hero-nav">' +
+          '<button type="button" class="gmv-cp-hero-all" data-hero-all>' + _eyDict.all + '</button>' +
+          '<button type="button" class="gmv-cp-hero-arrow" data-hero-step="-1" aria-label="Prev">‹</button>' +
+          '<div class="gmv-cp-hero-dots">' + dots + '</div>' +
+          '<button type="button" class="gmv-cp-hero-arrow" data-hero-step="1" aria-label="Next">›</button>' +
+        '</div>' +
+      '</section>'
+    );
+  })() : '';
+
   // Roue de la Fortune hero — orange band with mini wheel + steps.
   const rfHero = `
     <section class="rf-hero">
@@ -20197,6 +20354,7 @@ async function gmvRenderEngagement(wrap) {
       <div class="rf-step"><span class="rf-step-num">4</span><div class="rf-step-title">${engT('rf_step4_t')}</div><div class="rf-step-desc">${engT('rf_step4_d')}</div></div>
     </div>`;
   wrap.innerHTML = `
+    ${heroCarouselHtml}
     ${rfHero}
     ${uploadsHtml}
     <div class="gmv-engtab-bar" role="tablist">
@@ -20205,6 +20363,39 @@ async function gmvRenderEngagement(wrap) {
       ${tabBtn('myperf',     _subDict.myperf)}
     </div>
     <div id="engPanel"></div>`;
+
+  // [patch: carousel_engagement_level] Wire carousel auto-rotation,
+  // prev/next, dots, and "See all gifts".
+  const _heroSec = wrap.querySelector('.gmv-cp-hero');
+  if (_heroSec) {
+    const _slides = Array.from(_heroSec.querySelectorAll('.gmv-cp-hero-slide'));
+    const _dots = Array.from(_heroSec.querySelectorAll('.gmv-cp-hero-dot'));
+    const _setActive = (idx) => {
+      if (!_slides.length) return;
+      const n = _slides.length;
+      const i = ((idx % n) + n) % n;
+      _slides.forEach((s, j) => s.classList.toggle('is-active', j === i));
+      _dots.forEach((d, j) => d.classList.toggle('is-active', j === i));
+      _heroSec.setAttribute('data-hero-active', String(i));
+    };
+    const _getActive = () => parseInt(_heroSec.getAttribute('data-hero-active') || '0', 10) || 0;
+    if (window._gmvHeroTimer) { clearInterval(window._gmvHeroTimer); window._gmvHeroTimer = null; }
+    window._gmvHeroTimer = setInterval(() => {
+      if (document.hidden) return;
+      if (_heroSec.matches(':hover')) return;
+      _setActive(_getActive() + 1);
+    }, 6000);
+    _heroSec.querySelectorAll('[data-hero-step]').forEach(b => {
+      b.addEventListener('click', () => _setActive(_getActive() + (parseInt(b.dataset.heroStep, 10) || 0)));
+    });
+    _heroSec.querySelectorAll('[data-hero-go]').forEach(d => {
+      d.addEventListener('click', () => _setActive(parseInt(d.dataset.heroGo, 10) || 0));
+    });
+    const _allBtn = _heroSec.querySelector('[data-hero-all]');
+    if (_allBtn && typeof gmvOpenAllGifts === 'function') {
+      _allBtn.addEventListener('click', () => gmvOpenAllGifts(_paliersAll, _portfolioGmv));
+    }
+  }
   // Wire subtab switcher.
   wrap.querySelectorAll('[data-engtab]').forEach(b => {
     b.addEventListener('click', () => {
@@ -21419,13 +21610,13 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
     ar: { title: 'أداء زبنائي', sub: 'العرض حسب الأولوية — الزبائن المحتاجون لاهتمامك أولًا.',
       kTotal: 'إجمالي GMV', kGifts: 'الهدايا المربوحة', kActive: 'يشترون من القائمة', kProgress: 'تقدم الأهداف',
       ins_close_t: 'قريبون من هدية', ins_close_d: 'زبون على بعد 10% من فتح هدية',
-      ins_cold_t: 'زبائن باردون', ins_cold_d: 'بدون طلب منذ 14+ يومًا',
+      ins_cold_t: 'زبائن غير نشطين', ins_cold_d: 'بدون طلب منذ 14+ يومًا',
       ins_needs_t: 'يحتاج منتجًا واحدًا', ins_needs_d: 'زبون يحتاج منتجًا واحدًا فقط',
       ins_noprod_t: 'بدون منتجات', ins_noprod_d: 'زبون بدون منتجات مستهدفة',
       search: 'ابحث عن زبون...', sort: 'الفرز',
       sort_priority: 'الأولوية', sort_gmv_desc: 'GMV ↓', sort_gmv_asc: 'GMV ↑', sort_name: 'الاسم', sort_lastorder: 'النشاط الأخير',
-      flt_all: 'الكل', flt_buying: 'يشترون من القائمة', flt_won: 'مربوحة', flt_ontrack: 'على المسار', flt_atrisk: 'بخطر', flt_cold: 'بارد',
-      st_won: 'هدية مربوحة', st_ontrack: 'على المسار', st_atrisk: 'بخطر', st_cold: 'بارد',
+      flt_all: 'الكل', flt_buying: 'يشترون من القائمة', flt_won: 'مربوحة', flt_ontrack: 'على المسار', flt_atrisk: 'بخطر', flt_cold: 'غير نشط',
+      st_won: 'هدية مربوحة', st_ontrack: 'على المسار', st_atrisk: 'بخطر', st_cold: 'غير نشط',
       empty: 'لا نتائج.', noClients: 'لا يوجد زبائن.', lastOrder: 'آخر طلب', daysAgo: 'يوم', never: 'أبدًا',
       products: 'منتجات', done: 'تم اجتياز جميع الأهداف',
     },
@@ -21613,7 +21804,6 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
         '<h2 class="gmv-cp-title">' + T.title + '</h2>' +
         '<div class="gmv-cp-sub">' + T.sub + '</div>' +
       '</header>' +
-      heroHtml +
       '<div class="gmv-cp-kpis">' +
         kpiCard(T.kTotal,    fmt(kpiTotalGmv) + ' <span class="gmv-cp-kpi-unit">MAD</span>', '') +
         kpiCard(T.kGifts,    kpiGiftsWon + ' <span class="gmv-cp-kpi-unit">/ ' + allPhones.length + '</span>', '') +
@@ -21732,30 +21922,41 @@ function gmvOpenAllGifts(paliers, portfolioGmv) {
   }
   const fmt = (n) => Math.round(n || 0).toLocaleString('en-US');
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  // [patch: gifts_i18n] Translations for the All-Gifts modal
+  const _L = ({
+    en: { title: 'All paliers & gifts', sub: 'Portfolio:', delivered: 'delivered', paliers: 'paliers', achieved: '✓ Achieved', locked: 'Locked', palier: 'Palier', mad: 'MAD', bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD', pcs: 'pcs' },
+    fr: { title: 'Tous les paliers & cadeaux', sub: 'Portefeuille:', delivered: 'livrés', paliers: 'paliers', achieved: '✓ Atteint', locked: 'Verrouillé', palier: 'Palier', mad: 'MAD', bronze: 'BRONZE', silver: 'ARGENT', gold: 'OR', pcs: 'pcs' },
+    ar: { title: 'كل المستويات والهدايا', sub: 'المحفظة:', delivered: 'مسلَّمة', paliers: 'مستويات', achieved: '✓ تم', locked: 'مقفل', palier: 'المستوى', mad: 'درهم', bronze: 'برونزي', silver: 'فضي', gold: 'ذهبي', pcs: 'قطع' },
+  })[typeof engLang === 'function' ? engLang() : 'en'] || { title: 'All paliers & gifts', sub: 'Portfolio:', delivered: 'delivered', paliers: 'paliers', achieved: '✓ Achieved', locked: 'Locked', palier: 'Palier', mad: 'MAD', bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD', pcs: 'pcs' };
+  const _dir = (typeof engLang === 'function' && engLang() === 'ar') ? 'rtl' : 'ltr';
   const list = (paliers || []).map(p => {
     const achieved = portfolioGmv >= (p.threshold || 0);
     const pct = (p.threshold || 0) > 0 ? Math.min(100, Math.round((portfolioGmv / (p.threshold || 1)) * 100)) : 0;
     const prizes = [
-      { tag: 'BRONZE', prize: p.prize1 || '', image: p.image1 || '' },
-      { tag: 'SILVER', prize: p.prize2 || '', image: p.image2 || '' },
-      { tag: 'GOLD',   prize: p.prize3 || '', image: p.image3 || '' },
-    ].filter(m => m.prize || m.image);
-    const prizeCells = prizes.map((m, i) => (
-      '<div class="gmv-allgifts-prize gmv-allgifts-prize-' + (i + 1) + '">' +
-        (m.image
-          ? '<img src="' + m.image + '" alt="" loading="lazy">'
-          : '<div class="gmv-allgifts-prize-ph">' + (i + 1) + '</div>') +
-        '<div class="gmv-allgifts-prize-tag">' + m.tag + '</div>' +
+      { tag: _L.bronze, prize: p.prize1 || '', images: p.images1 || (p.image1 ? [p.image1] : []) },
+      { tag: _L.silver, prize: p.prize2 || '', images: p.images2 || (p.image2 ? [p.image2] : []) },
+      { tag: _L.gold,   prize: p.prize3 || '', images: p.images3 || (p.image3 ? [p.image3] : []) },
+    ].filter(m => m.prize || (m.images && m.images.length));
+    const prizeCells = prizes.map((m, i) => {
+      const imgs = m.images || [];
+      const imgsHtml = imgs.length > 1
+        ? '<div class="gmv-allgifts-prize-imgs is-multi">' + imgs.map(src => '<img src="' + src + '" alt="" loading="lazy">').join('') + '</div>'
+        : (imgs[0]
+            ? '<img src="' + imgs[0] + '" alt="" loading="lazy">'
+            : '<div class="gmv-allgifts-prize-ph">' + (i + 1) + '</div>');
+      return '<div class="gmv-allgifts-prize gmv-allgifts-prize-' + (i + 1) + (imgs.length > 1 ? ' has-multi' : '') + '">' +
+        imgsHtml +
+        '<div class="gmv-allgifts-prize-tag">' + m.tag + (imgs.length > 1 ? ' · ' + imgs.length + ' ' + _L.pcs : '') + '</div>' +
         '<div class="gmv-allgifts-prize-name">' + esc(m.prize) + '</div>' +
-      '</div>'
-    )).join('');
+      '</div>';
+    }).join('');
     return (
       '<article class="gmv-allgifts-palier' + (achieved ? ' is-achieved' : '') + '">' +
         '<header class="gmv-allgifts-palier-head">' +
           '<div>' +
-            '<div class="gmv-allgifts-palier-eyebrow">' + (achieved ? '✓ Achieved' : 'Locked') + '</div>' +
-            '<div class="gmv-allgifts-palier-title">Palier ' + p.palier + '</div>' +
-            '<div class="gmv-allgifts-palier-sub">' + fmt(p.threshold) + ' MAD</div>' +
+            '<div class="gmv-allgifts-palier-eyebrow">' + (achieved ? _L.achieved : _L.locked) + '</div>' +
+            '<div class="gmv-allgifts-palier-title">' + _L.palier + ' ' + p.palier + '</div>' +
+            '<div class="gmv-allgifts-palier-sub">' + fmt(p.threshold) + ' ' + _L.mad + '</div>' +
           '</div>' +
           '<div class="gmv-allgifts-palier-pct">' + pct + '%</div>' +
         '</header>' +
@@ -21765,11 +21966,11 @@ function gmvOpenAllGifts(paliers, portfolioGmv) {
     );
   }).join('');
   bg.innerHTML =
-    '<div class="gmv-allgifts-modal" role="dialog" aria-modal="true" aria-label="All paliers and gifts">' +
+    '<div class="gmv-allgifts-modal" role="dialog" aria-modal="true" dir="' + _dir + '" aria-label="' + _L.title + '">' +
       '<header class="gmv-allgifts-head">' +
         '<div>' +
-          '<h3 class="gmv-allgifts-title">All paliers &amp; gifts</h3>' +
-          '<div class="gmv-allgifts-sub">Portfolio: <b>' + fmt(portfolioGmv) + ' MAD</b> delivered · ' + (paliers || []).length + ' paliers</div>' +
+          '<h3 class="gmv-allgifts-title">' + _L.title + '</h3>' +
+          '<div class="gmv-allgifts-sub">' + _L.sub + ' <b>' + fmt(portfolioGmv) + ' ' + _L.mad + '</b> ' + _L.delivered + ' · ' + (paliers || []).length + ' ' + _L.paliers + '</div>' +
         '</div>' +
         '<button type="button" class="gmv-allgifts-close" data-allgifts-close aria-label="Close">&times;</button>' +
       '</header>' +
@@ -23538,26 +23739,38 @@ function settingsSelectRole(role) {
   document.querySelectorAll('#stInviteModal .st-role-card').forEach(c => {
     c.classList.toggle('selected', c.dataset.role === role);
   });
-  const cond = document.getElementById('stSellerNameRow');
-  if (cond) cond.classList.toggle('show', role === 'seller');
+  // [patch: seller_username_password] Seller flow shows seller-name + username + password,
+  // hides the email field. Viewer flow shows email, hides seller stuff.
+  const isSeller = role === 'seller';
+  const sellerRow   = document.getElementById('stSellerNameRow');
+  const usernameRow = document.getElementById('stSellerUsernameRow');
+  const passwordRow = document.getElementById('stSellerPasswordRow');
+  const emailRow    = document.getElementById('stInviteEmail')?.closest('.st-form-row');
+  if (sellerRow)   sellerRow.classList.toggle('show', isSeller);
+  if (usernameRow) usernameRow.classList.toggle('show', isSeller);
+  if (passwordRow) passwordRow.classList.toggle('show', isSeller);
+  if (emailRow)    emailRow.style.display = isSeller ? 'none' : '';
+  const modalSub = document.querySelector('#stInviteModal .modal-sub');
+  if (modalSub) modalSub.textContent = isSeller
+    ? 'Create the seller account directly. No email needed — give them their username + password in person.'
+    : "They'll receive an email from Supabase to set their password.";
 }
 
 async function settingsSubmitInvite() {
-  const emailInput = document.getElementById('stInviteEmail');
-  const sellerSel = document.getElementById('stInviteSellerSelect');
-  const errEl = document.getElementById('stInviteError');
-  const okEl = document.getElementById('stInviteSuccess');
-  const submitBtn = document.getElementById('stInviteSubmit');
-  const email = (emailInput && emailInput.value || '').trim().toLowerCase();
-  const seller = settings.selectedRole === 'seller' ? (sellerSel && sellerSel.value || '').trim() : '';
+  const emailInput   = document.getElementById('stInviteEmail');
+  const sellerSel    = document.getElementById('stInviteSellerSelect');
+  const usernameInput= document.getElementById('stInviteUsername');
+  const passwordInput= document.getElementById('stInvitePassword');
+  const errEl        = document.getElementById('stInviteError');
+  const okEl         = document.getElementById('stInviteSuccess');
+  const submitBtn    = document.getElementById('stInviteSubmit');
+  const isSellerRole = settings.selectedRole === 'seller';
+  const seller       = isSellerRole ? (sellerSel && sellerSel.value || '').trim() : '';
   if (errEl) errEl.classList.remove('show');
-  if (okEl) okEl.classList.remove('show');
-  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    if (errEl) { errEl.textContent = 'Please enter a valid email address.'; errEl.classList.add('show'); }
-    return;
-  }
-  if (settings.selectedRole === 'seller' && !seller) {
-    if (errEl) { errEl.textContent = 'Seller name is required for the Seller role.'; errEl.classList.add('show'); }
+  if (okEl)  okEl.classList.remove('show');
+
+  if (isSellerRole && !seller) {
+    if (errEl) { errEl.textContent = 'Seller name is required.'; errEl.classList.add('show'); }
     return;
   }
   if (typeof sb === 'undefined' || !sb) {
@@ -23571,29 +23784,74 @@ async function settingsSubmitInvite() {
     if (errEl) { errEl.textContent = 'You do not have permission to invite.'; errEl.classList.add('show'); }
     return;
   }
+
+  // [patch: seller_username_password] Seller flow: username + password,
+  // create-seller Edge Function. Viewer flow: email invite (existing).
+  if (isSellerRole) {
+    const rawUsername = (usernameInput && usernameInput.value || '').trim().toLowerCase();
+    const username    = rawUsername.replace(/[^a-z0-9._-]/g, '');
+    const password    = (passwordInput && passwordInput.value || '');
+    if (!username || username.length < 2) {
+      if (errEl) { errEl.textContent = 'Username too short (min 2 chars, letters / numbers / . _ -).'; errEl.classList.add('show'); }
+      return;
+    }
+    if (!password || password.length < 6) {
+      if (errEl) { errEl.textContent = 'Password too short (min 6 characters).'; errEl.classList.add('show'); }
+      return;
+    }
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating…'; }
+    try {
+      const { data, error } = await sb.functions.invoke('create-seller', { body: { username, password, seller } });
+      if (error) throw new Error(error.message || String(error));
+      if (data && data.error) throw new Error(data.error);
+      const email = (data && data.user && data.user.email) || (username + '@rihab.local');
+      settings.recentInvites = [{ email, seller, when: Date.now() }, ...settings.recentInvites].slice(0, 50);
+      try { localStorage.setItem('rihab_recent_invites_v1', JSON.stringify(settings.recentInvites)); } catch (_) {}
+      if (typeof appPermissions === 'object' && appPermissions) {
+        if (!appPermissions[email]) appPermissions[email] = {};
+        appPermissions[email]._accessType = 'seller';
+        appPermissions[email]._sellerName = seller;
+        appPermissions[email]._username   = username;
+        try { if (typeof saveAppPermissions === 'function') await saveAppPermissions(); } catch (_) {}
+      }
+      if (okEl) {
+        okEl.innerHTML = '<b>Seller created.</b> Tell <b>' + settingsEscapeHtml(seller) + '</b> to sign in with username <code>' + settingsEscapeHtml(username) + '</code> and the password you just set.';
+        okEl.classList.add('show');
+      }
+      settingsToast('Created seller ' + username, 'success');
+      settingsRenderTeam();
+      settingsRenderPerms();
+      setTimeout(() => settingsCloseInviteModal(), 2400);
+    } catch (e) {
+      if (errEl) { errEl.textContent = 'Create failed: ' + (e && e.message ? e.message : e); errEl.classList.add('show'); }
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create seller'; }
+    }
+    return;
+  }
+
+  // Viewer flow — original email invite.
+  const email = (emailInput && emailInput.value || '').trim().toLowerCase();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    if (errEl) { errEl.textContent = 'Please enter a valid email address.'; errEl.classList.add('show'); }
+    return;
+  }
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending invite…'; }
   try {
-    const { data, error } = await sb.functions.invoke('invite-user', { body: { email, seller } });
+    const { data, error } = await sb.functions.invoke('invite-user', { body: { email, seller: '' } });
     if (error) throw new Error(error.message || String(error));
     if (data && data.error) throw new Error(data.error);
-    const invite = { email, seller: seller || '', when: Date.now() };
-    settings.recentInvites = [invite, ...settings.recentInvites].slice(0, 50);
+    settings.recentInvites = [{ email, seller: '', when: Date.now() }, ...settings.recentInvites].slice(0, 50);
     try { localStorage.setItem('rihab_recent_invites_v1', JSON.stringify(settings.recentInvites)); } catch (_) {}
     if (typeof appPermissions === 'object' && appPermissions) {
       if (!appPermissions[email]) appPermissions[email] = {};
-      appPermissions[email]._accessType = seller ? 'seller' : 'viewer';
-      if (seller) appPermissions[email]._sellerName = seller;
-      // Apply viewer preset by default for non-seller invites so newcomers can
-      // actually use the app on first sign-in. Sellers go through their own
-      // seller-mode gate and don't need explicit perms.
-      if (!seller) {
-        const r = ROLE_PRESETS.find(x => x.id === 'viewer');
-        if (r) r.perms.forEach(id => { appPermissions[email][id] = true; });
-      }
+      appPermissions[email]._accessType = 'viewer';
+      const r = ROLE_PRESETS.find(x => x.id === 'viewer');
+      if (r) r.perms.forEach(id => { appPermissions[email][id] = true; });
       try { if (typeof saveAppPermissions === 'function') await saveAppPermissions(); } catch (_) {}
     }
     if (okEl) {
-      okEl.innerHTML = '<b>Invite sent.</b> ' + settingsEscapeHtml(email) + ' will receive a Supabase email' + (seller ? ' as seller &ldquo;' + settingsEscapeHtml(seller) + '&rdquo;' : '') + '.';
+      okEl.innerHTML = '<b>Invite sent.</b> ' + settingsEscapeHtml(email) + ' will receive a Supabase email.';
       okEl.classList.add('show');
     }
     settingsToast('Invited ' + email, 'success');
@@ -27070,6 +27328,30 @@ async function fulfillInit() {
   .gmv-cp-title { margin: 0; font-size: 24px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
   .gmv-cp-sub { font-size: 13px; color: var(--text-soft); margin-top: 4px; }
 
+  /* [patch: carousel_compact] Compact variant used at engagement level */
+  .gmv-cp-hero.compact { padding: 12px 14px; margin-bottom: 10px; border-radius: var(--radius-md); }
+  .gmv-cp-hero.compact .gmv-cp-hero-stack { min-height: 140px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-eyebrow { font-size: 10px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-title { font-size: 15px; margin-top: 2px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-sub { font-size: 11.5px; margin-top: 2px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-pct { font-size: 22px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-bar { height: 4px; margin-bottom: 10px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-prize { padding: 6px 8px; gap: 8px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-prize-img,
+  .gmv-cp-hero.compact .gmv-cp-hero-prize-placeholder { width: 42px; height: 42px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-prize-tag { font-size: 9px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-prize-name { font-size: 11px; -webkit-line-clamp: 1; }
+  .gmv-cp-hero.compact .gmv-cp-hero-nav { margin-top: 10px; padding-top: 10px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-arrow { width: 26px; height: 26px; font-size: 16px; }
+  .gmv-cp-hero.compact .gmv-cp-hero-all { padding: 5px 10px; font-size: 11px; }
+  @media (max-width: 640px) {
+    .gmv-cp-hero.compact { padding: 10px 12px; }
+    .gmv-cp-hero.compact .gmv-cp-hero-title { font-size: 14px; }
+    .gmv-cp-hero.compact .gmv-cp-hero-pct { font-size: 19px; }
+    .gmv-cp-hero.compact .gmv-cp-hero-prize-img,
+    .gmv-cp-hero.compact .gmv-cp-hero-prize-placeholder { width: 36px; height: 36px; }
+  }
+
   /* Next milestone hero — motivational gift display (carousel) */
   .gmv-cp-hero {
     background: linear-gradient(135deg, var(--hero-dark, #111827) 0%, var(--hero-dark-2, #1F2937) 100%);
@@ -27220,6 +27502,9 @@ async function fulfillInit() {
     gap: 6px;
   }
   .gmv-allgifts-prize img { width: 100%; max-width: 140px; aspect-ratio: 1/1; object-fit: cover; border-radius: 8px; background: var(--bg-muted); box-shadow: 0 4px 12px -6px rgba(15,23,42,.15); }
+  /* [patch: paliers_v4_multi_images] Multi-image grid inside "See all gifts" */
+  .gmv-allgifts-prize-imgs { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 6px; width: 100%; max-width: 200px; }
+  .gmv-allgifts-prize-imgs img { width: 100%; max-width: none; aspect-ratio: 1/1; border-radius: 7px; }
   .gmv-allgifts-prize-ph { width: 100%; aspect-ratio: 1/1; max-width: 140px; border-radius: 8px; background: var(--bg-muted); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 22px; color: var(--text-soft); }
   .gmv-allgifts-prize-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
   .gmv-allgifts-prize-1 .gmv-allgifts-prize-tag { color: #b57032; }
@@ -27248,6 +27533,20 @@ async function fulfillInit() {
   .gmv-cp-hero-prizes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; position: relative; }
   .gmv-cp-hero-prize { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: var(--radius-md); padding: 10px; display: flex; align-items: center; gap: 10px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
   .gmv-cp-hero-prize-img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; background: rgba(255,255,255,.05); flex-shrink: 0; box-shadow: 0 4px 10px -4px rgba(0,0,0,.4); }
+  /* [patch: paliers_v4_multi_images] Multi-image strip — small overlapping
+     thumbnails for bundle gifts (e.g. Triporteur + Samsung TV) */
+  .gmv-cp-hero-prize-imgs { display: flex; flex-shrink: 0; gap: 0; padding-right: 4px; }
+  .gmv-cp-hero-prize-imgs img {
+    width: 40px; height: 40px;
+    object-fit: cover;
+    border-radius: 7px;
+    background: rgba(255,255,255,.05);
+    border: 1.5px solid rgba(0,0,0,.5);
+    margin-left: -10px;
+    box-shadow: 0 2px 6px -2px rgba(0,0,0,.5);
+  }
+  .gmv-cp-hero-prize-imgs img:first-child { margin-left: 0; }
+  .gmv-cp-hero.compact .gmv-cp-hero-prize-imgs img { width: 30px; height: 30px; margin-left: -8px; }
   .gmv-cp-hero-prize-placeholder { width: 56px; height: 56px; border-radius: 8px; background: rgba(255,255,255,.05); display: flex; align-items: center; justify-content: center; font-weight: 700; color: rgba(255,255,255,.5); flex-shrink: 0; }
   .gmv-cp-hero-prize-meta { min-width: 0; flex: 1; }
   .gmv-cp-hero-prize-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--brand-yellow); }
@@ -28622,6 +28921,17 @@ async function fulfillInit() {
         <option value="">— Pick a seller from the clients file —</option>
       </select>
       <div class="st-help" id="stInviteSellerHelp">Sellers come from your uploaded clients file in GMV Tracker.</div>
+    </div>
+    <!-- [patch: seller_username_password] Seller-only username + password -->
+    <div class="st-form-row st-conditional" id="stSellerUsernameRow">
+      <label for="stInviteUsername">Username (login)</label>
+      <input type="text" id="stInviteUsername" placeholder="e.g. anas" autocomplete="off" spellcheck="false" autocapitalize="none">
+      <div class="st-help">Seller will type just this on login (no @). Letters, numbers, . _ - only.</div>
+    </div>
+    <div class="st-form-row st-conditional" id="stSellerPasswordRow">
+      <label for="stInvitePassword">Initial password</label>
+      <input type="text" id="stInvitePassword" placeholder="At least 6 characters" autocomplete="off">
+      <div class="st-help">Tell the seller this password in person. They can change it later.</div>
     </div>
     <div class="st-form-actions">
       <button type="button" class="st-btn secondary" id="stInviteCancel">Cancel</button>
