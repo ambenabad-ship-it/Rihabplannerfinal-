@@ -15660,12 +15660,28 @@ try {
                 try { return JSON.parse(localStorage.getItem('rihab_co_mylist_v1') || '[]'); }
                 catch(_) { return []; }
               })();
+              // [patch: co_uses_fulfill_data] Prefer Order Fulfillment's
+              // uploaded data — that's the day-of source. Fall back to GMV.
+              const _fClients = (typeof fulfill !== 'undefined' && fulfill && fulfill.clients) || {};
+              const _fOrders  = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders)) ? fulfill.orders : [];
+              const _gClients = (typeof gmv !== 'undefined' && gmv && gmv.clients) || {};
+              const _gOrders  = (typeof gmv !== 'undefined' && gmv && Array.isArray(gmv.orders)) ? gmv.orders : [];
+              const clients = Object.keys(_fClients).length ? _fClients : _gClients;
+              const orders = _fOrders.length
+                ? _fOrders.map(o => ({
+                    phone: o.phone,
+                    status: o.status || 'PENDING',
+                    amount: o.amount || 0,
+                    productCode: o.productCode || '',
+                    date: o.date instanceof Date ? o.date.toISOString() : (o.date || ''),
+                  }))
+                : _gOrders;
               iframe.contentWindow.postMessage({
                 type: 'co:data',
                 role: _role,
                 seller: seller,
-                clients: (typeof gmv !== 'undefined' && gmv.clients) || {},
-                orders: (typeof gmv !== 'undefined' && gmv.orders) || [],
+                clients: clients,
+                orders: orders,
                 assignments: (typeof gmvClientAssignments !== 'undefined' && gmvClientAssignments.byPhone) || {},
                 myList: myList,
               }, '*');
