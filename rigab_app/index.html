@@ -4469,6 +4469,134 @@
   }
   .client-settings-btn:hover { background: #f1f5f9; color: #0f172a; }
 
+  /* [patch: client_perf_outstanding] Sticky header + money hero + next-action
+     + tab bar + tab panels. Replaces the old long scroll. */
+  .cp-sticky-bar {
+    position: sticky; top: 0; z-index: 30;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: saturate(180%) blur(8px);
+    -webkit-backdrop-filter: saturate(180%) blur(8px);
+    border-bottom: 1px solid #e2e8f0;
+    padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+    margin: -16px -16px 12px;
+  }
+  .cp-sticky-bar .cp-back { margin: 0 !important; padding: 6px 8px !important; }
+  .cp-sticky-bar .cp-avatar { width: 36px !important; height: 36px !important; font-size: 14px !important; }
+  .cp-sticky-bar h1 { font-size: 15px !important; }
+  .cp-sticky-bar .cp-meta { font-size: 11px !important; gap: 6px !important; margin-top: 1px !important; }
+  .cp-sticky-bar .client-settings-btn { margin-inline-start: auto; }
+  .cp-money-hero {
+    background: linear-gradient(135deg, #fef0ec, #fcd5c9);
+    border: 1px solid #f9a48c;
+    border-radius: 14px; padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .cp-money-hero .lbl {
+    font-size: 11px; color: #92400e; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .cp-money-hero .val {
+    font-size: 26px; font-weight: 800; color: #0f172a;
+    letter-spacing: -0.02em; line-height: 1.1;
+    margin-top: 2px; font-variant-numeric: tabular-nums;
+  }
+  .cp-money-hero .val .gap { color: #BF3A22; font-size: 16px; font-weight: 700; margin-inline-start: 6px; }
+  .cp-money-hero .bar {
+    height: 8px; background: rgba(15,23,42,.08);
+    border-radius: 99px; overflow: hidden; margin: 10px 0 8px;
+  }
+  .cp-money-hero .bar > span {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, #F7624A, #E04A2F);
+    border-radius: 99px; transition: width .4s;
+  }
+  .cp-money-hero .sub { font-size: 12px; color: #475569; display: flex; gap: 10px; flex-wrap: wrap; }
+  .cp-money-hero .sub b { color: #0f172a; font-weight: 700; }
+  .cp-money-hero .sub .pending b { color: #92400e; }
+  .cp-next-action {
+    background: #fff; border: 1.5px solid #0f172a; border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 4px 12px -6px rgba(15,23,42,.18);
+  }
+  .cp-next-action-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: #0f172a; color: #fff;
+    display: grid; place-items: center; font-size: 18px; flex-shrink: 0;
+  }
+  .cp-next-action-body { flex: 1; min-width: 0; }
+  .cp-next-action-body .t { font-size: 13.5px; font-weight: 700; color: #0f172a; }
+  .cp-next-action-body .s { font-size: 11.5px; color: #64748b; margin-top: 1px; }
+  .cp-next-action-cta {
+    background: #0f172a; color: #fff; border: 0;
+    padding: 8px 14px; border-radius: 99px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    flex-shrink: 0;
+  }
+  .cp-next-action-cta:hover { background: #1e293b; }
+  .cp-tabs {
+    display: flex; gap: 6px; margin-bottom: 12px;
+    background: #f1f5f9; padding: 4px; border-radius: 11px;
+    position: sticky; top: 60px; z-index: 25;
+  }
+  .cp-tab {
+    flex: 1; padding: 8px 6px;
+    background: transparent; border: 0;
+    color: #475569; font-size: 12.5px; font-weight: 600;
+    border-radius: 8px; cursor: pointer;
+    transition: all .14s ease;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .cp-tab:hover { color: #0f172a; }
+  .cp-tab.is-active {
+    background: #fff; color: #0f172a; font-weight: 700;
+    box-shadow: 0 1px 3px rgba(15,23,42,.10);
+  }
+  .cp-tab .badge {
+    background: rgba(15,23,42,.08); color: #475569;
+    padding: 0 6px; border-radius: 99px; font-size: 10px;
+    font-weight: 700;
+  }
+  .cp-tab.is-active .badge { background: rgba(15,23,42,.08); color: #0f172a; }
+  .cp-panel { display: none; }
+  .cp-panel.is-active { display: block; }
+  .cp-fam-section[data-section="others"][data-collapsed="1"] .cp-fam-card { display: none; }
+  .cp-fam-section-toggle {
+    background: transparent; border: 1.5px dashed #cbd5e1;
+    color: #475569; padding: 8px 12px; border-radius: 10px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    width: 100%; margin-top: 6px;
+  }
+  .cp-fam-section-toggle:hover { color: #0f172a; border-color: #0f172a; }
+  .cp-activity-feed { display: flex; flex-direction: column; gap: 8px; }
+  .cp-activity-event {
+    display: grid; grid-template-columns: 90px 1fr; gap: 10px;
+    padding: 8px 0; border-top: 1px solid #f1f5f9;
+  }
+  .cp-activity-event:first-child { border-top: 0; }
+  .cp-activity-event .when { font-size: 11px; color: #94a3b8; font-weight: 600; }
+  .cp-activity-event .what { font-size: 12.5px; color: #0f172a; }
+  .cp-activity-event .what b { font-weight: 700; }
+  .cp-action-bar {
+    position: sticky; bottom: 0; left: 0; right: 0;
+    background: #fff; border-top: 1px solid #e2e8f0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    display: flex; gap: 8px; margin: 16px -16px 0;
+    z-index: 25;
+  }
+  .cp-action-bar a, .cp-action-bar button {
+    flex: 1; min-height: 44px;
+    border: 1px solid #e2e8f0; background: #fff;
+    border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px; font-size: 13px; font-weight: 700;
+    color: #0f172a; cursor: pointer; text-decoration: none;
+  }
+  .cp-action-bar a.primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+  .cp-action-bar a:hover, .cp-action-bar button:hover { background: #f8fafc; }
+  .cp-action-bar a.primary:hover { background: #1e293b; color: #fff; }
+
   /* [patch: merge_rf_into_carousel] When the carousel has class .rf-tinted
      it carries the orange gradient (was .rf-hero) AND it has a header row
      with the fortune-wheel + title + period + seller. Saves one whole
@@ -23017,62 +23145,278 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
     var notesKey = 'rihab_cp_note__' + phone;
     var noteVal  = '';
     try { noteVal = localStorage.getItem(notesKey) || ''; } catch(_){}
-    panel.innerHTML =
-      '<div id="clientPerfPage" data-cp-phone="' + esc2(phone) + '">' +
+    // [patch: client_perf_outstanding] — tab-based redesign
+    //   Sticky bar · Money hero · Next-action card · Tabs (Orders/Products/Activity/Notes)
+    //   · Sticky bottom action bar (call/SMS/note)
+    var _pendingMad = (row.stPending || 0);
+    var _gap = Math.max(0, nextThr - totalGmv);
+    var _hasOrders = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders))
+      ? fulfill.orders.some(function(o){ return o && o.phone === phone; }) : false;
+    var _hasFamilyCommit = (gmvEngagement.commitments && gmvEngagement.commitments[mySeller]
+                            && gmvEngagement.commitments[mySeller].clientFocus
+                            && gmvEngagement.commitments[mySeller].clientFocus[phone]
+                            && Object.values(gmvEngagement.commitments[mySeller].clientFocus[phone])
+                                 .some(function(p){ return p && p.selected; }));
+    // Decide next action
+    var _nextAct;
+    var _naLbls = ({
+      ar: { selProds:{t:'اختر منتجات لهذا الزبون', s:'لازم ≥10 منتج لتفعيل الأهداف', cta:'اختر'},
+            followPending:{t:'تابع الطلبيات قيد الانتظار', s:fmtN(_pendingMad) + ' MAD ما زالت قيد الانتظار', cta:'افتح'},
+            callCold:{t:'كلّم الزبون', s:'بلا طلب جديد منذ مدة', cta:'اتصل'},
+            inactive:{t:'الزبون غير نشط', s:'حاول إعادة تفعيله', cta:'اتصل'},
+            onTrack:{t:'كل شي تمام', s:'الزبون مرتقب على المسار', cta:''} },
+      fr: { selProds:{t:'Choisissez des produits', s:'≥10 produits requis', cta:'Choisir'},
+            followPending:{t:'Suivez les commandes en attente', s:fmtN(_pendingMad) + ' MAD en attente', cta:'Ouvrir'},
+            callCold:{t:'Appelez le client', s:'Aucune commande récente', cta:'Appeler'},
+            inactive:{t:'Client inactif', s:'Réactivez-le', cta:'Appeler'},
+            onTrack:{t:'Tout va bien', s:'Sur la bonne voie', cta:''} },
+      en: { selProds:{t:'Pick products for this client', s:'≥10 needed', cta:'Pick'},
+            followPending:{t:'Follow up pending orders', s:fmtN(_pendingMad) + ' MAD pending', cta:'Open'},
+            callCold:{t:'Call the client', s:'No recent order', cta:'Call'},
+            inactive:{t:'Inactive client', s:'Try to reactivate', cta:'Call'},
+            onTrack:{t:'All good', s:'On track', cta:''} },
+    })[engLang()] || ({} );
+    if (!_hasFamilyCommit) _nextAct = Object.assign({ key:'selProds', icon:'✓' }, _naLbls.selProds);
+    else if (_pendingMad > 0) _nextAct = Object.assign({ key:'pending', icon:'⏳' }, _naLbls.followPending);
+    else if (!isActive) _nextAct = Object.assign({ key:'inactive', icon:'📞' }, _naLbls.inactive);
+    else _nextAct = Object.assign({ key:'ok', icon:'✓' }, _naLbls.onTrack);
+    var _tabLbls = ({
+      ar: { orders:'الطلبيات', products:'المنتجات', activity:'النشاط', notes:'ملاحظات' },
+      fr: { orders:'Commandes', products:'Produits', activity:'Activité', notes:'Notes' },
+      en: { orders:'Orders', products:'Products', activity:'Activity', notes:'Notes' },
+    })[engLang()] || { orders:'Orders', products:'Products', activity:'Activity', notes:'Notes' };
+    var _ordersCount = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders))
+      ? fulfill.orders.filter(function(o){ return o && o.phone === phone; }).length : 0;
+    var _commitCount = _hasFamilyCommit
+      ? Object.values(gmvEngagement.commitments[mySeller].clientFocus[phone]).filter(function(p){ return p && p.selected; }).length
+      : 0;
+    var _moneyLbls = ({
+      ar: { lbl:'GMV هذا الشهر', toGo:'متبقي', pending:'منها قيد الانتظار', toTarget:'/ الهدف' },
+      fr: { lbl:'GMV ce mois', toGo:'restant', pending:'dont en attente', toTarget:'/ Cible' },
+      en: { lbl:'GMV this month', toGo:'to go', pending:'incl. pending', toTarget:'/ Target' },
+    })[engLang()] || { lbl:'GMV this month', toGo:'to go', pending:'incl. pending', toTarget:'/ Target' };
+    var _stickyHeader =
+      '<div class="cp-sticky-bar">' +
         '<button type="button" class="cp-back" data-cp-back>' +
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
             '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>' +
-          '</svg> ' + esc2(L.back) +
+          '</svg>' +
         '</button>' +
-        '<header class="cp-header">' +
-          '<div class="cp-avatar">' + esc2(firstLetter2(row.name)) + '</div>' +
-          '<div style="min-width:0;flex:1;">' +
-            '<h1>' + esc2(row.name) + '</h1>' +
-            '<div class="cp-meta">' +
-              '<a class="cp-phone-link" href="tel:' + esc2(row.phone) + '">' + esc2(row.phone) + '</a>' +
-              '<span class="cp-sep">·</span>' +
-              '<span class="cp-level">' + esc2(L.level) + ' ' + (row.nextPalier ? row.nextPalier.palier : '—') + '</span>' +
-              '<span class="cp-sep">·</span>' +
-              '<span class="cp-gmv">' + fmtN(totalGmv) + ' ' + esc2(L.gmv) + '</span>' +
+        '<div class="cp-avatar">' + esc2(firstLetter2(row.name)) + '</div>' +
+        '<div style="min-width:0;flex:1;">' +
+          '<h1>' + esc2(row.name) + '</h1>' +
+          '<div class="cp-meta">' +
+            '<a class="cp-phone-link" href="tel:' + esc2(row.phone) + '">' + esc2(row.phone) + '</a>' +
+            '<span class="cp-sep">·</span>' +
+            '<span class="cp-level">' + esc2(L.level) + ' ' + (row.nextPalier ? row.nextPalier.palier : '—') + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="client-settings-btn" data-cp-perf-settings="' + esc2(phone) + '" title="' + esc2(L.targetBtn) + '" aria-label="' + esc2(L.targetBtn) + '">' +
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<circle cx="12" cy="12" r="3"/>' +
+            '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>' +
+          '</svg>' +
+        '</button>' +
+      '</div>';
+    var _moneyHero =
+      '<section class="cp-money-hero">' +
+        '<div class="lbl">' + esc2(_moneyLbls.lbl) + '</div>' +
+        '<div class="val">' + fmtN(totalGmv) + ' MAD' +
+          (_gap > 0 ? '<span class="gap">— ' + fmtN(_gap) + ' ' + esc2(_moneyLbls.toGo) + '</span>' : '') +
+        '</div>' +
+        '<div class="bar"><span style="width:' + pct + '%"></span></div>' +
+        '<div class="sub">' +
+          '<span><b>' + pct + '%</b> ' + esc2(_moneyLbls.toTarget) + ' ' + fmtN(nextThr) + ' MAD</span>' +
+          (_pendingMad > 0 ? '<span class="pending">' + esc2(_moneyLbls.pending) + ' <b>' + fmtN(_pendingMad) + ' MAD</b></span>' : '') +
+        '</div>' +
+      '</section>';
+    var _nextActionHtml = (_nextAct.cta
+      ? '<div class="cp-next-action">' +
+          '<div class="cp-next-action-icon">' + _nextAct.icon + '</div>' +
+          '<div class="cp-next-action-body">' +
+            '<div class="t">' + esc2(_nextAct.t) + '</div>' +
+            '<div class="s">' + esc2(_nextAct.s) + '</div>' +
+          '</div>' +
+          '<button type="button" class="cp-next-action-cta" data-cp-next-action="' + _nextAct.key + '">' + esc2(_nextAct.cta) + '</button>' +
+        '</div>'
+      : '');
+    var _tabBar =
+      '<div class="cp-tabs">' +
+        '<button type="button" class="cp-tab is-active" data-cp-tab="orders">' + esc2(_tabLbls.orders) +
+          (_ordersCount > 0 ? ' <span class="badge">' + _ordersCount + '</span>' : '') +
+        '</button>' +
+        '<button type="button" class="cp-tab" data-cp-tab="products">' + esc2(_tabLbls.products) +
+          (_commitCount > 0 ? ' <span class="badge">' + _commitCount + '</span>' : '') +
+        '</button>' +
+        '<button type="button" class="cp-tab" data-cp-tab="activity">' + esc2(_tabLbls.activity) + '</button>' +
+        '<button type="button" class="cp-tab" data-cp-tab="notes">' + esc2(_tabLbls.notes) + '</button>' +
+      '</div>';
+    panel.innerHTML =
+      '<div id="clientPerfPage" data-cp-phone="' + esc2(phone) + '">' +
+        _stickyHeader +
+        _moneyHero +
+        _nextActionHtml +
+        _tabBar +
+        // [patch: client_perf_outstanding] Orders tab — default visible
+        '<div class="cp-panel is-active" data-cp-panel="orders">' +
+        (function(){
+          var ordersForPhone = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders))
+            ? fulfill.orders.filter(function(o){ return o && o.phone === phone; })
+            : [];
+          if (!ordersForPhone.length) return '';
+          var byOrder = {};
+          ordersForPhone.forEach(function(o){
+            var k = o.orderCode || ('—' + Math.random().toString(36).slice(2));
+            if (!byOrder[k]) byOrder[k] = { code: o.orderCode || '—', status: o.status || '', date: o.date || '', lines: [] };
+            byOrder[k].lines.push(o);
+            if (!byOrder[k].status && o.status) byOrder[k].status = o.status;
+          });
+          var orderCodes = Object.keys(byOrder).sort(function(a, b){
+            var da = new Date(byOrder[a].date || 0).getTime();
+            var db = new Date(byOrder[b].date || 0).getTime();
+            return db - da;
+          });
+          var lbls = ({
+            en: { title:'Orders', all:'All', pending:'Pending', delivered:'Delivered', todeliver:'To deliver', inprogress:'In progress', canceled:'Canceled', returned:'Returned', qty:'Qty' },
+            fr: { title:'Commandes', all:'Toutes', pending:'En attente', delivered:'Livrées', todeliver:'À livrer', inprogress:'En cours', canceled:'Annulées', returned:'Retours', qty:'Qté' },
+            ar: { title:'الطلبيات', all:'الكل', pending:'قيد الانتظار', delivered:'موصّلة', todeliver:'للتوصيل', inprogress:'في الطريق', canceled:'ملغاة', returned:'مرتجعة', qty:'الكمية' },
+          })[engLang()] || { title:'Orders', all:'All', pending:'Pending', delivered:'Delivered', todeliver:'To deliver', inprogress:'In progress', canceled:'Canceled', returned:'Returned', qty:'Qty' };
+          var counts = { all: orderCodes.length, pending:0, delivered:0, todeliver:0, inprogress:0, canceled:0, returned:0 };
+          var statusBucket = function(s){
+            if (s === 'DELIVERED') return 'delivered';
+            if (s === 'PENDING' || s === 'REPLANED' || s === 'RESCHEDULED') return 'pending';
+            if (s === 'TO_DELIVER') return 'todeliver';
+            if (s === 'DELIVERY_IN_PROGRESS') return 'inprogress';
+            if (s === 'CANCELED') return 'canceled';
+            if (s === 'RETURNED') return 'returned';
+            return 'other';
+          };
+          orderCodes.forEach(function(c){
+            var b = statusBucket(byOrder[c].status);
+            if (counts[b] != null) counts[b]++;
+          });
+          var statusColor = function(b){
+            var map = {
+              delivered:['#dcfce7','#065f46'], pending:['#fef3c7','#92400e'],
+              todeliver:['#dbeafe','#1e40af'], inprogress:['#e0e7ff','#3730a3'],
+              canceled:['#fee2e2','#991b1b'], returned:['#ffedd5','#9a3412'],
+              other:['#f1f5f9','#475569'],
+            };
+            return map[b] || map.other;
+          };
+          var fmtM = function(n){
+            var v = Math.round(Number(n) || 0);
+            return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, String.fromCharCode(0xA0));
+          };
+          var ordersHtml = orderCodes.map(function(code){
+            var od = byOrder[code];
+            var totalQty = od.lines.reduce(function(t, l){ return t + (Number(l.qty) || 0); }, 0);
+            var totalAmt = od.lines.reduce(function(t, l){ return t + (Number(l.amount) || 0); }, 0);
+            var b = statusBucket(od.status);
+            var col = statusColor(b);
+            var linesHtml = od.lines.map(function(l){
+              return '<div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;padding:6px 10px;border-top:1px dashed #e2e8f0;font-size:11.5px">' +
+                '<span style="font-family:ui-monospace,monospace;font-size:10px;font-weight:700;color:#475569;background:#f1f5f9;padding:1px 6px;border-radius:5px">' + esc2(l.productCode || '') + '</span>' +
+                '<span style="color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc2(l.productName || '') + '</span>' +
+                '<span style="color:#475569;font-variant-numeric:tabular-nums;white-space:nowrap">' + (l.qty || 0) + ' ' + esc2(lbls.qty) + '</span>' +
+                '<span style="color:#0f172a;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap">' + fmtM(l.amount) + ' MAD</span>' +
+              '</div>';
+            }).join('');
+            return '<div class="cp-order-block" data-bucket="' + b + '" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:8px">' +
+              '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:8px 10px;background:#f8fafc;border-bottom:1px solid #e2e8f0">' +
+                '<span style="font-family:ui-monospace,monospace;font-weight:700;font-size:11px;color:#0f172a;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:2px 7px">' + esc2(od.code) + '</span>' +
+                '<span style="font-size:11px;color:#64748b">' + od.lines.length + ' · ' + totalQty + ' ' + esc2(lbls.qty) + ' · <b style="color:#0f172a">' + fmtM(totalAmt) + ' MAD</b></span>' +
+                '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:' + col[0] + ';color:' + col[1] + '">' + esc2(lbls[b] || b) + '</span>' +
+              '</div>' +
+              '<div class="cp-order-lines">' + linesHtml + '</div>' +
+            '</div>';
+          }).join('');
+          var chip = function(key, label, count){
+            return '<button type="button" class="cp-order-filter' + (key === 'all' ? ' is-active' : '') + '" data-cp-order-filter="' + key + '" style="border:1.5px solid #cbd5e1;background:transparent;color:#475569;padding:5px 10px;border-radius:99px;font-size:11.5px;font-weight:600;cursor:pointer">' +
+              esc2(label) + ' <span style="background:rgba(15,23,42,.08);color:#0f172a;padding:0 6px;border-radius:99px;margin-inline-start:4px;font-size:10.5px">' + count + '</span>' +
+            '</button>';
+          };
+          return '<section class="cp-block">' +
+            '<h2>' + esc2(lbls.title) + '</h2>' +
+            '<div class="cp-order-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">' +
+              chip('all',       lbls.all,       counts.all) +
+              chip('pending',   lbls.pending,   counts.pending) +
+              chip('delivered', lbls.delivered, counts.delivered) +
+              chip('todeliver', lbls.todeliver, counts.todeliver) +
+              chip('inprogress',lbls.inprogress,counts.inprogress) +
+              chip('canceled',  lbls.canceled,  counts.canceled) +
+              chip('returned',  lbls.returned,  counts.returned) +
             '</div>' +
-          '</div>' +
-          '<button type="button" class="client-settings-btn" data-cp-perf-settings="' + esc2(phone) + '" title="' + esc2(L.targetBtn) + '" aria-label="' + esc2(L.targetBtn) + '">' +
-            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-              '<circle cx="12" cy="12" r="3"/>' +
-              '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>' +
-            '</svg>' +
-          '</button>' +
-        '</header>' +
-        '<section class="cp-kpis">' +
-          kpis.map(function(k){
-            return '<div class="cp-kpi"><div class="val">' + k.v + '</div><div class="lbl">' + esc2(k.l) + '</div></div>';
-          }).join('') +
-        '</section>' +
-        '<section class="cp-block">' +
-          '<h2>' + esc2(L.h_level) + '</h2>' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#475569;">' +
-            '<span>' + pct + '%</span>' +
-            '<span style="font-size:11px;">' + fmtN(totalGmv) + ' / ' + fmtN(nextThr) + ' MAD</span>' +
-          '</div>' +
-          '<div style="height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden;margin-top:6px">' +
-            '<div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#F7624A,#E04A2F)"></div>' +
-          '</div>' +
-        '</section>' +
-        '<section class="cp-block">' +
-          '<h2>' + esc2(L.h_products) + '</h2>' +
-          prodList +
-        '</section>' +
-        '<section class="cp-block">' +
-          '<h2>' + esc2(L.h_activity) + '</h2>' +
-          '<div style="font-size:13px;color:#334155;">' + esc2(L.lastOrder) + ': <strong>' + esc2(lastTxt) + '</strong></div>' +
-          '<span style="display:inline-block;margin-top:8px;padding:4px 10px;border-radius:999px;' +
-            'background:' + (isActive ? '#ecfdf5' : '#fef2f2') + ';color:' + (isActive ? '#065f46' : '#991b1b') + ';' +
-            'font-size:11px;font-weight:700">' + esc2(isActive ? L.active : L.inactive) + '</span>' +
-        '</section>' +
-        '<section class="cp-block">' +
-          '<h2>' + esc2(L.h_notes) + '</h2>' +
-          '<textarea id="cpNotes" placeholder="' + esc2(L.notesPh) + '">' + esc2(noteVal) + '</textarea>' +
-        '</section>' +
+            '<div class="cp-orders-list">' + ordersHtml + '</div>' +
+          '</section>';
+        })() +
+        '</div>' /* close orders panel */ +
+        // Products tab — uses the existing prodList HTML built earlier.
+        '<div class="cp-panel" data-cp-panel="products">' +
+          '<section class="cp-block">' + prodList + '</section>' +
+        '</div>' +
+        // Activity tab — full event feed (last orders, days since, etc.)
+        '<div class="cp-panel" data-cp-panel="activity">' +
+          '<section class="cp-block">' +
+            (function(){
+              var ords = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders))
+                ? fulfill.orders.filter(function(o){ return o && o.phone === phone; })
+                : [];
+              var byCode = {};
+              ords.forEach(function(o){
+                var k = o.orderCode || 'X';
+                if (!byCode[k]) byCode[k] = { code:o.orderCode||'—', status:o.status||'', date:o.date||'', total:0, qty:0 };
+                byCode[k].total += (o.amount || 0);
+                byCode[k].qty += (o.qty || 0);
+                if (!byCode[k].status && o.status) byCode[k].status = o.status;
+              });
+              var evts = Object.keys(byCode).map(function(k){ return byCode[k]; });
+              evts.sort(function(a,b){ return new Date(b.date||0).getTime() - new Date(a.date||0).getTime(); });
+              if (!evts.length) {
+                return '<div style="color:#94a3b8;font-size:13px;text-align:center;padding:24px;">' +
+                  (engLang() === 'ar' ? 'لا يوجد نشاط بعد' : (engLang() === 'fr' ? 'Aucune activité' : 'No activity yet')) +
+                '</div>';
+              }
+              return '<div class="cp-activity-feed">' + evts.map(function(e){
+                var d = e.date ? new Date(e.date) : null;
+                var when = d && !isNaN(d.getTime())
+                  ? (String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'))
+                  : '—';
+                var fmtMad = function(n){ return Math.round(Number(n)||0).toLocaleString('en-US').replace(/,/g, String.fromCharCode(0xA0)); };
+                return '<div class="cp-activity-event">' +
+                  '<span class="when">' + esc2(when) + '</span>' +
+                  '<span class="what">' + esc2(e.code) + ' · <b>' + fmtMad(e.total) + ' MAD</b> · ' + esc2(e.status||'') + '</span>' +
+                '</div>';
+              }).join('') + '</div>';
+            })() +
+          '</section>' +
+          '<section class="cp-block">' +
+            '<div style="font-size:13px;color:#334155;">' + esc2(L.lastOrder) + ': <strong>' + esc2(lastTxt) + '</strong></div>' +
+            '<span style="display:inline-block;margin-top:8px;padding:4px 10px;border-radius:999px;' +
+              'background:' + (isActive ? '#ecfdf5' : '#fef2f2') + ';color:' + (isActive ? '#065f46' : '#991b1b') + ';' +
+              'font-size:11px;font-weight:700">' + esc2(isActive ? L.active : L.inactive) + '</span>' +
+          '</section>' +
+        '</div>' +
+        // Notes tab
+        '<div class="cp-panel" data-cp-panel="notes">' +
+          '<section class="cp-block">' +
+            '<textarea id="cpNotes" placeholder="' + esc2(L.notesPh) + '">' + esc2(noteVal) + '</textarea>' +
+            '<div id="cpNotesSaved" style="margin-top:6px;font-size:11px;color:#16a34a;font-weight:700;opacity:0;transition:opacity .2s">✓ ' +
+              (engLang() === 'ar' ? 'محفوظ' : (engLang() === 'fr' ? 'Enregistré' : 'Saved')) +
+            '</div>' +
+          '</section>' +
+        '</div>' +
+        // Sticky bottom action bar — call / SMS / log contact
+        '<div class="cp-action-bar">' +
+          '<a class="primary" href="tel:' + esc2(row.phone) + '">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' +
+            (engLang() === 'ar' ? 'اتصل' : (engLang() === 'fr' ? 'Appeler' : 'Call')) +
+          '</a>' +
+          '<a href="sms:' + esc2(row.phone) + '">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>' +
+            (engLang() === 'ar' ? 'SMS' : (engLang() === 'fr' ? 'SMS' : 'SMS')) +
+          '</a>' +
+        '</div>' +
       '</div>';
     var backBtn = panel.querySelector('[data-cp-back]');
     if (backBtn) backBtn.addEventListener('click', function(){
@@ -23083,10 +23427,8 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
       }
       gmvCloseClientPerformance(panel, mySeller, isCreator);
     });
-    var notes = panel.querySelector('#cpNotes');
-    if (notes) notes.addEventListener('input', function(){
-      try { localStorage.setItem(notesKey, notes.value || ''); } catch(_){}
-    });
+    // [patch: client_perf_outstanding] Notes autosave handled above with
+    // visible "Saved" flash — this older duplicate is now a no-op.
     var cog = panel.querySelector('[data-cp-perf-settings]');
     if (cog) cog.addEventListener('click', function(){
       gmvEngagement.assignEditClient = phone;
@@ -23131,6 +23473,69 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
         if (oSec) oSec.style.display = visibleByCommitted['0'] ? '' : 'none';
       });
     }
+    // [patch: client_perf_outstanding] Tab switcher
+    panel.querySelectorAll('[data-cp-tab]').forEach(function(t){
+      t.addEventListener('click', function(){
+        var key = t.getAttribute('data-cp-tab');
+        panel.querySelectorAll('[data-cp-tab]').forEach(function(b){ b.classList.toggle('is-active', b === t); });
+        panel.querySelectorAll('[data-cp-panel]').forEach(function(p){
+          p.classList.toggle('is-active', p.getAttribute('data-cp-panel') === key);
+        });
+      });
+    });
+    // Next-action CTA — routes to the right place
+    var _naBtn = panel.querySelector('[data-cp-next-action]');
+    if (_naBtn) _naBtn.addEventListener('click', function(){
+      var k = _naBtn.getAttribute('data-cp-next-action');
+      if (k === 'selProds') {
+        // Open product targeting (same as cog)
+        gmvEngagement.assignEditClient = phone;
+        gmvEngagement.assignProductSearch = '';
+        gmvEngagement.activeSubtab = 'assign';
+        try { delete panel.dataset.cpPrevHtml; delete panel.dataset.cpPrevSaved; } catch(_){}
+        var wrap = panel.closest('#gmvResultsWrap') || panel.parentElement;
+        if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
+      } else if (k === 'pending') {
+        // Switch to orders tab + filter pending
+        var ordersTab = panel.querySelector('[data-cp-tab="orders"]');
+        if (ordersTab) ordersTab.click();
+        var pendingFilter = panel.querySelector('[data-cp-order-filter="pending"]');
+        if (pendingFilter) pendingFilter.click();
+      } else if (k === 'inactive' || k === 'callCold') {
+        // Trigger tel: link
+        window.location.href = 'tel:' + (row.phone || '');
+      }
+    });
+    // Notes autosave with visible "Saved" flash
+    var _notesEl = panel.querySelector('#cpNotes');
+    var _savedEl = panel.querySelector('#cpNotesSaved');
+    if (_notesEl) _notesEl.addEventListener('input', function(){
+      try { localStorage.setItem(notesKey, _notesEl.value || ''); } catch(_){}
+      if (_savedEl) {
+        _savedEl.style.opacity = '1';
+        clearTimeout(_savedEl.__t);
+        _savedEl.__t = setTimeout(function(){ _savedEl.style.opacity = '0'; }, 1200);
+      }
+    });
+    // [patch: client_orders_table] Wire status filter chips for the orders
+    // section. Shows/hides each .cp-order-block by data-bucket.
+    panel.querySelectorAll('[data-cp-order-filter]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var f = btn.getAttribute('data-cp-order-filter');
+        panel.querySelectorAll('[data-cp-order-filter]').forEach(function(b){
+          var on = b.getAttribute('data-cp-order-filter') === f;
+          b.classList.toggle('is-active', on);
+          if (on) {
+            b.style.background = '#0f172a'; b.style.color = '#fff'; b.style.borderColor = '#0f172a';
+          } else {
+            b.style.background = 'transparent'; b.style.color = '#475569'; b.style.borderColor = '#cbd5e1';
+          }
+        });
+        panel.querySelectorAll('.cp-order-block').forEach(function(blk){
+          blk.style.display = (f === 'all' || blk.getAttribute('data-bucket') === f) ? '' : 'none';
+        });
+      });
+    });
   } catch(err) {
     console.error('[gmv_handoff_fix1] openClientPerformance failed:', err);
   }
