@@ -13805,9 +13805,12 @@ function renderAuthChip() {
     document.body.appendChild(chip);
   }
   if (sbUser) {
+    // [patch: ui_overhaul_14] Translate Sign out for non-English UIs.
+    const _lang = (typeof engLang === 'function') ? engLang() : 'en';
+    const _signOutLbl = _lang === 'ar' ? 'تسجيل الخروج' : (_lang === 'fr' ? 'Se déconnecter' : 'Sign out');
     chip.innerHTML = `
       <span class="sb-auth-email" title="${escapeHtml(sbUser.email || '')}">☁ ${escapeHtml(sbUser.email || 'signed in')}</span>
-      <button type="button" class="sb-auth-out">Sign out</button>`;
+      <button type="button" class="sb-auth-out">${_signOutLbl}</button>`;
     chip.querySelector('.sb-auth-out').onclick = async () => {
       await sbSignOut();
       renderAuthChip();
@@ -18076,9 +18079,13 @@ function gmvShowSaveStatus(state) {
   const txt = el.querySelector('.txt');
   el.classList.remove('saving', 'saved');
   el.style.opacity = '1';
-  if (state === 'saving') { el.classList.add('saving'); if (txt) txt.textContent = 'Saving…'; }
+  // [patch: ui_overhaul_14] Translated "Saving / Saved" status.
+  const _l = (typeof engLang === 'function') ? engLang() : 'en';
+  const _savingLbl = _l === 'ar' ? 'كيتسجل…' : (_l === 'fr' ? 'Enregistrement…' : 'Saving…');
+  const _savedLbl  = _l === 'ar' ? 'محفوظ'   : (_l === 'fr' ? 'Enregistré'     : 'Saved');
+  if (state === 'saving') { el.classList.add('saving'); if (txt) txt.textContent = _savingLbl; }
   else if (state === 'saved') {
-    el.classList.add('saved'); if (txt) txt.textContent = 'Saved';
+    el.classList.add('saved'); if (txt) txt.textContent = _savedLbl;
     // No fade — keep the indicator at full opacity. Subtle color is enough.
     clearTimeout(gmvSaveStatusTimer);
   }
@@ -22283,11 +22290,19 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
   });
   const priorityRank = { atrisk: 0, cold: 1, ontrack: 2, won: 3 };
   if (fSort === 'priority') {
+    // [patch: ui_overhaul_14] Priority sort now keys on biggest pending MAD
+    // first (clients who need attention), then on biggest gap-to-target.
+    // Falls back to the old status rank, then to name.
     visible.sort((a, b) => {
+      const pendA = a.stPending || 0;
+      const pendB = b.stPending || 0;
+      if (pendA !== pendB) return pendB - pendA;
+      const gapA = a.nextPalier ? Math.max(0, (a.nextPalier.threshold || 0) - (a.cBoth || 0)) : 0;
+      const gapB = b.nextPalier ? Math.max(0, (b.nextPalier.threshold || 0) - (b.cBoth || 0)) : 0;
+      if (gapA !== gapB) return gapB - gapA;
       const pa = priorityRank[a.status] != null ? priorityRank[a.status] : 9;
       const pb = priorityRank[b.status] != null ? priorityRank[b.status] : 9;
       if (pa !== pb) return pa - pb;
-      if (a.pctToNext !== b.pctToNext) return a.pctToNext - b.pctToNext;
       return a.name.localeCompare(b.name);
     });
   } else if (fSort === 'gmv-desc')  visible.sort((a, b) => b.cBoth - a.cBoth);
@@ -22440,8 +22455,13 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
           '<div class="gmv-cp-row-phone">' + esc(r.phone) + ' · ' + T.lastOrder + ': ' + lastOrderTxt +
             (r.focusOrderedCount > 0 ? ' · <span class="gmv-cp-row-buying"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> ' + r.focusOrderedCount + ' ' + T.fromList + '</span>' : '') +
           '</div>' +
+          // [patch: ui_overhaul_14] Progress bar + inline percentage chip
+          // with semantic color tiers (red <30%, amber 30-70%, green ≥70%).
           '<div class="gmv-cp-row-progress">' +
-            '<div class="gmv-cp-progress"><span style="width:' + barFill + '%"></span></div>' +
+            '<div class="gmv-cp-row-progress-line">' +
+              '<div class="gmv-cp-progress" data-tier="' + (barFill < 30 ? 'low' : (barFill < 70 ? 'med' : 'high')) + '"><span style="width:' + barFill + '%"></span></div>' +
+              '<span class="gmv-cp-row-progress-pct">' + barFill + '%</span>' +
+            '</div>' +
             '<div class="gmv-cp-row-meta">' +
               '<span class="gmv-cp-row-meta-label">' + palierTxt + '</span> · ' +
               '<span>' + progressTxt + '</span> · ' +
@@ -22556,14 +22576,33 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
           sortOpts.map(o => '<option value="' + o[0] + '"' + (fSort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') +
         '</select>' +
       '</div>' +
-      // [patch: gmv_handoff_fix3 + fix4] Final filter set: buying / ontrack / won / cold / noprod.
+      // [patch: gmv_handoff_fix3 + fix4 + ui_overhaul_14] Filter pills with
+      // count badges + a reset button.
       '<div class="gmv-cp-filters">' +
         filterChip('buying',  T.flt_buying) +
         filterChip('ontrack', T.flt_ontrack) +
         filterChip('won',     T.flt_won) +
         filterChip('cold',    T.flt_cold,   insightCold.length) +
         filterChip('noprod',  T.flt_noprod, insightNoProducts.length) +
+        '<button type="button" class="gmv-cp-filter-reset" data-cp-filter-reset>' +
+          (engLang() === 'ar' ? 'إعادة ضبط' : (engLang() === 'fr' ? 'Réinitialiser' : 'Reset')) +
+        '</button>' +
       '</div>' +
+      // [patch: ui_overhaul_14] Empty-state CTA banner: if every client in
+      // the visible list has zero focus products committed, surface a clear
+      // action so the seller knows what to do next.
+      ((visible.length > 0 && visible.every(r => (r.productsCount || 0) === 0))
+        ? '<div class="gmv-cp-empty-banner">' +
+            '<div class="gmv-cp-empty-banner-text">' +
+              (engLang() === 'ar' ? 'كل الزبائن بدون منتجات مستهدفة. خاصك تضيف منتجات لزبنائك باش تتبع الأداء.'
+                : (engLang() === 'fr' ? 'Aucun client n\'a de produits ciblés. Ajoutez des produits à vos clients pour suivre la performance.'
+                                       : 'No client has focus products yet. Add products to start tracking performance.')) +
+            '</div>' +
+            '<button type="button" class="gmv-cp-empty-banner-cta" data-cp-add-products>' +
+              (engLang() === 'ar' ? 'أضف منتجات لزبنائك' : (engLang() === 'fr' ? 'Ajouter des produits' : 'Add products')) +
+            '</button>' +
+          '</div>'
+        : '') +
       '<div class="gmv-cp-list">' + rowHtml + '</div>' +
     '</section>';
 
@@ -22590,6 +22629,20 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       gmvEngagement.cpFilter = b.dataset.cpFilter;
       gmvRenderClientsPerformance(panel, mySeller, isCreator);
     });
+  });
+  // [patch: ui_overhaul_14] Reset filters back to "buying" default + clear search.
+  const _resetBtn = panel.querySelector('[data-cp-filter-reset]');
+  if (_resetBtn) _resetBtn.addEventListener('click', () => {
+    gmvEngagement.cpFilter = 'buying';
+    gmvEngagement.cpSearch = '';
+    gmvRenderClientsPerformance(panel, mySeller, isCreator);
+  });
+  // [patch: ui_overhaul_14] Empty-state CTA jumps to Assign Clients subtab.
+  const _ctaBtn = panel.querySelector('[data-cp-add-products]');
+  if (_ctaBtn) _ctaBtn.addEventListener('click', () => {
+    if (typeof gmvEngagement !== 'undefined') gmvEngagement.activeSubtab = 'assign';
+    const wrap = panel.closest('#gmvResultsWrap') || panel.parentElement;
+    if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
   });
   // [patch: gmv_handoff_fix4] data-cp-insight handler dropped — those cards
   // no longer exist; the same counts now sit as badges on filter pills.
@@ -28884,18 +28937,156 @@ async function fulfillInit() {
 
   .gmv-cp-empty { padding: 48px 20px; text-align: center; color: var(--text-soft); font-size: 14px; background: var(--bg-muted); border-radius: var(--radius-md); border: 1px dashed var(--border); }
 
-  /* [patch: bugA_keep_end_col_on_mobile] Previously this stripped the 3rd
-     column on mobile, pushing the cog + thumb + pct in row-end INSIDE the
-     card grid into row 2 (visually OUTSIDE the white card boundary).
-     Keep all 3 columns; shrink the end content so it still fits on a phone. */
+  /* [patch: ui_overhaul_14] Sweeping UI fixes for My Clients Performance —
+     single-column full-width cards, cog/thumb/pct inside the card, GMV is
+     the primary text, thicker semantic progress bar, filter toggles + reset,
+     empty-state banner, dismissible seller warning. Pure CSS layer. */
+
+  /* (1)(2) Single full-width column, no zig-zag */
+  .gmv-cp-list { display: flex; flex-direction: column; gap: 10px; }
+  .gmv-cp-row {
+    grid-template-columns: auto 1fr auto !important;
+    gap: 12px !important;
+    padding: 14px 16px !important;
+    width: 100% !important;
+    box-shadow: 0 1px 0 rgba(15,23,42,.04), 0 6px 16px -10px rgba(15,23,42,.10);
+    border-color: rgba(15,23,42,.08);
+  }
+
+  /* (3) cog + thumb + pct ALL on the same horizontal line INSIDE the card */
+  .gmv-cp-row-end {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    flex-shrink: 0;
+  }
+  .gmv-cp-row-end .client-settings-btn { width: 30px; height: 30px; color: #94a3b8; }
+  .gmv-cp-row-end .client-settings-btn:hover { background: #f1f5f9; color: #0f172a; }
+  .gmv-cp-row-end .gmv-cp-row-prize,
+  .gmv-cp-row-end .gmv-cp-row-prize-wheel { width: 36px; height: 36px; }
+  .gmv-cp-row-end .gmv-cp-row-prize-wheel img { width: 36px; height: 36px; }
+  .gmv-cp-row-pct {
+    font-size: 13px; font-weight: 700; color: #475569;
+    background: #f1f5f9; padding: 2px 8px; border-radius: 99px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* (5) GMV primary, phone/last-order de-emphasized */
+  .gmv-cp-row-top { flex-wrap: nowrap !important; gap: 8px !important; }
+  .gmv-cp-row-name { font-size: 14px; font-weight: 600; }
+  .gmv-cp-row-phone {
+    font-size: 11px !important; color: #94a3b8 !important;
+    margin-bottom: 4px !important;
+  }
+  .gmv-cp-row-phone .gmv-cp-row-buying { color: #16a34a; font-weight: 600; }
+  .gmv-cp-row-meta { font-size: 12.5px; color: #475569; line-height: 1.4; }
+  .gmv-cp-row-meta b {
+    font-size: 15.5px; color: #0f172a; font-weight: 800;
+    letter-spacing: -0.01em; font-feature-settings: "tnum" 1, "lnum" 1;
+  }
+
+  /* (6) Status pill colors */
+  .gmv-cp-pill--cold {
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    border-color: #e2e8f0 !important;
+  }
+  .gmv-cp-pill--won { background: #dcfce7 !important; color: #065f46 !important; border-color: #86efac !important; }
+
+  /* (7) Thicker semantic progress bar */
+  .gmv-cp-progress { height: 9px !important; background: #e2e8f0 !important; border-radius: 99px; }
+  .gmv-cp-progress > span { background: #ef4444 !important; }
+  .gmv-cp-progress[data-tier="med"]  > span { background: #f59e0b !important; }
+  .gmv-cp-progress[data-tier="high"] > span { background: #16a34a !important; }
+  .gmv-cp-row-progress-line { display: flex; align-items: center; gap: 8px; }
+  .gmv-cp-row-progress-line .gmv-cp-progress { flex: 1; }
+  .gmv-cp-row-progress-pct {
+    font-size: 11px; font-weight: 700; color: #475569; min-width: 36px; text-align: end;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* (8) Filter chips toggle + reset */
+  .gmv-cp-filter {
+    border-width: 1.5px !important;
+    padding: 6px 12px !important;
+    transition: all .14s ease;
+  }
+  .gmv-cp-filter:not(.is-active) {
+    background: transparent !important;
+    color: #475569 !important;
+    border-color: #cbd5e1 !important;
+  }
+  .gmv-cp-filter.is-active {
+    background: #0f172a !important;
+    border-color: #0f172a !important;
+    color: #fff !important;
+    box-shadow: 0 2px 6px rgba(15,23,42,.25);
+  }
+  .gmv-cp-filter .gmv-cp-filter-count {
+    margin-inline-start: 6px;
+    background: rgba(15,23,42,.08);
+    color: #0f172a;
+  }
+  .gmv-cp-filter.is-active .gmv-cp-filter-count {
+    background: rgba(255,255,255,.22);
+    color: #fff;
+  }
+  .gmv-cp-filter-reset {
+    border: 1.5px dashed #cbd5e1;
+    background: transparent;
+    color: #64748b;
+    padding: 6px 12px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .gmv-cp-filter-reset:hover { color: #0f172a; border-color: #0f172a; }
+
+  /* (10) Empty-state banner */
+  .gmv-cp-empty-banner {
+    margin: 4px 0 10px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border: 1px solid #f59e0b;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .gmv-cp-empty-banner-text { font-size: 13px; color: #78350f; font-weight: 600; line-height: 1.4; }
+  .gmv-cp-empty-banner-cta {
+    background: #0f172a; color: #fff;
+    padding: 7px 14px; border-radius: 99px;
+    font-size: 12px; font-weight: 700; border: 0; cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* (13) Dismissible seller warning */
+  .gmv-seller-banner {
+    margin: 0 0 10px;
+    padding: 10px 14px;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-size: 12.5px; color: #78350f; font-weight: 600;
+  }
+  .gmv-seller-banner.is-dismissed { display: none; }
+  .gmv-seller-banner-x {
+    background: transparent; border: 0; color: #92400e; cursor: pointer;
+    font-size: 18px; line-height: 1; padding: 0 4px;
+  }
+
+  /* Mobile tightening */
   @media (max-width: 720px) {
-    .gmv-cp-row { grid-template-columns: auto 1fr auto; gap: 8px; padding: 12px 12px; }
-    .gmv-cp-row-end { min-width: 0; gap: 4px; }
+    .gmv-cp-row { gap: 8px !important; padding: 12px 12px !important; }
+    .gmv-cp-row-end { min-width: 0 !important; gap: 4px !important; }
     .gmv-cp-row-end .gmv-cp-row-prize,
-    .gmv-cp-row-end .gmv-cp-row-prize-wheel { width: 32px; height: 32px; }
-    .gmv-cp-row-end .gmv-cp-row-prize-wheel img { width: 32px; height: 32px; }
-    .gmv-cp-row-end .client-settings-btn { width: 26px; height: 26px; }
-    .gmv-cp-row-pct { font-size: 14px; }
+    .gmv-cp-row-end .gmv-cp-row-prize-wheel { width: 30px !important; height: 30px !important; }
+    .gmv-cp-row-end .gmv-cp-row-prize-wheel img { width: 30px !important; height: 30px !important; }
+    .gmv-cp-row-end .client-settings-btn { width: 26px !important; height: 26px !important; }
+    .gmv-cp-row-pct { font-size: 12px !important; padding: 1px 6px !important; }
   }
 
   /* [patch: seller_mobile_first] — Phone-only optimizations for the
