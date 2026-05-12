@@ -15700,6 +15700,14 @@ try {
               const m = e && e.data;
               if (!m || typeof m !== 'object' || !m.type || !m.type.startsWith('co:')) return;
               if (m.type === 'co:ready') {
+                // [patch: co_pull_fulfill_first] Force-pull OF data so even
+                // sellers who never opened Order Fulfillment have orders +
+                // clients in Confirm Orders.
+                try {
+                  if (typeof fulfillPullFromCloud === 'function') {
+                    await fulfillPullFromCloud();
+                  }
+                } catch (_) {}
                 sendData();
               } else if (m.type === 'co:save_list') {
                 const list = Array.isArray(m.list) ? m.list : [];
