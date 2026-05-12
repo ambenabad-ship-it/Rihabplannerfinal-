@@ -22245,15 +22245,16 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
 
   const kpiTotalGmv  = rows.reduce((t, r) => t + r.cBoth, 0);
   const kpiGiftsWon  = rows.filter(r => r.status === 'won').length;
-  // [patch: kpi_active_uses_focus_orders] "Active" = ordered any focus list
-  // product (not "any order in 30 days"). Tells the seller which clients
-  // are actually engaging with the products they need to push.
   const kpiActive    = rows.filter(r => r.focusOrderedCount > 0).length;
   const sumNextPalierTargets = rows.reduce((t, r) => t + (r.nextPalier ? (r.nextPalier.threshold || 0) : (r.ach ? r.ach.threshold : 0)), 0);
   const sumProgress = rows.reduce((t, r) => t + r.cBoth, 0);
   const kpiPctPaliers = sumNextPalierTargets > 0
     ? Math.min(100, Math.round((sumProgress / sumNextPalierTargets) * 100))
     : 0;
+  // [patch: ui_overhaul_pass2] Additional KPIs for the page strip.
+  const kpiInactive  = rows.filter(r => r.status === 'cold').length;
+  const kpiNoProds   = rows.filter(r => (r.productsCount || 0) === 0).length;
+  const kpiTarget    = sumNextPalierTargets;
 
   const insightCloseToGift = rows.filter(r => {
     if (!r.nextPalier) return false;
@@ -22439,13 +22440,28 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
         ).join('') +
       '</div>';
     }
+    // [patch: ui_overhaul_pass2] Row rebuild — labeled KPI pill blocks for
+     // GMV / Products / Level, pending sub-line under GMV, dashed empty
+     // progress bar, is-inactive class for faded styling.
+    var _rowClassExtra = (r.status === 'cold') ? ' is-inactive' : '';
+    var _gmvKpiVal = '<b>' + fmt(r.cBoth) + '</b> / ' + fmt((r.nextPalier && r.nextPalier.threshold) || 0) + ' MAD';
+    var _prodKpiVal = '<b>' + r.productsAchieved + '</b> / ' + r.productsMin;
+    var _lvlKpiVal = palierTxt;
+    var _kpiLbls = ({
+      en: { gmv: 'GMV', prod: 'Products', lvl: 'Level', pending: 'incl. pending:' },
+      fr: { gmv: 'GMV', prod: 'Produits', lvl: 'Palier', pending: 'dont en attente:' },
+      ar: { gmv: 'GMV', prod: 'منتجات',   lvl: 'المستوى', pending: 'منها قيد الانتظار:' },
+    })[engLang()] || { gmv: 'GMV', prod: 'Products', lvl: 'Level', pending: 'incl. pending:' };
+    var _pendingSub = (r.stPending > 0)
+      ? '<div class="sub">' + _kpiLbls.pending + ' ' + fmt(r.stPending) + '</div>'
+      : '';
     return (
-      // [patch: gmv_handoff_fix1] Whole row opens the new client perf page;
-      // the cog inside opens the legacy product-targeting screen.
-      // [patch: bugA_cog_to_end] Cog moved out of row-top (was causing the row
-      // to wrap mid-card on narrow widths, splitting the white card visually).
-      // It now lives in row-end alongside the prize thumb and pct.
-      '<button type="button" class="gmv-cp-row" data-cp-perf="' + esc(r.phone) + '">' +
+      // [patch: row_div_not_button] HTML forbids nested <button> elements;
+      // the cog inside the row <button> caused the parser to auto-close the
+      // row at the cog, dropping every later child (thumb + pct) OUTSIDE
+      // the card. Switching the row to a div with role="button" keeps the
+      // semantics + lets the cog stay a real <button>.
+      '<div role="button" tabindex="0" class="gmv-cp-row' + _rowClassExtra + '" data-cp-perf="' + esc(r.phone) + '">' +
         '<div class="gmv-cp-row-avatar" aria-hidden="true">' + esc(initial) + '</div>' +
         '<div class="gmv-cp-row-main">' +
           '<div class="gmv-cp-row-top">' +
@@ -22455,17 +22471,27 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
           '<div class="gmv-cp-row-phone">' + esc(r.phone) + ' · ' + T.lastOrder + ': ' + lastOrderTxt +
             (r.focusOrderedCount > 0 ? ' · <span class="gmv-cp-row-buying"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> ' + r.focusOrderedCount + ' ' + T.fromList + '</span>' : '') +
           '</div>' +
-          // [patch: ui_overhaul_14] Progress bar + inline percentage chip
-          // with semantic color tiers (red <30%, amber 30-70%, green ≥70%).
+          // [patch: ui_overhaul_pass2] KPI pill blocks
+          '<div class="gmv-cp-kpi-row">' +
+            '<div class="gmv-cp-kpi-cell">' +
+              '<span class="lbl">' + esc(_kpiLbls.gmv) + '</span>' +
+              '<div class="val">' + _gmvKpiVal + '</div>' +
+              _pendingSub +
+            '</div>' +
+            '<div class="gmv-cp-kpi-cell' + (prodTone ? ' is-met' : '') + '">' +
+              '<span class="lbl">' + esc(_kpiLbls.prod) + '</span>' +
+              '<div class="val">' + _prodKpiVal + '</div>' +
+            '</div>' +
+            '<div class="gmv-cp-kpi-cell">' +
+              '<span class="lbl">' + esc(_kpiLbls.lvl) + '</span>' +
+              '<div class="val">' + esc(_lvlKpiVal) + '</div>' +
+            '</div>' +
+          '</div>' +
           '<div class="gmv-cp-row-progress">' +
             '<div class="gmv-cp-row-progress-line">' +
-              '<div class="gmv-cp-progress" data-tier="' + (barFill < 30 ? 'low' : (barFill < 70 ? 'med' : 'high')) + '"><span style="width:' + barFill + '%"></span></div>' +
-              '<span class="gmv-cp-row-progress-pct">' + barFill + '%</span>' +
-            '</div>' +
-            '<div class="gmv-cp-row-meta">' +
-              '<span class="gmv-cp-row-meta-label">' + palierTxt + '</span> · ' +
-              '<span>' + progressTxt + '</span> · ' +
-              '<span class="' + prodTone + '">' + prodsTxt + '</span>' +
+              '<div class="gmv-cp-progress" data-tier="' + (barFill < 30 ? 'low' : (barFill < 70 ? 'med' : 'high')) + '"' +
+                (barFill === 0 ? ' data-empty="1"' : '') + '><span style="width:' + barFill + '%"></span></div>' +
+              '<span class="gmv-cp-row-progress-pct"' + (barFill === 0 ? ' data-empty="1"' : '') + '>' + barFill + '%</span>' +
             '</div>' +
           '</div>' +
           (pipelineHtml ? '<div class="gmv-cp-row-pipeline">' + pipelineHtml + '</div>' : '') +
@@ -22480,7 +22506,8 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
           prizeThumb +
           '<div class="gmv-cp-row-pct">' + r.pctToNext + '%</div>' +
         '</div>' +
-      '</button>'
+      '</div>' +  // close .gmv-cp-row (was </button>)
+      ''
     );
   }).join('') || '<div class="gmv-cp-empty">' + (allPhones.length === 0 ? T.noClients : T.empty) + '</div>';
 
@@ -22554,30 +22581,37 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
     );
   })() : '';
 
+  // [patch: ui_overhaul_pass2] Top page title "متتبع GMV" + 6-stat KPI strip.
+  const _pageTitleTxt = ({ ar: 'متتبع GMV', fr: 'Tracker GMV', en: 'GMV Tracker' })[engLang()] || 'GMV Tracker';
+  const _kpiLblsTop = ({
+    ar: { target: 'الهدف', inactive: 'غير نشط', noprods: 'بدون منتجات' },
+    fr: { target: 'Cible', inactive: 'Inactifs', noprods: 'Sans produits' },
+    en: { target: 'Target', inactive: 'Inactive', noprods: 'No products' },
+  })[engLang()] || { target: 'Target', inactive: 'Inactive', noprods: 'No products' };
   panel.innerHTML =
     '<section class="gmv-cp">' +
+      '<div class="gmv-cp-page-title" style="font-size:22px;font-weight:800;color:#0f172a;margin:0 0 4px;letter-spacing:-0.02em;">' + esc(_pageTitleTxt) + '</div>' +
       '<header class="gmv-cp-header">' +
         '<h2 class="gmv-cp-title">' + T.title + '</h2>' +
         '<div class="gmv-cp-sub">' + T.sub + '</div>' +
       '</header>' +
       '<div class="gmv-cp-kpis">' +
         kpiCard(T.kTotal,    fmt(kpiTotalGmv) + ' <span class="gmv-cp-kpi-unit">MAD</span>', '') +
-        kpiCard(T.kGifts,    kpiGiftsWon + ' <span class="gmv-cp-kpi-unit">/ ' + allPhones.length + '</span>', '') +
-        kpiCard(T.kActive,   kpiActive + ' <span class="gmv-cp-kpi-unit">/ ' + allPhones.length + '</span>', '') +
+        kpiCard(_kpiLblsTop.target, fmt(kpiTarget) + ' <span class="gmv-cp-kpi-unit">MAD</span>', '') +
         kpiCard(T.kProgress, kpiPctPaliers + '<span class="gmv-cp-kpi-unit">%</span>', '') +
+        kpiCard(T.kActive,   kpiActive + ' <span class="gmv-cp-kpi-unit">/ ' + allPhones.length + '</span>', '') +
+        kpiCard(_kpiLblsTop.inactive, kpiInactive + ' <span class="gmv-cp-kpi-unit">/ ' + allPhones.length + '</span>', '') +
+        kpiCard(_kpiLblsTop.noprods, kpiNoProds + ' <span class="gmv-cp-kpi-unit">/ ' + allPhones.length + '</span>', '') +
       '</div>' +
-      // [patch: gmv_handoff_fix4] Insight cards removed — their data now lives
-      // as count badges on the filter pills below.
-      '<div class="gmv-cp-tools">' +
+      // [patch: ui_overhaul_pass2] Combined toolbar — search + sort + filters
+      // + reset, single row.
+      '<div class="gmv-cp-toolbar">' +
         '<div class="gmv-cp-search">' + searchIcon +
           '<input type="search" id="gmvCpSearch" placeholder="' + esc(T.search) + '" value="' + esc(fSearch) + '" autocomplete="off">' +
         '</div>' +
         '<select id="gmvCpSort" class="gmv-cp-sort" aria-label="' + esc(T.sort) + '">' +
           sortOpts.map(o => '<option value="' + o[0] + '"' + (fSort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') +
         '</select>' +
-      '</div>' +
-      // [patch: gmv_handoff_fix3 + fix4 + ui_overhaul_14] Filter pills with
-      // count badges + a reset button.
       '<div class="gmv-cp-filters">' +
         filterChip('buying',  T.flt_buying) +
         filterChip('ontrack', T.flt_ontrack) +
@@ -22588,6 +22622,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
           (engLang() === 'ar' ? 'إعادة ضبط' : (engLang() === 'fr' ? 'Réinitialiser' : 'Reset')) +
         '</button>' +
       '</div>' +
+      '</div>' /* close gmv-cp-toolbar */ +
       // [patch: ui_overhaul_14] Empty-state CTA banner: if every client in
       // the visible list has zero focus products committed, surface a clear
       // action so the seller knows what to do next.
@@ -22604,6 +22639,16 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
           '</div>'
         : '') +
       '<div class="gmv-cp-list">' + rowHtml + '</div>' +
+      // [patch: ui_overhaul_pass2] Result count footer
+      (visible.length > 0
+        ? '<div class="gmv-cp-result-count">' +
+            (engLang() === 'ar'
+              ? ('عرض ' + visible.length + ' من ' + allPhones.length + ' زبون')
+              : (engLang() === 'fr'
+                  ? ('Affichage de ' + visible.length + ' sur ' + allPhones.length + ' clients')
+                  : ('Showing ' + visible.length + ' of ' + allPhones.length + ' clients'))) +
+          '</div>'
+        : '') +
     '</section>';
 
   const _s = document.getElementById('gmvCpSearch');
@@ -25640,6 +25685,9 @@ function fulfillApplyLang() {
     b.style.color = active ? '#fff' : '#475569';
     b.classList.toggle('active', active);
   });
+  // [patch: ui_overhaul_pass2] Keep the dropdown selection in sync.
+  const _selFf = document.getElementById('ffLangSelect');
+  if (_selFf && _selFf.value !== lang) _selFf.value = lang;
   // 5) Re-render dynamic content (tables, summaries, decision panels).
   if (typeof fulfillRenderAll === 'function') fulfillRenderAll();
 }
@@ -27327,6 +27375,11 @@ async function fulfillInit() {
   document.querySelectorAll('.ff-lang-btn').forEach(b => {
     b.addEventListener('click', () => fulfillSetLang(b.dataset.fflang));
   });
+  // [patch: ui_overhaul_pass2] New dropdown variant.
+  const _ffLangSel = document.getElementById('ffLangSelect');
+  if (_ffLangSel) {
+    _ffLangSel.addEventListener('change', () => fulfillSetLang(_ffLangSel.value));
+  }
   // Sellers default to Arabic if they haven't picked another language yet.
   try {
     if (!localStorage.getItem('rihab_ff_lang_v1') && typeof gmvSellerName === 'function' && gmvSellerName()) {
@@ -29089,6 +29142,111 @@ async function fulfillInit() {
     .gmv-cp-row-pct { font-size: 12px !important; padding: 1px 6px !important; }
   }
 
+  /* [patch: ui_overhaul_pass2] Round-2 polish — hover state, inactive faded
+     background, 0% bar placeholder, KPI pill blocks, pending sub-line,
+     toolbar grouping, result count. */
+
+  /* (12) Hover/focus elevation */
+  .gmv-cp-row:hover,
+  .gmv-cp-row:focus-visible {
+    border-color: rgba(15,23,42,.18) !important;
+    box-shadow: 0 1px 0 rgba(15,23,42,.04), 0 12px 24px -14px rgba(15,23,42,.18) !important;
+    transform: translateY(-1px);
+  }
+
+  /* (14) Inactive client = faded card */
+  .gmv-cp-row.is-inactive { background: #fafbfc !important; }
+  .gmv-cp-row.is-inactive .gmv-cp-row-name { color: #475569; }
+  .gmv-cp-row.is-inactive .gmv-cp-row-avatar { opacity: .68; }
+
+  /* (4) "No progress yet" placeholder when fill is 0% */
+  .gmv-cp-progress[data-empty="1"] {
+    background: transparent !important;
+    border: 1.5px dashed #cbd5e1;
+    height: 8px !important;
+  }
+  .gmv-cp-progress[data-empty="1"] > span { display: none; }
+  .gmv-cp-row-progress-pct[data-empty="1"] {
+    color: #94a3b8;
+    font-weight: 600;
+  }
+
+  /* (5) KPI pill blocks — label on top, value below */
+  .gmv-cp-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 8px 0 6px;
+  }
+  .gmv-cp-kpi-cell {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 6px 8px;
+    min-width: 0;
+  }
+  .gmv-cp-kpi-cell .lbl {
+    font-size: 10px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 600;
+    margin-bottom: 1px;
+    display: block;
+  }
+  .gmv-cp-kpi-cell .val {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+  .gmv-cp-kpi-cell.is-met .val { color: #16a34a; }
+  .gmv-cp-kpi-cell .sub {
+    font-size: 10.5px;
+    color: #92400e;
+    margin-top: 1px;
+    font-weight: 600;
+    direction: ltr;
+    text-align: end;
+    unicode-bidi: isolate;
+  }
+  .gmv-cp-kpi-cell .sub.is-zero { display: none; }
+
+  /* (7) Combined toolbar */
+  .gmv-cp-toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    margin-bottom: 12px;
+  }
+  .gmv-cp-toolbar .gmv-cp-search { flex: 1 1 220px; }
+  .gmv-cp-toolbar .gmv-cp-sort { flex: 0 0 auto; }
+  .gmv-cp-toolbar .gmv-cp-filters { flex: 1 1 100%; margin-bottom: 0; }
+
+  /* (11) Result count footer */
+  .gmv-cp-result-count {
+    font-size: 12px;
+    color: #64748b;
+    text-align: center;
+    padding: 12px 0 4px;
+  }
+
+  /* (13) Avatar palette: neutral warm so red is reserved for warnings only */
+  .gmv-cp-row-avatar {
+    background: linear-gradient(135deg, #fef0ec, #fcd5c9) !important;
+    color: #BF3A22 !important;
+  }
+
+  /* (10) Sidebar — auto-collapse to icons when sellers are on GMV. Labels
+     reappear on hover so nav is still discoverable. */
+  body.gmv-seller-only .as-sidebar { width: 64px !important; transition: width .15s ease; }
+  body.gmv-seller-only .as-sidebar:hover { width: 220px !important; }
+  body.gmv-seller-only .as-sidebar .as-feature span:not(.as-icon) {
+    opacity: 0; transition: opacity .12s ease; white-space: nowrap;
+  }
+  body.gmv-seller-only .as-sidebar:hover .as-feature span:not(.as-icon) { opacity: 1; }
+  body.gmv-seller-only .as-sidebar .as-section-title { opacity: 0; }
+  body.gmv-seller-only .as-sidebar:hover .as-section-title { opacity: 1; }
+
   /* [patch: seller_mobile_first] — Phone-only optimizations for the
      seller-facing Engagement screens. Sellers use phones almost exclusively. */
   @media (max-width: 640px) {
@@ -29922,10 +30080,13 @@ async function fulfillInit() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         ⇓ Rapport complet
       </button>
-      <div class="ff-lang-toggle" role="group" aria-label="Language" style="display:inline-flex; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden;">
-        <button type="button" class="ff-lang-btn" data-fflang="fr">FR</button>
-        <button type="button" class="ff-lang-btn" data-fflang="en">EN</button>
-        <button type="button" class="ff-lang-btn" data-fflang="ar">عربي</button>
+      <!-- [patch: ui_overhaul_pass2] Three lang buttons collapsed into one dropdown -->
+      <div class="ff-lang-toggle" role="group" aria-label="Language" style="display:inline-flex;">
+        <select id="ffLangSelect" aria-label="Language" style="padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; font-size:13px; background:#fff; cursor:pointer; min-width:96px;">
+          <option value="fr">FR · Français</option>
+          <option value="en">EN · English</option>
+          <option value="ar">عربي</option>
+        </select>
       </div>
     </div>
   </div>
