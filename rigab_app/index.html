@@ -33,6 +33,29 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc =
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
+  // [patch: number_format_nbsp_explicit] Force all Number.toLocaleString() output
+  // to use NBSP (U+00A0) for thousands and COMMA for decimals. Plain space is
+  // NOT safe inside Arabic RTL — Unicode bidi treats it as Whitespace and the
+  // digit groups (e.g. "167 899") get visually swapped to "899 167". NBSP has
+  // bidi class CS (Common Number Separator) so the groups stay glued.
+  (function(){
+    try {
+      var _orig = Number.prototype.toLocaleString;
+      var NBSP = String.fromCharCode(0xA0);
+      Number.prototype.toLocaleString = function(locale, opts){
+        var s;
+        try { s = _orig.call(this, 'fr-FR', opts); }
+        catch(_){ try { s = _orig.call(this, undefined, opts); } catch(__){ s = String(this); } }
+        // Replace plain space AND narrow-no-break-space with NBSP, just in case
+        // the engine's fr-FR uses U+202F (NNBSP) which some Arabic fonts render
+        // wider than expected. Regex uses \u-escapes so byte encoding doesn't matter.
+        s = String(s).replace(/[  ]/g, NBSP);
+        return s.replace(new RegExp('[\\u0020\\u202F]', 'g'), NBSP);
+        // dead
+        return String(s).replace(/[  ]/g, NBSP);
+      };
+    } catch(_){}
+  })();
 </script>
 <style>
   /* ---------- Design tokens ---------- */
@@ -15666,16 +15689,43 @@ try {
               const _fOrders  = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders)) ? fulfill.orders : [];
               const _gClients = (typeof gmv !== 'undefined' && gmv && gmv.clients) || {};
               const _gOrders  = (typeof gmv !== 'undefined' && gmv && Array.isArray(gmv.orders)) ? gmv.orders : [];
-              const clients = Object.keys(_fClients).length ? _fClients : _gClients;
               const orders = _fOrders.length
                 ? _fOrders.map(o => ({
                     phone: o.phone,
                     status: o.status || 'PENDING',
                     amount: o.amount || 0,
                     productCode: o.productCode || '',
+                    productName: o.productName || '',
+                    orderCode: o.orderCode || '',
+                    qty: o.qty || 0,
+                    name: o.name || '',
                     date: o.date instanceof Date ? o.date.toISOString() : (o.date || ''),
                   }))
                 : _gOrders;
+              // [patch: co_merge_order_names] Backfill missing client names
+              // from order rows (Customer_Name lives there too).
+              const _baseClients = Object.keys(_fClients).length ? _fClients : _gClients;
+              const clients = {};
+              Object.keys(_baseClients).forEach(p => {
+                clients[p] = Object.assign({}, _baseClients[p]);
+              });
+              orders.forEach(o => {
+                if (!o || !o.phone) return;
+                if (!clients[o.phone]) clients[o.phone] = {};
+                if (!clients[o.phone].name && o.name) clients[o.phone].name = o.name;
+              });
+              // [patch: co_deliver_next_vip] hydrate picked + VIP sets from localStorage
+              // so the seller's last-session choices show up immediately, even before
+              // Supabase responds.
+              const _readLocalMap = (key) => {
+                try {
+                  const v = JSON.parse(localStorage.getItem(key) || '{}');
+                  return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+                } catch(_) { return {}; }
+              };
+              const pickedOrders = _readLocalMap('rihab_co_picked_v1');
+              const vipClients   = _readLocalMap('rihab_co_vip_clients_v1');
+              const vipOrders    = _readLocalMap('rihab_co_vip_orders_v1');
               iframe.contentWindow.postMessage({
                 type: 'co:data',
                 role: _role,
@@ -15684,6 +15734,9 @@ try {
                 orders: orders,
                 assignments: (typeof gmvClientAssignments !== 'undefined' && gmvClientAssignments.byPhone) || {},
                 myList: myList,
+                pickedOrders: pickedOrders,
+                vipClients: vipClients,
+                vipOrders: vipOrders,
               }, '*');
               // Also fetch latest from Supabase
               if (typeof sbReadKey === 'function') {
@@ -15691,6 +15744,23 @@ try {
                   if (Array.isArray(v) && iframe.contentWindow) {
                     try { localStorage.setItem('rihab_co_mylist_v1', JSON.stringify(v)); } catch(_) {}
                     iframe.contentWindow.postMessage({ type: 'co:data', myList: v }, '*');
+                  }
+                }).catch(() => {});
+                Promise.resolve(sbReadKey('confirm_orders_picked')).then(v => {
+                  if (v && typeof v === 'object' && !Array.isArray(v) && iframe.contentWindow) {
+                    try { localStorage.setItem('rihab_co_picked_v1', JSON.stringify(v)); } catch(_) {}
+                    iframe.contentWindow.postMessage({ type: 'co:data', pickedOrders: v }, '*');
+                  }
+                }).catch(() => {});
+                Promise.resolve(sbReadKey('confirm_orders_vip')).then(v => {
+                  if (v && typeof v === 'object' && iframe.contentWindow) {
+                    const vc = (v.clients && typeof v.clients === 'object') ? v.clients : {};
+                    const vo = (v.orders  && typeof v.orders  === 'object') ? v.orders  : {};
+                    try {
+                      localStorage.setItem('rihab_co_vip_clients_v1', JSON.stringify(vc));
+                      localStorage.setItem('rihab_co_vip_orders_v1',  JSON.stringify(vo));
+                    } catch(_) {}
+                    iframe.contentWindow.postMessage({ type: 'co:data', vipClients: vc, vipOrders: vo }, '*');
                   }
                 }).catch(() => {});
               }
@@ -15713,6 +15783,20 @@ try {
                 const list = Array.isArray(m.list) ? m.list : [];
                 try { localStorage.setItem('rihab_co_mylist_v1', JSON.stringify(list)); } catch(_) {}
                 try { if (typeof sbWriteKey === 'function') await sbWriteKey('confirm_orders_list', list); } catch(_) {}
+              } else if (m.type === 'co:save_picked') {
+                // [patch: co_deliver_next_vip] persist per-order deliver-next picks
+                const map = (m.map && typeof m.map === 'object') ? m.map : {};
+                try { localStorage.setItem('rihab_co_picked_v1', JSON.stringify(map)); } catch(_) {}
+                try { if (typeof sbWriteKey === 'function') await sbWriteKey('confirm_orders_picked', map); } catch(_) {}
+              } else if (m.type === 'co:save_vip') {
+                // [patch: co_deliver_next_vip] persist VIP client + order sets
+                const clientsMap = (m.clients && typeof m.clients === 'object') ? m.clients : {};
+                const ordersMap  = (m.orders  && typeof m.orders  === 'object') ? m.orders  : {};
+                try {
+                  localStorage.setItem('rihab_co_vip_clients_v1', JSON.stringify(clientsMap));
+                  localStorage.setItem('rihab_co_vip_orders_v1',  JSON.stringify(ordersMap));
+                } catch(_) {}
+                try { if (typeof sbWriteKey === 'function') await sbWriteKey('confirm_orders_vip', { clients: clientsMap, orders: ordersMap }); } catch(_) {}
               } else if (m.type === 'co:run_allocator') {
                 try {
                   if (typeof fulfillRunAllocator === 'function') fulfillRunAllocator();

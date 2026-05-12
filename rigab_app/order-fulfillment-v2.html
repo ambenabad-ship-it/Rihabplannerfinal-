@@ -533,6 +533,160 @@
   .m-add-all.all-added{background:linear-gradient(135deg,var(--success),#0d8c63);box-shadow:var(--shadow-green)}
   .m-add-all.partial{background:#fff;color:var(--primary);border:1px solid var(--primary);box-shadow:var(--shadow-xs)}
 
+  /* [patch: co_client_orders_expand] Expandable orders + products inside client card,
+     visual style mirrors the Delivery Planner review table.                            */
+  .co-client-orders{
+    padding:6px 10px 10px;
+    background:linear-gradient(180deg,#fbfcfd,#ffffff);
+    border-top:.5px solid var(--border-soft);
+  }
+  .co-order-block{
+    background:#fff;
+    border:.5px solid var(--border);
+    border-radius:10px;
+    margin-top:6px;
+    overflow:hidden;
+    box-shadow:var(--shadow-xs);
+  }
+  .co-order-head{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center;
+    gap:8px;
+    padding:7px 10px;
+    background:linear-gradient(180deg,#f6f8fb,#eef2f7);
+    border-bottom:.5px solid var(--border-soft);
+    font-size:11.5px;
+    color:#374151;
+  }
+  .co-order-code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11px;font-weight:700;
+    color:#0f172a;
+    background:#fff;
+    border:.5px solid var(--border);
+    border-radius:6px;
+    padding:2px 7px;
+    letter-spacing:.02em;
+  }
+  .co-order-stats{
+    color:#4b5563;
+    font-size:11px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .co-order-stats b{color:#0f172a;font-weight:700}
+  .co-order-status{
+    font-size:10.5px;font-weight:600;
+    padding:2px 8px;border-radius:999px;
+    background:#eef2ff;color:#3730a3;
+    white-space:nowrap;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+  .co-order-lines{display:flex;flex-direction:column}
+  .co-prod-line{
+    display:grid;
+    grid-template-columns:auto 1fr auto auto;
+    align-items:center;
+    gap:8px;
+    padding:7px 10px;
+    font-size:11.5px;
+    color:#1f2937;
+    border-top:.5px dashed var(--border-soft);
+  }
+  .co-prod-line:first-child{border-top:0}
+  .co-prod-line:hover{background:#fafbfc}
+  .co-prod-code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:10.5px;font-weight:600;
+    color:#475569;
+    background:#f1f5f9;
+    border-radius:5px;
+    padding:1px 6px;
+    letter-spacing:.02em;
+    white-space:nowrap;
+  }
+  .co-prod-name{
+    color:#0f172a;
+    font-weight:500;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    min-width:0;
+  }
+  .co-prod-qty{
+    color:#6b7280;
+    font-variant-numeric:tabular-nums;
+    font-size:11px;
+    white-space:nowrap;
+  }
+  .co-prod-amt{
+    color:#0f172a;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+    text-align:end;
+  }
+  .m-client-head .chev{
+    transition:transform .18s var(--ease-out);
+  }
+  /* [patch: co_deliver_next_vip] right-side action cluster + chip styles */
+  .m-client-actions{
+    display:flex;align-items:center;gap:6px;flex-shrink:0;
+  }
+  .co-order-head{ grid-template-columns:auto 1fr auto auto; }
+  .co-order-actions{
+    display:flex;align-items:center;gap:5px;flex-shrink:0;
+  }
+  .co-chip{
+    display:inline-flex;align-items:center;gap:4px;
+    height:26px;padding:0 8px;
+    background:#fff;color:#475569;
+    border:.5px solid var(--border);
+    border-radius:999px;
+    font-size:10.5px;font-weight:600;letter-spacing:.01em;
+    transition:all .14s var(--ease-out);
+    box-shadow:var(--shadow-xs);
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .co-chip:active{transform:scale(.93)}
+  .co-chip svg{width:12px;height:12px;flex-shrink:0}
+  .co-chip-pick{color:#0f5b46}
+  .co-chip-pick.on{
+    background:linear-gradient(135deg,var(--success,#0b9870),#0d8c63);
+    border-color:transparent;color:#fff;
+    box-shadow:0 2px 6px rgba(11,152,112,.30);
+  }
+  .co-chip-vip{color:#8a6a00}
+  .co-chip-vip svg{color:#d4a017}
+  .co-chip-vip.on{
+    background:linear-gradient(135deg,#f7c948,#d4a017);
+    border-color:transparent;color:#3f2d00;
+    box-shadow:0 2px 6px rgba(212,160,23,.32);
+  }
+  .co-chip-vip.on svg{color:#3f2d00}
+  .co-chip-client-vip{
+    width:34px;height:34px;padding:0;justify-content:center;
+    border-radius:10px;
+  }
+  .co-chip-client-vip svg{width:15px;height:15px}
+  /* Highlight VIP / picked blocks so the seller sees what's chosen */
+  .co-order-block.is-vip{
+    border-color:#e4b400;
+    box-shadow:0 0 0 1px rgba(212,160,23,.18),0 2px 8px rgba(212,160,23,.10);
+  }
+  .co-order-block.is-vip .co-order-head{
+    background:linear-gradient(180deg,#fff9e0,#fff2bf);
+  }
+  .co-order-block.is-picked:not(.is-vip){
+    border-color:var(--success-100,#bfead6);
+  }
+  .co-order-block.is-picked:not(.is-vip) .co-order-head{
+    background:linear-gradient(180deg,#ecfbf3,#d8f5e7);
+  }
   /* Orders inside expanded client */
   .m-orders{padding:2px 10px 10px;background:linear-gradient(180deg,#fbfcfd,#fff);border-top:.5px solid var(--border-soft)}
 
@@ -1236,6 +1390,18 @@
     try {
       var m = (location.hash || '').match(/role=(seller|creator)/);
       if (m) document.body.setAttribute('data-embed', m[1]);
+    } catch (_) {}
+  })();
+  // [patch: number_format_space_comma] Override Number.toLocaleString so every
+  // existing call (with or without 'en-US') uses fr-FR style: space for
+  // thousands, comma for decimals. e.g. 25270 -> "25 270", 25270.5 -> "25 270,5".
+  (function () {
+    try {
+      var _orig = Number.prototype.toLocaleString;
+      Number.prototype.toLocaleString = function (locale, opts) {
+        try { return _orig.call(this, 'fr-FR', opts); }
+        catch (_) { return _orig.call(this, undefined, opts); }
+      };
     } catch (_) {}
   })();
 </script>
@@ -2126,6 +2292,13 @@ function allAdded(c){ return c.orders.every(o => isOrderSel(o.id)); }
 function anyAdded(c){ return c.orders.some(o => isOrderSel(o.id)); }
 
 function renderClientList(){
+  // [patch: co_wipe_demo_on_embed] When embedded in the real app the mockup's
+  // demo CLIENTS array must never repaint over the real data — renderRealClients
+  // (exposed on window by the embed block) is the only renderer that runs here.
+  if ((document.body.getAttribute('data-embed') || '') !== '') {
+    if (typeof window.renderRealClients === 'function') { try { window.renderRealClients(); } catch(_){} }
+    return;
+  }
   const rawQ = document.getElementById('clientSearch').value;
   const q = normalize(rawQ);
   document.getElementById('searchWrap').classList.toggle('has-value', rawQ.length > 0);
@@ -2585,6 +2758,13 @@ function renderCreatorAllocations(){
 
 /* ============================== STATS ============================== */
 function updateStats(){
+  // [patch: co_wipe_demo_on_embed] in embed mode the demo SELECTED/ALLOCATIONS
+  // arrays must never overwrite the real seller's totals — defer to the embed
+  // module's updateRealStats which reads from CO state.
+  if ((document.body.getAttribute('data-embed') || '') !== '') {
+    if (typeof window.updateRealStats === 'function') { try { window.updateRealStats(); } catch(_){} }
+    return;
+  }
   if (CURRENT_PHASE === 'p1' || CURRENT_PHASE === 'p2'){
     document.getElementById('statSelected').textContent = SELECTED.length;
     document.getElementById('statClients').textContent = new Set(SELECTED.map(s => s.clientId)).size;
@@ -2665,8 +2845,35 @@ window.addEventListener('resize', updateTabIndicator);
     var P = window.parent && window.parent !== window ? window.parent : null;
     if (!P) return;
     try { if (typeof applyRole === 'function') applyRole(role); } catch (_) {}
+    // [patch: co_wipe_demo_on_embed] Static HTML in #clientResults / #myList /
+    // stat counters is mockup data. When embedded inside the real app, blank it
+    // immediately so the seller never sees demo names like "Said Belhaj" while
+    // waiting for co:data to arrive.
+    try {
+      var _wipe = ['statSelected','statClients','statValue','myListCnt','searchCount'];
+      _wipe.forEach(function(id){
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = '0';
+      });
+      var cr = document.getElementById('clientResults');
+      if (cr) cr.innerHTML = '<div style="padding:32px 16px; text-align:center; color:#6a7280; font-size:13px;">كاتسالا...</div>';
+      var ml = document.getElementById('myList');
+      if (ml) ml.innerHTML = '';
+      var fh = document.getElementById('filterHint'); if (fh) fh.textContent = '';
+      var bt = document.getElementById('bottomTitle'); if (bt) bt.textContent = '0 طلبيات مختارة';
+      var bs = document.getElementById('bottomSubtitle'); if (bs) bs.textContent = '0 درهم';
+    } catch(_) {}
 
-    var CO = { role: role, seller: '', clients: {}, orders: [], assignments: {}, myList: [] };
+    var CO = {
+      role: role, seller: '', clients: {}, orders: [], assignments: {},
+      myList: [],
+      // [patch: co_deliver_next_vip]
+      //   pickedOrders : { orderCode: true }  — orders the seller chose to deliver next
+      //   vipClients   : { phone: true }      — VIP clients (priority on all their orders)
+      //   vipOrders    : { orderCode: true }  — VIP single orders
+      pickedOrders: {}, vipClients: {}, vipOrders: {}
+    };
     function post(msg) { try { P.postMessage(msg, '*'); } catch (_) {} }
 
     window.addEventListener('message', function (e) {
@@ -2678,6 +2885,10 @@ window.addEventListener('resize', updateTabIndicator);
         if (m.orders)                CO.orders      = m.orders;
         if (m.assignments)           CO.assignments = m.assignments;
         if (Array.isArray(m.myList)) CO.myList      = m.myList;
+        // [patch: co_deliver_next_vip] hydrate picked + VIP sets from parent
+        if (m.pickedOrders && typeof m.pickedOrders === 'object') CO.pickedOrders = m.pickedOrders;
+        if (m.vipClients   && typeof m.vipClients   === 'object') CO.vipClients   = m.vipClients;
+        if (m.vipOrders    && typeof m.vipOrders    === 'object') CO.vipOrders    = m.vipOrders;
         console.log('[confirm_orders] data —', Object.keys(CO.clients).length, 'clients,', CO.orders.length, 'orders, seller:', CO.seller);
         renderRealClients();
         updateRealStats();
@@ -2700,7 +2911,35 @@ window.addEventListener('resize', updateTabIndicator);
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
     function initials(name){ var s=String(name||'?').trim(); var p=s.split(/\s+/).filter(Boolean); return ((p[0]||'?').charAt(0) + (p[1]?p[1].charAt(0):'')).toUpperCase(); }
-    function fmtMad(n){ return Math.round(n||0).toLocaleString('en-US'); }
+    // [patch: number_format_nbsp] NBSP ( ) instead of plain space —
+    // Unicode classifies U+00A0 as a number separator, so the digit groups
+    // stay glued together in Arabic RTL context and don't get visually
+    // reordered. Round to whole MAD (no cents).
+    function fmtMad(n){
+      var v = Math.round(Number(n) || 0);
+      var neg = v < 0; v = Math.abs(v);
+      // [patch: number_format_nbsp_explicit] Force NBSP (U+00A0) via
+      // String.fromCharCode — independent of how the editor saves the bytes
+      // on disk. NBSP has bidi class CS so digit groups stay glued in Arabic
+      // RTL context.
+      var SEP = String.fromCharCode(0xA0);
+      return (neg ? '-' : '') + String(v).replace(/\B(?=(\d{3})+(?!\d))/g, SEP);
+    }
+    /* dead stub kept only because Edit-tool whitespace handling made full
+       deletion tricky in this session. Never called. */
+    function _OLD_fmtMad_NOT_USED(n){
+      var SEP = ' ';
+      return (neg ? '-' : '') + String(v).replace(/\B(?=(\d{3})+(?!\d))/g, SEP);
+    }
+    function _fmtMadDead(n){
+      var v = Math.round(Number(n) || 0);
+      var neg = v < 0; v = Math.abs(v);
+      // [patch: number_format_nbsp] Use ' ' (NBSP, Common-Number-Separator
+      // class) so RTL bidi treats the digit groups as a single number and does
+      // NOT visually swap them in Arabic context.
+      var THOU = ' ';
+      return (neg ? '-' : '') + String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    }
 
     function sellerName(){ return CO.seller || ''; }
     function getMyList(){ return Array.isArray(CO.myList) ? CO.myList.slice() : []; }
@@ -2709,38 +2948,137 @@ window.addEventListener('resize', updateTabIndicator);
       post({ type: 'co:save_list', list: list.slice() });
     }
 
+    // [patch: co_deliver_next_vip] picked-orders + VIP helpers — broadcast to
+    // parent so creator + other authorized users see the same selections.
+    function togglePicked(orderCode){
+      if (!orderCode) return;
+      if (CO.pickedOrders[orderCode]) delete CO.pickedOrders[orderCode];
+      else CO.pickedOrders[orderCode] = true;
+      post({ type: 'co:save_picked', map: Object.assign({}, CO.pickedOrders) });
+    }
+    function toggleVipClient(phone){
+      if (!phone) return;
+      if (CO.vipClients[phone]) delete CO.vipClients[phone];
+      else CO.vipClients[phone] = true;
+      post({ type: 'co:save_vip', clients: Object.assign({}, CO.vipClients), orders: Object.assign({}, CO.vipOrders) });
+    }
+    function toggleVipOrder(orderCode){
+      if (!orderCode) return;
+      if (CO.vipOrders[orderCode]) delete CO.vipOrders[orderCode];
+      else CO.vipOrders[orderCode] = true;
+      post({ type: 'co:save_vip', clients: Object.assign({}, CO.vipClients), orders: Object.assign({}, CO.vipOrders) });
+    }
+
+    // [patch: co_wipe_demo_on_embed] expose to outer scope so renderClientList
+    // (the mockup's demo renderer) can defer to us when embed mode is active.
+    window.renderRealClients = renderRealClients;
+    window.updateRealStats   = updateRealStats;
     function renderRealClients(){
       var host = document.getElementById('clientResults');
       if (!host) return;
       var seller = sellerName();
       var clients = CO.clients || {};
       var assigns = CO.assignments || {};
-      var phones = Object.keys(clients).filter(function(p){
-        var c = clients[p] || {};
-        var assigned = (assigns[p] && assigns[p].seller) || c.seller || '';
-        return !seller || assigned === seller;
-      });
-      phones.sort(function(a,b){ return ((clients[a]||{}).name||'').toLowerCase().localeCompare(((clients[b]||{}).name||'').toLowerCase()); });
+      // Aggregate orders first so we can drop clients with zero orders.
       var orderInfo = {};
+      var ordersByPhone = {};
       (CO.orders || []).forEach(function(o){
         if (!o || !o.phone) return;
         if (o.status === 'CANCELED' || o.status === 'RETURNED') return;
         if (!orderInfo[o.phone]) orderInfo[o.phone] = { count:0, mad:0 };
         orderInfo[o.phone].count++;
         orderInfo[o.phone].mad += (o.amount || 0);
+        if (!ordersByPhone[o.phone]) ordersByPhone[o.phone] = [];
+        ordersByPhone[o.phone].push(o);
       });
+      // [patch: only_clients_with_orders] Filter to clients assigned to this
+      // seller AND that have at least one (non-canceled/returned) order.
+      var phones = Object.keys(clients).filter(function(p){
+        var c = clients[p] || {};
+        var assigned = (assigns[p] && assigns[p].seller) || c.seller || '';
+        if (seller && assigned !== seller) return false;
+        return !!(orderInfo[p] && orderInfo[p].count > 0);
+      });
+      // [patch: co_search_clients_orders_products] Search filters across
+      // client name/phone, order code, product code/name.
+      var searchEl = document.getElementById('clientSearch');
+      var rawQ = (searchEl && searchEl.value || '').trim();
+      var q = rawQ.toLowerCase();
+      if (q) {
+        phones = phones.filter(function(p){
+          var c = clients[p] || {};
+          var name = (c.name || '').toLowerCase();
+          if (name.indexOf(q) >= 0) return true;
+          if (p.toLowerCase().indexOf(q) >= 0) return true;
+          var os = ordersByPhone[p] || [];
+          for (var i = 0; i < os.length; i++) {
+            var o = os[i];
+            if ((o.orderCode || '').toLowerCase().indexOf(q) >= 0) return true;
+            if ((o.productCode || '').toLowerCase().indexOf(q) >= 0) return true;
+            if ((o.productName || '').toLowerCase().indexOf(q) >= 0) return true;
+          }
+          return false;
+        });
+      }
+      phones.sort(function(a,b){ return ((clients[a]||{}).name||'').toLowerCase().localeCompare(((clients[b]||{}).name||'').toLowerCase()); });
+      var cnt = document.getElementById('searchCount');
+      if (cnt) cnt.textContent = String(phones.length);
       var myMap = {}; getMyList().forEach(function(p){ myMap[p]=true; });
       if (!phones.length) {
         host.innerHTML = '<div style="padding:32px 16px; text-align:center; color:#6a7280; font-size:13px;">ما كاينش زبائن. سيفط ملف الكليانات من GMV Tracker.</div>';
         return;
       }
+      // [patch: co_client_orders_expand] Each card is now expandable —
+      // tap header to reveal orders + product lines (Planner-style table).
       host.innerHTML = phones.map(function(phone, idx){
         var c = clients[phone] || {};
         var info = orderInfo[phone] || { count:0, mad:0 };
         var added = !!myMap[phone];
         var name = c.name || '(بدون اسم)';
+        var byCode = {};
+        (ordersByPhone[phone] || []).forEach(function(o){
+          var code = o.orderCode || '—';
+          if (!byCode[code]) byCode[code] = { code:code, status:o.status||'', amount:0, qty:0, lines:[] };
+          byCode[code].amount += (o.amount || 0);
+          byCode[code].qty    += (o.qty    || 0);
+          byCode[code].lines.push(o);
+        });
+        var orderCodes = Object.keys(byCode);
+        var ordersHtml = orderCodes.map(function(code){
+          var od = byCode[code];
+          var linesHtml = od.lines.map(function(l){
+            return '<div class="co-prod-line">' +
+              '<span class="co-prod-code">' + esc(l.productCode || '') + '</span>' +
+              '<span class="co-prod-name">' + esc(l.productName || '') + '</span>' +
+              '<span class="co-prod-qty">' + (l.qty || 0) + ' ×</span>' +
+              '<span class="co-prod-amt">' + fmtMad(l.amount || 0) + '</span>' +
+            '</div>';
+          }).join('');
+          // [patch: co_deliver_next_vip] per-order Deliver-next + VIP toggles
+          var pickedOn = !!CO.pickedOrders[od.code];
+          var vipOn    = !!CO.vipOrders[od.code];
+          return '<div class="co-order-block' + (pickedOn?' is-picked':'') + (vipOn?' is-vip':'') + '">' +
+            '<div class="co-order-head">' +
+              '<span class="co-order-code">' + esc(od.code) + '</span>' +
+              '<span class="co-order-stats">' + od.lines.length + ' منتج · ' + od.qty + ' وحدة · <b>' + fmtMad(od.amount) + '</b> درهم</span>' +
+              '<span class="co-order-status">' + esc(od.status) + '</span>' +
+              '<div class="co-order-actions">' +
+                '<button type="button" class="co-chip co-chip-pick' + (pickedOn?' on':'') + '" data-action="toggle-picked" data-code="' + esc(od.code) + '" aria-pressed="' + (pickedOn?'true':'false') + '" title="سيفط هاد الطلبية الأول">' +
+                  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>' +
+                  '<span>' + (pickedOn ? 'مسيفطة' : 'سيفط') + '</span>' +
+                '</button>' +
+                '<button type="button" class="co-chip co-chip-vip' + (vipOn?' on':'') + '" data-action="toggle-vip-order" data-code="' + esc(od.code) + '" aria-pressed="' + (vipOn?'true':'false') + '" title="VIP — الأولوية ديال السطوك">' +
+                  '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>' +
+                  '<span>VIP</span>' +
+                '</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="co-order-lines">' + linesHtml + '</div>' +
+          '</div>';
+        }).join('');
+        var vipClientOn = !!CO.vipClients[phone];
         return '<div class="m-client-card' + (added?' has-added':'') + '" data-client="' + esc(phone) + '" data-color="' + (idx % 6) + '">' +
-          '<div class="m-client-head">' +
+          '<div class="m-client-head" data-co-toggle="' + esc(phone) + '">' +
             '<div class="m-avatar">' + esc(initials(name)) + '</div>' +
             '<div class="m-client-info">' +
               '<div class="m-client-name"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>' + esc(name) + '</div>' +
@@ -2748,16 +3086,34 @@ window.addEventListener('resize', updateTabIndicator);
                 '<a class="phone-call" href="tel:' + esc(phone) + '" onclick="event.stopPropagation()" aria-label="عيط للكليان">' +
                   '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>' +
                   esc(phone) + '</a>' +
-                '<span class="sep"></span><span>' + info.count + ' طلبية</span>' +
+                '<span class="sep"></span><span>' + orderCodes.length + ' طلبية</span>' +
                 '<span class="sep"></span><span class="amt">' + fmtMad(info.mad) + ' درهم</span>' +
               '</div>' +
             '</div>' +
-            '<button class="m-add-all' + (added?' all-added':'') + '" data-action="add-client">' +
-              (added ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> مزاد' : '+ الكل') +
-            '</button>' +
+            '<div class="m-client-actions">' +
+              '<button class="co-chip co-chip-vip co-chip-client-vip' + (vipClientOn?' on':'') + '" data-action="toggle-vip-client" aria-pressed="' + (vipClientOn?'true':'false') + '" title="VIP — كل الطلبيات ديال هاد الزبون أولوية" onclick="event.stopPropagation()">' +
+                '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>' +
+              '</button>' +
+              '<button class="m-add-all' + (added?' all-added':'') + '" data-action="add-client" onclick="event.stopPropagation()">' +
+                (added ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> مزاد' : '+ الكل') +
+              '</button>' +
+            '</div>' +
           '</div>' +
+          '<div class="co-client-orders" data-co-body="' + esc(phone) + '" style="display:none;">' + ordersHtml + '</div>' +
         '</div>';
       }).join('');
+      host.querySelectorAll('[data-co-toggle]').forEach(function(h){
+        h.addEventListener('click', function(){
+          var p = h.getAttribute('data-co-toggle');
+          var sel = '[data-co-body="' + p.replace(/"/g, '\\"') + '"]';
+          var body = host.querySelector(sel);
+          if (!body) return;
+          var open = body.style.display !== 'none';
+          body.style.display = open ? 'none' : '';
+          var chev = h.querySelector('.chev');
+          if (chev) chev.style.transform = open ? '' : 'rotate(90deg)';
+        });
+      });
       host.querySelectorAll('[data-action="add-client"]').forEach(function(btn){
         btn.addEventListener('click', function(e){
           e.stopPropagation();
@@ -2772,28 +3128,85 @@ window.addEventListener('resize', updateTabIndicator);
           updateRealStats();
         });
       });
+      // [patch: co_deliver_next_vip] wire per-order + per-client toggles
+      host.querySelectorAll('[data-action="toggle-picked"]').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          togglePicked(btn.getAttribute('data-code') || '');
+          renderRealClients();
+          updateRealStats();
+        });
+      });
+      host.querySelectorAll('[data-action="toggle-vip-order"]').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          toggleVipOrder(btn.getAttribute('data-code') || '');
+          renderRealClients();
+        });
+      });
+      host.querySelectorAll('[data-action="toggle-vip-client"]').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var card = btn.closest('.m-client-card');
+          var phone = card && card.dataset.client;
+          if (!phone) return;
+          toggleVipClient(phone);
+          renderRealClients();
+        });
+      });
     }
     function updateRealStats(){
       var myList = getMyList();
+      var pickedMap = CO.pickedOrders || {};
       var totalMad = 0;
+      var pickedCodes = {};
+      var clientsTouched = {};
+      myList.forEach(function(p){ clientsTouched[p] = true; });
       (CO.orders || []).forEach(function(o){
         if (!o || !o.phone) return;
-        if (myList.indexOf(o.phone) < 0) return;
         if (o.status === 'CANCELED' || o.status === 'RETURNED') return;
+        var byClient = myList.indexOf(o.phone) >= 0;
+        var byOrder  = !!pickedMap[o.orderCode || ''];
+        if (!byClient && !byOrder) return;
+        if (byOrder) pickedCodes[o.orderCode] = true;
+        clientsTouched[o.phone] = true;
         totalMad += (o.amount || 0);
       });
+      // also count picked codes that have no matching order rows (shouldn't happen
+      // but keeps the badge honest)
+      Object.keys(pickedMap).forEach(function(c){ if (c) pickedCodes[c] = true; });
+      var pickedCount = Object.keys(pickedCodes).length;
+      var clientsCount = Object.keys(clientsTouched).length;
       var $ = function(id){ return document.getElementById(id); };
-      if ($('statSelected'))   $('statSelected').textContent   = myList.length;
-      if ($('statClients'))    $('statClients').textContent    = myList.length;
+      if ($('statSelected'))   $('statSelected').textContent   = (myList.length + pickedCount);
+      if ($('statClients'))    $('statClients').textContent    = clientsCount;
       if ($('statValue'))      $('statValue').textContent      = fmtMad(totalMad);
-      if ($('myListCnt'))      $('myListCnt').textContent      = myList.length;
-      if ($('bottomTitle'))    $('bottomTitle').textContent    = myList.length + ' طلبيات مختارة';
+      if ($('myListCnt'))      $('myListCnt').textContent      = (myList.length + pickedCount);
+      if ($('bottomTitle'))    $('bottomTitle').textContent    = (myList.length + pickedCount) + ' طلبيات مختارة';
       if ($('bottomSubtitle')) $('bottomSubtitle').textContent = fmtMad(totalMad) + ' درهم';
     }
 
     // Initial render with empty state; updates will arrive via postMessage.
     renderRealClients();
     updateRealStats();
+
+    // [patch: co_search_input] Re-render on every search keystroke
+    var _coSearchEl = document.getElementById('clientSearch');
+    if (_coSearchEl) {
+      var _coSearchT = null;
+      _coSearchEl.addEventListener('input', function(){
+        clearTimeout(_coSearchT);
+        _coSearchT = setTimeout(renderRealClients, 80);
+      });
+    }
+    // Clear-search button
+    var _coClearEl = document.getElementById('clearSearch');
+    if (_coClearEl) {
+      _coClearEl.addEventListener('click', function(){
+        if (_coSearchEl) { _coSearchEl.value = ''; }
+        renderRealClients();
+      });
+    }
 
     if (role === 'creator') {
       var distributeBtn = document.getElementById('distributeBtn');
