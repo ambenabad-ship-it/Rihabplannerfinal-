@@ -827,25 +827,29 @@
     max-width: none; margin: 0; padding: 0 24px;
   }
 
-  /* [patch: gmv_viewport_lock] Same swipe + zoom lock as the Confirm Orders
-     iframe — prevents the page from sliding off-screen when the seller
-     swipes horizontally on phone, and keeps pinch-zoom off. */
-  #featureGmvMaker {
+  /* [patch: gmv_viewport_lock_v2] Prevent horizontal swipe-off WITHOUT
+     breaking tap recognition. We only constrain the scroll containers +
+     iframe wrapper; we don't apply touch-action to every descendant
+     because that interferes with tap timing on iOS. */
+  #featureGmvMaker,
+  #featureFulfillV2 {
     overflow-x: hidden !important;
     max-width: 100vw !important;
     width: 100% !important;
     touch-action: pan-y !important;
     overscroll-behavior-x: none !important;
   }
-  #featureGmvMaker * { touch-action: pan-y !important; }
-  #featureGmvMaker button,
-  #featureGmvMaker a,
-  #featureGmvMaker input,
-  #featureGmvMaker textarea,
-  #featureGmvMaker select,
-  #featureGmvMaker [role="button"],
-  #featureGmvMaker [contenteditable="true"] {
-    touch-action: manipulation !important;
+  #featureFulfillV2 > iframe {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overscroll-behavior-x: none !important;
+  }
+  body.js-co-active,
+  html.js-co-active {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    overscroll-behavior-x: none !important;
   }
 
   /* Command bar — sticky, blur on scroll, never wastes height. */
@@ -16344,6 +16348,13 @@ try {
         const fulfillEl = document.getElementById('featureFulfill');
         const fulfillV2 = document.getElementById('featureFulfillV2');
         const settings = document.getElementById('featureSettings');
+        // [patch: co_swipe_lock] toggle a body class while Confirm Orders is
+        // the active feature so the body-level overflow-x:hidden safety net
+        // applies (some iOS Safari builds otherwise let the iframe swipe out).
+        try {
+          document.body.classList.toggle('js-co-active', feat === 'fulfill_v2');
+          document.documentElement.classList.toggle('js-co-active', feat === 'fulfill_v2');
+        } catch(_){}
         if (planner) planner.style.display = feat === 'planner' ? '' : 'none';
         if (gmv)     gmv.style.display     = feat === 'gmv'     ? '' : 'none';
         if (fulfillEl) fulfillEl.style.display = feat === 'fulfill' ? '' : 'none';
@@ -29711,6 +29722,28 @@ async function fulfillInit() {
   .gmv-cp-sort:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-100); }
 
   .gmv-cp-filters { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  /* [patch: cp_filters_swipe] On phone the filter strip becomes a single
+     horizontally-scrollable row instead of wrapping to multiple lines.
+     `touch-action: pan-x` opts THIS container out of the parent's pan-y
+     lock so swiping left/right works inside the strip. */
+  @media (max-width: 720px) {
+    .gmv-cp-filters {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x !important;
+      scroll-snap-type: x proximity;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .gmv-cp-filters::-webkit-scrollbar { display: none; }
+    .gmv-cp-filters > .gmv-cp-filter,
+    .gmv-cp-filters > .gmv-cp-filter-reset {
+      flex: 0 0 auto;
+      scroll-snap-align: start;
+    }
+  }
   .gmv-cp-filter { padding: 6px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-muted); transition: all .12s; font-family: var(--font-sans); }
   .gmv-cp-filter:hover { border-color: var(--border-strong); color: var(--text); }
   .gmv-cp-filter.is-active { background: var(--text); border-color: var(--text); color: #fff; }
