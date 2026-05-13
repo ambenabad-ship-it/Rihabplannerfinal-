@@ -21746,7 +21746,7 @@ const ENG_I18N = {
     pal_sec_won_t: 'Cadeaux débloqués', pal_sec_won_d: 'Au moins un cadeau de palier ouvert.',
     pal_sec_ok_t: 'Minimum atteint',     pal_sec_ok_d: '10+ produits engagés, prochain palier en cours.',
     pal_sec_idle_t: 'Pas encore actifs', pal_sec_idle_d: 'Moins de 10 produits engagés.',
-    sb_stat_clients: 'Clients', sb_stat_gifts: 'Cadeaux ouverts', sb_stat_gmv: 'GMV cumulé',
+    sb_stat_clients: 'Clients', sb_stat_gifts: 'Cadeaux ouverts', sb_stat_gmv: 'GMV cumulé', sb_stat_engaged: 'Engagés',
     sb_kpi_clients: 'Clients', sb_kpi_gifts: 'Cadeaux ouverts', sb_kpi_at_min: 'Minimum atteint', sb_kpi_total_gmv: 'GMV total',
     sb_status_title: 'Statut de mon portefeuille',
     pal_portfolio: 'Mon portefeuille', pal_prize_at: 'au',
@@ -21825,7 +21825,7 @@ const ENG_I18N = {
     pal_sec_won_t: 'Gifts unlocked',     pal_sec_won_d: 'At least one palier gift opened.',
     pal_sec_ok_t: 'Minimum reached',     pal_sec_ok_d: '10+ products committed, working toward next palier.',
     pal_sec_idle_t: 'Not active yet',    pal_sec_idle_d: 'Fewer than 10 products committed.',
-    sb_stat_clients: 'Clients', sb_stat_gifts: 'Gifts open', sb_stat_gmv: 'Cumulative GMV',
+    sb_stat_clients: 'Clients', sb_stat_gifts: 'Gifts open', sb_stat_gmv: 'Cumulative GMV', sb_stat_engaged: 'Engaged',
     sb_kpi_clients: 'Clients', sb_kpi_gifts: 'Gifts open', sb_kpi_at_min: 'At minimum', sb_kpi_total_gmv: 'Total GMV',
     sb_status_title: 'My portfolio status',
     pal_portfolio: 'My portfolio', pal_prize_at: 'at',
@@ -21904,7 +21904,7 @@ const ENG_I18N = {
     pal_sec_won_t: 'الهدايا مفتوحة',  pal_sec_won_d: 'هدية مستوى واحدة على الأقل مفتوحة.',
     pal_sec_ok_t: 'الحد الأدنى مبلوغ', pal_sec_ok_d: '10+ منتجات ملتزم بها، نحو المستوى التالي.',
     pal_sec_idle_t: 'لم ينشط بعد',    pal_sec_idle_d: 'أقل من 10 منتجات ملتزم بها.',
-    sb_stat_clients: 'الزبناء', sb_stat_gifts: 'الهدايا المفتوحة', sb_stat_gmv: 'GMV التراكمي',
+    sb_stat_clients: 'الزبناء', sb_stat_gifts: 'الهدايا المفتوحة', sb_stat_gmv: 'GMV التراكمي', sb_stat_engaged: 'ملتزمين',
     sb_kpi_clients: 'الزبناء', sb_kpi_gifts: 'الهدايا المفتوحة', sb_kpi_at_min: 'الحد الأدنى مبلوغ', sb_kpi_total_gmv: 'GMV الإجمالي',
     sb_status_title: 'حالة محفظتي',
     pal_portfolio: 'محفظتي', pal_prize_at: 'في',
@@ -22794,8 +22794,9 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
   });
   const insightNoProducts = rows.filter(r => r.productsCount === 0);
 
-  // [patch: gmv_handoff_fix3] Default filter is now 'buying' (was 'all').
-  if (!gmvEngagement.cpFilter)  gmvEngagement.cpFilter  = 'buying';
+  // [patch: cp_engaged_filter] Default filter is now 'engaged' (clients
+  // with more than 10 focus products selected). 'buying' falls to second.
+  if (!gmvEngagement.cpFilter)  gmvEngagement.cpFilter  = 'engaged';
   if (!gmvEngagement.cpSort)    gmvEngagement.cpSort    = 'priority';
   if (gmvEngagement.cpSearch == null) gmvEngagement.cpSearch = '';
   const fSearch  = (gmvEngagement.cpSearch || '').toLowerCase().trim();
@@ -22807,6 +22808,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
     // [patch: gmv_handoff_fix4] Filter set is now: buying / ontrack / won / cold / noprod.
     // 'all' / 'atrisk' are gone — if cpFilter is still 'all' (legacy state) we
     // treat it as no-filter for back-compat.
+    if (fStatus === 'engaged') return (r.productsCount || 0) > 10;
     if (fStatus === 'buying') return r.focusOrderedCount > 0;
     if (fStatus === 'noprod') return r.productsCount === 0;
     if (fStatus === 'cold')   return r.daysSince !== null && r.daysSince >= 14;
@@ -22845,7 +22847,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       ins_noprod_t: 'No products assigned', ins_noprod_d: 'clients have no focus products',
       search: 'Search clients...', sort: 'Sort by',
       sort_priority: 'Priority', sort_gmv_desc: 'GMV (high to low)', sort_gmv_asc: 'GMV (low to high)', sort_name: 'Name', sort_lastorder: 'Recent activity',
-      flt_all: 'All', flt_buying: 'Buying from list', flt_won: 'Won', flt_ontrack: 'On track', flt_atrisk: 'At risk', flt_cold: 'Inactive', flt_noprod: 'No products',
+      flt_all: 'All', flt_engaged: 'Engaged', flt_buying: 'Buying from list', flt_won: 'Won', flt_ontrack: 'On track', flt_atrisk: 'At risk', flt_cold: 'Inactive', flt_noprod: 'No products',
       st_won: 'Gift won', st_ontrack: 'On track', st_atrisk: 'At risk', st_cold: 'Cold',
       empty: 'No clients match your filters.', noClients: 'No clients yet.', lastOrder: 'Last order', daysAgo: 'd ago', never: 'never',
       products: 'products', done: 'All paliers cleared', fromList: 'from list',
@@ -22858,7 +22860,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       ins_noprod_t: 'Aucun produit assigné', ins_noprod_d: 'clients n\'ont aucun produit focus',
       search: 'Rechercher des clients...', sort: 'Trier par',
       sort_priority: 'Priorité', sort_gmv_desc: 'GMV (↓)', sort_gmv_asc: 'GMV (↑)', sort_name: 'Nom', sort_lastorder: 'Activité récente',
-      flt_all: 'Tous', flt_buying: 'Achètent de la liste', flt_won: 'Gagnés', flt_ontrack: 'En bonne voie', flt_atrisk: 'À risque', flt_cold: 'Inactifs', flt_noprod: 'Sans produits',
+      flt_all: 'Tous', flt_engaged: 'Engagés', flt_buying: 'Achètent de la liste', flt_won: 'Gagnés', flt_ontrack: 'En bonne voie', flt_atrisk: 'À risque', flt_cold: 'Inactifs', flt_noprod: 'Sans produits',
       st_won: 'Cadeau gagné', st_ontrack: 'En bonne voie', st_atrisk: 'À risque', st_cold: 'Froid',
       empty: 'Aucun résultat.', noClients: 'Aucun client.', lastOrder: 'Dernière commande', daysAgo: 'j', never: 'jamais',
       products: 'produits', done: 'Tous paliers franchis', fromList: 'de la liste',
@@ -22871,7 +22873,7 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       ins_noprod_t: 'بدون منتجات', ins_noprod_d: 'زبون بدون منتجات مستهدفة',
       search: 'ابحث عن زبون...', sort: 'الفرز',
       sort_priority: 'الأولوية', sort_gmv_desc: 'GMV ↓', sort_gmv_asc: 'GMV ↑', sort_name: 'الاسم', sort_lastorder: 'النشاط الأخير',
-      flt_all: 'الكل', flt_buying: 'يشترون من القائمة', flt_won: 'مربوحة', flt_ontrack: 'على المسار', flt_atrisk: 'بخطر', flt_cold: 'زبائن غير نشطين', flt_noprod: 'بدون منتجات',
+      flt_all: 'الكل', flt_engaged: 'ملتزمين', flt_buying: 'يشترون من القائمة', flt_won: 'مربوحة', flt_ontrack: 'على المسار', flt_atrisk: 'بخطر', flt_cold: 'زبائن غير نشطين', flt_noprod: 'بدون منتجات',
       st_won: 'هدية مربوحة', st_ontrack: 'على المسار', st_atrisk: 'بخطر', st_cold: 'غير نشط',
       empty: 'لا نتائج.', noClients: 'لا يوجد زبائن.', lastOrder: 'آخر طلب', daysAgo: 'يوم', never: 'أبدًا',
       products: 'منتجات', done: 'تم اجتياز جميع الأهداف', fromList: 'من القائمة',
@@ -23133,7 +23135,10 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
           sortOpts.map(o => '<option value="' + o[0] + '"' + (fSort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') +
         '</select>' +
       // [patch: kpis_into_chips] Every chip now carries its count badge.
+      // [patch: cp_engaged_filter] 'engaged' (>10 focus products) is first
+      // in the row and the default selected filter.
       '<div class="gmv-cp-filters">' +
+        filterChip('engaged', T.flt_engaged, rows.filter(function(r){ return (r.productsCount || 0) > 10; }).length) +
         filterChip('buying',  T.flt_buying,  kpiActive) +
         filterChip('ontrack', T.flt_ontrack, rows.filter(function(r){ return r.status === 'ontrack'; }).length) +
         filterChip('won',     T.flt_won,     kpiGiftsWon) +
@@ -24681,6 +24686,12 @@ function gmvRenderEngagementPaliers(panel, mySeller, isCreator) {
   // tell a consistent story.
   const _gmvTotal = myPhonesAll.reduce((t, p) => t + ((caM1[p] || 0) + (caM2[p] || 0)), 0);
   const _giftsOpen = _counts.won;
+  // [patch: cp_engaged_filter] "Engaged" = clients with >10 focus products
+  // committed (same definition used by the Engaged filter chip).
+  const _engagedCount = myPhonesAll.reduce((c, p) => {
+    const arr = Object.keys(cFocus[p] || {}).filter(k => cFocus[p][k] && cFocus[p][k].selected);
+    return arr.length > 10 ? c + 1 : c;
+  }, 0);
   const _searchIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
   const _portfolioHero = `
     <section class="sb-hero" style="margin-bottom:12px;">
@@ -24690,6 +24701,7 @@ function gmvRenderEngagementPaliers(panel, mySeller, isCreator) {
         <div class="sb-hero-stat"><b>${myPhonesAll.length}</b><span>${engT('sb_stat_clients')}</span></div>
         <div class="sb-hero-stat"><b>${_giftsOpen}</b><span>${engT('sb_stat_gifts')}</span></div>
         <div class="sb-hero-stat"><b>${fmt(_gmvTotal)}</b><span>MAD · ${engT('sb_stat_gmv')}</span></div>
+        <div class="sb-hero-stat"><b>${_engagedCount}</b><span>${engT('sb_stat_engaged')}</span></div>
       </div>
       <div class="sb-hero-window">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
