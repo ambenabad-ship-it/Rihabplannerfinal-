@@ -1000,6 +1000,27 @@
   .m-modal-btn.primary{background:#111827;color:#fff}
   .m-modal-btn.primary:disabled{opacity:.4;cursor:not-allowed}
   .m-modal-btn.primary:not(:disabled):hover{background:#1f2937;transform:translateY(-1px)}
+  /* [patch: order_dates_on_cards] Order date + expected delivery stamp. */
+  .co-date-stamp {
+    display: flex; align-items: center; gap: 6px;
+    flex-wrap: wrap; margin-top: 6px;
+    font-size: 11px;
+  }
+  .co-date-chip {
+    background: #f1f5f9; border: 1px solid #e2e8f0;
+    color: #475569; padding: 2px 8px; border-radius: 999px;
+    font-weight: 600;
+    font-family: var(--font-ar, inherit);
+  }
+  .co-date-chip b { color: #0f172a; font-weight: 800; margin-inline-end: 2px; }
+  .co-date-chip.co-date-deliver {
+    background: #ecfdf5; border-color: #a7f3d0; color: #047857;
+  }
+  .co-date-chip.co-date-deliver b { color: #065f46; }
+  .co-date-arrow {
+    color: #cbd5e1; font-weight: 700; font-size: 13px;
+  }
+
   /* [patch: order_products_avail] Expandable product breakdown inside any
      order card. Used by alloc-cards (P3 + bonus), final cards (P4), and
      can be dropped into P1/P2 cards too. */
@@ -3046,6 +3067,56 @@ function _coStockOf(code) {
   } catch(_) { return 0; }
 }
 
+// [patch: order_dates_on_cards] Lookup order date from CO.orders. Falls back
+// to the parent-supplied productLines date if present.
+function _coOrderDate(orderCode) {
+  try {
+    var orders = (window.CO && Array.isArray(window.CO.orders)) ? window.CO.orders : [];
+    for (var i = 0; i < orders.length; i++) {
+      if (orders[i] && orders[i].orderCode === orderCode && orders[i].date) {
+        var d = orders[i].date instanceof Date ? orders[i].date : new Date(orders[i].date);
+        if (!isNaN(d)) return d;
+      }
+    }
+  } catch(_){}
+  return null;
+}
+function _coFmtDate(d) {
+  if (!d) return '';
+  try {
+    var dd = String(d.getDate()).padStart(2, '0');
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    return dd + '/' + mm;
+  } catch(_) { return ''; }
+}
+// Build a compact "order date · delivery day" stamp for an order card.
+function buildOrderDateStamp(orderCode) {
+  var od = _coOrderDate(orderCode);
+  var orderStr = od ? _coFmtDate(od) : '—';
+  var delStr = '';
+  try {
+    // Reuse the same delivery-day computation as the hero chip.
+    if (typeof computeDeliveryOffset === 'function' && typeof DELIVERY_DOW_AR !== 'undefined') {
+      var n = (typeof _coMoroccoNow === 'function') ? _coMoroccoNow() : null;
+      var off = computeDeliveryOffset();
+      if (n) {
+        var ymd = n.ymd.split('-');
+        var base = new Date(Date.UTC(+ymd[0], +ymd[1]-1, +ymd[2]));
+        base.setUTCDate(base.getUTCDate() + off);
+        delStr = DELIVERY_DOW_AR[base.getUTCDay()] +
+                 ' ' + String(base.getUTCDate()).padStart(2,'0') + '/' +
+                 String(base.getUTCMonth()+1).padStart(2,'0');
+      }
+    }
+  } catch(_){}
+  if (!delStr) delStr = '—';
+  return '<div class="co-date-stamp">' +
+           '<span class="co-date-chip"><b>طلبية:</b> ' + orderStr + '</span>' +
+           '<span class="co-date-arrow">→</span>' +
+           '<span class="co-date-chip co-date-deliver"><b>توصيل:</b> ' + delStr + '</span>' +
+         '</div>';
+}
+
 // Build an expandable <details> listing every product in an order with
 // ordered qty, available qty, and a colored % bar. `isAllocated` switches
 // "available" between deliverable (P3+) and min(ordered, stock) (P1/P2).
@@ -3108,6 +3179,7 @@ function renderAllocations(){
           </div>
           <span class="badge ${cls}">${label}</span>
         </div>
+        ${buildOrderDateStamp(a.orderId)}
         <div class="alloc-ring">
           ${renderRing(pct, cls)}
           <div class="prod-summary">${summary}</div>
@@ -3199,6 +3271,7 @@ function renderBonusAllocations(){
           </div>
           <span class="badge ${cls}">${label}</span>
         </div>
+        ${buildOrderDateStamp(a.orderId)}
         <div class="alloc-ring">
           ${renderRing(pct, cls)}
           <div class="prod-summary">${summary}</div>
@@ -3582,6 +3655,7 @@ function renderFinal(){
           </div>
           <span class="badge ${decCls === 'confirmed' ? 'confirmed' : 'skipped'}">${decCls === 'confirmed' ? 'مؤكدة' : 'متخطاة'}</span>
         </div>
+        ${buildOrderDateStamp(a.orderId)}
         ${buildOrderProductsDetails(a.productLines, true)}
       </div>`;
   }).join('');
@@ -4112,12 +4186,25 @@ window.addEventListener('resize', updateTabIndicator);
         var orderCodes = Object.keys(byCode);
         var ordersHtml = orderCodes.map(function(code){
           var od = byCode[code];
+          // [patch: order_products_avail] Each product line now shows the
+          // available qty + % bar so the seller knows at-a-glance how much
+          // of each SKU is in stock before they pick this order.
           var linesHtml = od.lines.map(function(l){
+            var ordered = parseFloat(l.qty) || 0;
+            var stockQ  = _coStockOf(l.productCode || '');
+            var avail   = Math.min(ordered, stockQ);
+            var pct     = ordered > 0 ? Math.min(100, Math.round((avail / ordered) * 100)) : 0;
+            var color   = pct >= 80 ? '#10b981' : (pct >= 40 ? '#f59e0b' : '#ef4444');
             return '<div class="co-prod-line">' +
               '<span class="co-prod-code">' + esc(l.productCode || '') + '</span>' +
               '<span class="co-prod-name">' + esc(l.productName || '') + '</span>' +
-              '<span class="co-prod-qty">' + (l.qty || 0) + ' ×</span>' +
+              '<span class="co-prod-qty">' + ordered + ' ×</span>' +
               '<span class="co-prod-amt">' + fmtMad(l.amount || 0) + '</span>' +
+              '<div class="co-pd-foot" style="grid-column:1/-1;margin-top:4px">' +
+                '<div class="co-pd-bar"><span style="width:' + pct + '%;background:' + color + '"></span></div>' +
+                '<span class="co-pd-pct" style="color:' + color + '">' + pct + '%</span>' +
+                '<span class="co-pd-qty">' + Math.round(avail) + ' / ' + ordered + '</span>' +
+              '</div>' +
             '</div>';
           }).join('');
           // [patch: co_deliver_next_vip] per-order Deliver-next + VIP toggles
@@ -4139,6 +4226,7 @@ window.addEventListener('resize', updateTabIndicator);
                 '</button>' +
               '</div>' +
             '</div>' +
+            buildOrderDateStamp(od.code) +
             '<div class="co-order-lines">' + linesHtml + '</div>' +
           '</div>';
         }).join('');
