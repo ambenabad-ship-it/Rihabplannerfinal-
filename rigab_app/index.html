@@ -827,30 +827,39 @@
     max-width: none; margin: 0; padding: 0 24px;
   }
 
-  /* [patch: gmv_viewport_lock_v2] Prevent horizontal swipe-off WITHOUT
-     breaking tap recognition. We only constrain the scroll containers +
-     iframe wrapper; we don't apply touch-action to every descendant
-     because that interferes with tap timing on iOS. */
+  /* [patch: gmv_viewport_lock_v3] iOS Safari swallows tap events inside
+     iframes when the iframe's parent has `touch-action: pan-y`. We rely
+     on a HARD overflow lock instead — html + body + container clipped at
+     100vw with `overflow-x: hidden`. Physical clipping means the page
+     can't slide off-screen even if a horizontal pan is attempted, and
+     taps still reach buttons because no `touch-action` is being applied. */
   #featureGmvMaker,
   #featureFulfillV2 {
     overflow-x: hidden !important;
     max-width: 100vw !important;
     width: 100% !important;
-    touch-action: pan-y !important;
     overscroll-behavior-x: none !important;
+    position: relative !important;
   }
   #featureFulfillV2 > iframe {
     display: block !important;
     width: 100% !important;
     max-width: 100vw !important;
+    border: 0 !important;
     overscroll-behavior-x: none !important;
   }
-  body.js-co-active,
-  html.js-co-active {
+  /* When Confirm Orders is active, lock the whole document horizontally
+     without any touch-action on the iframe ancestors so taps reach
+     the iframe. */
+  html.js-co-active,
+  body.js-co-active {
     overflow-x: hidden !important;
     max-width: 100vw !important;
+    width: 100% !important;
     overscroll-behavior-x: none !important;
+    position: relative !important;
   }
+  body.js-co-active { touch-action: pan-y !important; }
 
   /* Command bar — sticky, blur on scroll, never wastes height. */
   .gmv-cmdbar {

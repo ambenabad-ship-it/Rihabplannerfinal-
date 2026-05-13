@@ -1513,18 +1513,28 @@
   body[data-embed="seller"]  #creatorStage { display: none !important; }
   body[data-embed="seller"] .ff-mobile { max-width: 100%; min-height: 100vh; border-radius: 0; }
 
-  /* [patch: co_seller_polish_v2] Lock horizontal swipe at the container
-     level only — applying touch-action to every descendant was breaking
-     tap recognition on iOS. Buttons + clickable elements now keep their
-     default touch-action so clicks fire normally. */
+  /* [patch: co_seller_polish_v3] Hard overflow lock instead of
+     touch-action — iOS Safari intermittently swallows taps when an
+     ancestor uses `touch-action: pan-y`. Clipping at 100vw on html+body
+     and on every scroll container physically prevents horizontal swipe
+     while leaving tap delivery untouched. */
   html, body[data-embed="seller"] {
     overflow-x: hidden !important;
     max-width: 100vw !important;
     width: 100% !important;
-    touch-action: pan-y !important;
     overscroll-behavior-x: none !important;
+    position: relative !important;
     direction: rtl !important;
   }
+  body[data-embed="seller"] { touch-action: pan-y !important; }
+  /* Make action buttons snappy + opt them out of the body pan-y so the
+     browser doesn't wait to see if the touch is a horizontal pan. */
+  body[data-embed="seller"] button,
+  body[data-embed="seller"] a,
+  body[data-embed="seller"] [role="button"],
+  body[data-embed="seller"] input,
+  body[data-embed="seller"] textarea,
+  body[data-embed="seller"] select { touch-action: manipulation !important; }
   body[data-embed="seller"] .ff-mobile,
   body[data-embed="seller"] .m-view,
   body[data-embed="seller"] .m-scroll,
