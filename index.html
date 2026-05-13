@@ -21421,9 +21421,11 @@ async function gmvRenderEngagement(wrap) {
   if (gmvEngagement.activeSubtab === 'scoreboard')  gmvEngagement.activeSubtab = 'myperf';
   const sub = gmvEngagement.activeSubtab || 'assign';
   const _subLabels = {
-    en: { assign: 'Assign clients',  clientperf: 'My clients performance', myperf: 'My performance' },
-    fr: { assign: 'Affecter clients', clientperf: 'Performance de mes clients', myperf: 'Ma performance' },
-    ar: { assign: 'تعيين الزبناء',     clientperf: 'أداء زبنائي',              myperf: 'أدائي' },
+    // [patch: tabs_short_labels] Shortened so all four tabs (incl. 🎁) fit
+    // without truncation on phone widths. Meaning stays clear in every locale.
+    en: { assign: 'Assign',  clientperf: 'Clients', myperf: 'Me' },
+    fr: { assign: 'Affecter', clientperf: 'Clients', myperf: 'Moi' },
+    ar: { assign: 'تعيين',    clientperf: 'زبنائي',  myperf: 'أدائي' },
   };
   const _subDict = _subLabels[engLang()] || _subLabels.en;
   // Subtab buttons.
@@ -29508,9 +29510,17 @@ async function fulfillInit() {
     .gmv-cmdbar .cmd-title { font-size: 16px; font-weight: 700; }
     .gmv-cmdbar .cmd-period { padding: 6px 10px; font-size: 12px; }
     .gmv-cmdbar .cmd-period .period-dates { display: none; }
-    /* Sub-tabs: 3 tabs scroll horizontally on phones. */
-    .gmv-engtab-bar { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 4px; }
-    .gmv-engtab { flex: 1 0 auto; min-width: 0; font-size: 12px; padding: 10px 8px; white-space: nowrap; }
+    /* [patch: tabs_short_labels] All four tabs (incl. 🎁) share one row,
+       equal-flex, no truncation. Labels are short enough to fit at 360px. */
+    .gmv-engtab-bar { flex-wrap: nowrap; gap: 4px; }
+    .gmv-engtab {
+      flex: 1 1 0; min-width: 0;
+      font-size: 12.5px; padding: 10px 4px;
+      white-space: nowrap;
+      text-overflow: clip;            /* no ellipsis — labels are short now */
+      overflow: visible;
+    }
+    .gmv-gifts-plan-btn { flex: 0 0 auto; padding-inline: 12px; }  /* icon-only, narrower */
     /* Role badge gets a touch more breathing room on mobile. */
     #gmvRoleBadge { font-size: 12px; padding: 10px 12px; }
   }
