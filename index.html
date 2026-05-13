@@ -25809,28 +25809,65 @@ function gmvBuildPulseBannerHtml(seller) {
   const s = gmvComputeSellerStats(seller);
   if (!s.clients) return '';
   const fmt = n => Math.round(n || 0).toLocaleString('en-US');
-  const mom = s.momentumPct;
-  const momLabel = (mom == null) ? '—' : ((mom >= 0 ? '+' : '') + mom + '%');
-  const momCls = (mom == null) ? '' : (mom >= 0 ? 'is-up' : 'is-down');
-  const arrow = (mom == null) ? '' : (mom >= 0 ? '↑ ' : '↓ ');
+
+  // [patch: wow_no_negative_doom] Different approach — replace the
+  // demoralising "-100%" with absolute MAD comparison. Headline = this
+  // week's delivered MAD; sub = last week's MAD with an arrow showing
+  // the direction. Never a negative percentage.
+  const _lang = (typeof engLang === 'function') ? engLang() : 'fr';
+  const _t = (function(){
+    if (_lang === 'ar') return {
+      newAct: 'جديد', noLast: 'لا نشاط الأسبوع الماضي',
+      lastWeek: 'الأسبوع الماضي', earlyWeek: 'الأسبوع في بدايته — راجع لاحقًا'
+    };
+    if (_lang === 'en') return {
+      newAct: 'New', noLast: 'no activity last week',
+      lastWeek: 'last week', earlyWeek: 'week just started — check back'
+    };
+    return {
+      newAct: 'Nouveau', noLast: 'pas d\'activité la semaine passée',
+      lastWeek: 'sem. passée', earlyWeek: 'semaine en début — revoir plus tard'
+    };
+  })();
+  let _wowValue, _wowSub, _wowCls = '';
+  const _tw = s.thisWeekMad || 0;
+  const _pw = s.prevWeekMad || 0;
+  if (_tw === 0 && _pw === 0) {
+    _wowValue = '—';
+    _wowSub = _t.earlyWeek;
+  } else if (_pw === 0 && _tw > 0) {
+    _wowValue = '<bdi dir="ltr">' + fmt(_tw) + '</bdi><small>MAD</small>';
+    _wowSub = '🆕 ' + _t.newAct + ' · ' + _t.noLast;
+    _wowCls = 'is-up';
+  } else if (_tw === 0 && _pw > 0) {
+    _wowValue = '<bdi dir="ltr">0</bdi><small>MAD</small>';
+    _wowSub = '<bdi dir="ltr">↓ ' + fmt(_pw) + '</bdi> ' + _t.lastWeek;
+    _wowCls = 'is-down';
+  } else {
+    const dir = _tw > _pw ? '↑' : (_tw < _pw ? '↓' : '=');
+    _wowCls = _tw > _pw ? 'is-up' : (_tw < _pw ? 'is-down' : '');
+    _wowValue = '<bdi dir="ltr">' + fmt(_tw) + '</bdi><small>MAD</small>';
+    _wowSub = '<bdi dir="ltr">' + dir + ' ' + fmt(_pw) + '</bdi> ' + _t.lastWeek;
+  }
+
   // [patch: gmv_restructure_v1] Removed "Top family" cell — Pulse is now
-  // a 3-cell strip: Forecast EOM · Active clients · WoW momentum.
+  // a 3-cell strip: Forecast EOM · Active clients · WoW comparison.
   return `
     <section class="sb-pulse sb-pulse--3">
       <div class="sb-pulse-cell">
         <div class="sb-pulse-label">${engT('sb_pulse_forecast')}</div>
-        <div class="sb-pulse-value">${fmt(s.forecastEom)}<small>MAD</small></div>
-        <div class="sb-pulse-sub">${fmt(s.totalGmv)} / ${fmt(s.target)}</div>
+        <div class="sb-pulse-value"><bdi dir="ltr">${fmt(s.forecastEom)}</bdi><small>MAD</small></div>
+        <div class="sb-pulse-sub"><bdi dir="ltr">${fmt(s.totalGmv)} / ${fmt(s.target)}</bdi></div>
       </div>
       <div class="sb-pulse-cell">
         <div class="sb-pulse-label">${engT('sb_pulse_active')}</div>
-        <div class="sb-pulse-value">${s.activeCount}<small>/ ${s.clients}</small></div>
+        <div class="sb-pulse-value"><bdi dir="ltr">${s.activeCount}</bdi><small>/ ${s.clients}</small></div>
         <div class="sb-pulse-sub">${s.clients ? Math.round((s.activeCount/s.clients)*100) : 0}%</div>
       </div>
       <div class="sb-pulse-cell">
         <div class="sb-pulse-label">${engT('sb_pulse_wow')}</div>
-        <div class="sb-pulse-value ${momCls}">${arrow}${momLabel}</div>
-        <div class="sb-pulse-sub">${fmt(s.thisWeekMad)} / ${fmt(s.prevWeekMad)}</div>
+        <div class="sb-pulse-value ${_wowCls}">${_wowValue}</div>
+        <div class="sb-pulse-sub">${_wowSub}</div>
       </div>
     </section>`;
 }
