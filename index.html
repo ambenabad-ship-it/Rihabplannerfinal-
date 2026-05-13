@@ -24192,30 +24192,39 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
           // so every product in the family shows up — even when the client
           // never ordered it. Order data overlays on top with delivered /
           // pending / etc amounts; SKUs without activity render as 0.
+          // [patch: family_orders_unified] Read from gmv.orders — same
+          // source cumulative GMV uses; fulfill.orders may be empty / stale.
+          // Also normalise productCode to upper-case before matching so
+          // mixed-case codes still bucket into the seeded master row.
           var perSku = {};
           var _famMasterSkus = (typeof FOCUS_FAMILY_SKUS !== 'undefined' && FOCUS_FAMILY_SKUS[fam]) || [];
           _famMasterSkus.forEach(function(s){
-            perSku[s.code] = { name: s.name || s.code, d:0, p:0, t:0, i:0, c:0, r:0 };
+            var k = String(s.code || '').trim().toUpperCase();
+            perSku[k] = { name: s.name || s.code, d:0, p:0, t:0, i:0, c:0, r:0 };
           });
-          fulfill.orders.forEach(function(o){
+          var _orderSrc = (typeof gmv !== 'undefined' && Array.isArray(gmv.orders) && gmv.orders.length)
+                        ? gmv.orders
+                        : ((typeof fulfill !== 'undefined' && Array.isArray(fulfill.orders)) ? fulfill.orders : []);
+          _orderSrc.forEach(function(o){
             if (!o || !o.productCode || o.phone !== phone) return;
             if (gmvFamilyForSku(o.productCode) !== fam) return;
             var d = o.date instanceof Date ? o.date : (o.date ? new Date(o.date) : null);
             if (!d || isNaN(d.getTime())) return;
             var k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
             if (k !== ENG_PERIOD_M1 && k !== ENG_PERIOD_M2) return;
-            if (!perSku[o.productCode]) {
-              perSku[o.productCode] = { name: o.productName || o.productCode, d:0, p:0, t:0, i:0, c:0, r:0 };
+            var pk = String(o.productCode).trim().toUpperCase();
+            if (!perSku[pk]) {
+              perSku[pk] = { name: o.productName || pk, d:0, p:0, t:0, i:0, c:0, r:0 };
             }
             var amt = (o.amount || 0);
-            if (o.status === 'DELIVERED') perSku[o.productCode].d += amt;
-            else if (o.status === 'PENDING' || o.status === 'REPLANED' || o.status === 'RESCHEDULED') perSku[o.productCode].p += amt;
-            else if (o.status === 'TO_DELIVER') perSku[o.productCode].t += amt;
-            else if (o.status === 'DELIVERY_IN_PROGRESS') perSku[o.productCode].i += amt;
-            else if (o.status === 'CANCELED') perSku[o.productCode].c += amt;
-            else if (o.status === 'RETURNED') perSku[o.productCode].r += amt;
-            if (o.productName && (!perSku[o.productCode].name || perSku[o.productCode].name === o.productCode)) {
-              perSku[o.productCode].name = o.productName;
+            if (o.status === 'DELIVERED') perSku[pk].d += amt;
+            else if (o.status === 'PENDING' || o.status === 'REPLANED' || o.status === 'RESCHEDULED') perSku[pk].p += amt;
+            else if (o.status === 'TO_DELIVER') perSku[pk].t += amt;
+            else if (o.status === 'DELIVERY_IN_PROGRESS') perSku[pk].i += amt;
+            else if (o.status === 'CANCELED') perSku[pk].c += amt;
+            else if (o.status === 'RETURNED') perSku[pk].r += amt;
+            if (o.productName && (!perSku[pk].name || perSku[pk].name === pk)) {
+              perSku[pk].name = o.productName;
             }
           });
           var skuCodes = Object.keys(perSku).sort(function(a, b){
