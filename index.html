@@ -4354,6 +4354,73 @@
   .rfhead-pct,
   .gmv-allgifts-palier-pct { display: none !important; }
 
+  /* [patch: gmv_restructure_v1] Sticky top — hero + tabs stay visible while
+     the underlying tab content scrolls. */
+  .gmv-sticky-top {
+    position: sticky; top: 0; z-index: 40;
+    background: var(--bg, #fff);
+    padding-top: 4px;
+    box-shadow: 0 4px 12px -8px rgba(15, 23, 42, .15);
+  }
+  /* Sub-row spacing inside the sticky cap */
+  .gmv-sticky-top .sb-hero { margin-bottom: 8px; }
+  .gmv-sticky-top .gmv-engtab-bar { margin: 4px 0 10px; }
+
+  /* [patch: gmv_restructure_v1] Gifts Plan modal */
+  .gmv-modal-shroud {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 23, 42, .55);
+    backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    animation: gmv-shroud-in .18s ease;
+  }
+  .gmv-modal-shroud.hidden { display: none; }
+  @keyframes gmv-shroud-in { from { opacity: 0; } to { opacity: 1; } }
+  .gmv-modal {
+    position: relative;
+    background: #fff;
+    width: 100%; max-width: 640px;
+    max-height: 90vh;
+    border-radius: 18px;
+    padding: 18px 18px 14px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, .25);
+    overflow-y: auto;
+    animation: gmv-modal-up .22s cubic-bezier(.2,.7,.3,1);
+  }
+  @keyframes gmv-modal-up { from { transform: translateY(18px); opacity: .7; } to { transform: translateY(0); opacity: 1; } }
+  .gmv-modal-title {
+    font-size: 18px; font-weight: 800; color: #111827;
+    margin: 0 0 12px; padding-inline-end: 32px;
+  }
+  .gmv-modal-close {
+    position: absolute; top: 10px; inset-inline-end: 12px;
+    width: 32px; height: 32px;
+    background: #f1f5f9; border: 1px solid #e2e8f0;
+    border-radius: 50%; cursor: pointer;
+    font-size: 18px; font-weight: 800; color: #475569;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  .gmv-modal-close:hover { background: #e2e8f0; color: #111827; }
+  .gmv-modal-body > section { margin-bottom: 12px; }
+
+  /* [patch: gmv_restructure_v1] Gifts Plan button — looks like a tab. */
+  .gmv-gifts-plan-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid #e2e8f0;
+    color: #475569; cursor: pointer;
+    border-radius: 9px; padding: 0 12px;
+    font-weight: 700; font-size: 13px;
+    transition: background .15s ease, color .15s ease;
+  }
+  .gmv-gifts-plan-btn:hover { background: #111827; color: #fff; border-color: #111827; }
+  .gmv-gifts-plan-btn svg { width: 14px; height: 14px; }
+
+  /* [patch: gmv_restructure_v1] Pulse strip in 3-cell mode. */
+  .sb-pulse.sb-pulse--3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 720px) { .sb-pulse.sb-pulse--3 { grid-template-columns: 1fr; } }
+
   /* Fix #6 — bigger primary section tabs (Assign / My clients / My perf) */
   .gmv-engtab-bar {
     height: auto;
@@ -21399,22 +21466,39 @@ async function gmvRenderEngagement(wrap) {
   // hero at the very top so it's always visible on every subtab. Empty if
   // user has no clients or isn't logged in as a seller.
   const _sellerHero = (mySeller && !isCreator) ? gmvBuildSellerHeroHtml(mySeller) : '';
-  // [patch: cp_new_kpis] Pulse banner — BCG-style ops dashboard right under
-  // the hero. Forecast EOM · Top family · Active clients · WoW momentum.
-  const _pulseBanner = (mySeller && !isCreator && typeof gmvBuildPulseBannerHtml === 'function')
-                       ? gmvBuildPulseBannerHtml(mySeller) : '';
+  // [patch: gmv_restructure_v1]
+  //  - Pulse banner only inside myperf tab (was above all tabs).
+  //  - Hero + tabs are sticky at the top of the page.
+  //  - Gift carousel + "How it works" live in a modal opened by the
+  //    new "خطة الهدايا" button — they don't render inline anywhere else.
+  const _giftsPlanLabel = (engLang() === 'ar' ? 'خطة الهدايا'
+                         : (engLang() === 'fr' ? 'Plan des cadeaux' : 'Gifts plan'));
   wrap.innerHTML = `
-    ${_sellerHero}
-    ${_pulseBanner}
-    ${heroCarouselHtml}
-    ${rfHero}
-    ${uploadsHtml}
-    <div class="gmv-engtab-bar" role="tablist">
-      ${tabBtn('assign',     _subDict.assign)}
-      ${tabBtn('clientperf', _subDict.clientperf)}
-      ${tabBtn('myperf',     _subDict.myperf)}
+    <div class="gmv-sticky-top">
+      ${_sellerHero}
+      ${uploadsHtml}
+      <div class="gmv-engtab-bar" role="tablist">
+        ${tabBtn('assign',     _subDict.assign)}
+        ${tabBtn('clientperf', _subDict.clientperf)}
+        ${tabBtn('myperf',     _subDict.myperf)}
+        <button type="button" class="gmv-engtab-btn gmv-gifts-plan-btn" id="gmvGiftsPlanBtn" aria-haspopup="dialog" aria-label="${_giftsPlanLabel}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+          <span>${_giftsPlanLabel}</span>
+        </button>
+      </div>
     </div>
-    <div id="engPanel"></div>`;
+    <div id="engPanel"></div>
+    <!-- [patch: gmv_restructure_v1] Gifts Plan modal — built once, opened on demand. -->
+    <div class="gmv-modal-shroud hidden" id="gmvGiftsPlanShroud" aria-hidden="true">
+      <div class="gmv-modal" role="dialog" aria-modal="true" aria-labelledby="gmvGiftsPlanTitle">
+        <button type="button" class="gmv-modal-close" id="gmvGiftsPlanClose" aria-label="إغلاق">×</button>
+        <h3 class="gmv-modal-title" id="gmvGiftsPlanTitle">${_giftsPlanLabel}</h3>
+        <div class="gmv-modal-body">
+          ${heroCarouselHtml}
+          ${rfHero}
+        </div>
+      </div>
+    </div>`;
 
   // [patch: carousel_engagement_level] Wire carousel auto-rotation,
   // prev/next, dots, and "See all gifts".
@@ -21493,6 +21577,30 @@ async function gmvRenderEngagement(wrap) {
     catch (err) { alert('Paliers upload error: ' + (err.message || err)); }
     try { e.target.value = ''; } catch (_) {}
   });
+  // [patch: gmv_restructure_v1] Wire the Gifts Plan modal (open/close).
+  (function(){
+    var openBtn = document.getElementById('gmvGiftsPlanBtn');
+    var sh = document.getElementById('gmvGiftsPlanShroud');
+    var closeBtn = document.getElementById('gmvGiftsPlanClose');
+    if (openBtn && sh) {
+      openBtn.addEventListener('click', function(){
+        sh.classList.remove('hidden');
+        sh.setAttribute('aria-hidden', 'false');
+      });
+    }
+    if (closeBtn && sh) {
+      closeBtn.addEventListener('click', function(){
+        sh.classList.add('hidden');
+        sh.setAttribute('aria-hidden', 'true');
+      });
+    }
+    if (sh) sh.addEventListener('click', function(e){
+      if (e.target === sh) {
+        sh.classList.add('hidden');
+        sh.setAttribute('aria-hidden', 'true');
+      }
+    });
+  })();
   // Render the active subtab.
   const panel = document.getElementById('engPanel');
   if (sub === 'myperf')          gmvRenderEngagementScoreboard(panel, mySeller, isCreator);
@@ -25109,19 +25217,14 @@ function gmvBuildPulseBannerHtml(seller) {
   const momLabel = (mom == null) ? '—' : ((mom >= 0 ? '+' : '') + mom + '%');
   const momCls = (mom == null) ? '' : (mom >= 0 ? 'is-up' : 'is-down');
   const arrow = (mom == null) ? '' : (mom >= 0 ? '↑ ' : '↓ ');
-  const top = s.topFamily ? s.topFamily : '—';
-  const topSub = s.topFamily ? (fmt(s.topFamilyMad) + ' MAD') : '';
+  // [patch: gmv_restructure_v1] Removed "Top family" cell — Pulse is now
+  // a 3-cell strip: Forecast EOM · Active clients · WoW momentum.
   return `
-    <section class="sb-pulse">
+    <section class="sb-pulse sb-pulse--3">
       <div class="sb-pulse-cell">
         <div class="sb-pulse-label">${engT('sb_pulse_forecast')}</div>
         <div class="sb-pulse-value">${fmt(s.forecastEom)}<small>MAD</small></div>
         <div class="sb-pulse-sub">${fmt(s.totalGmv)} / ${fmt(s.target)}</div>
-      </div>
-      <div class="sb-pulse-cell">
-        <div class="sb-pulse-label">${engT('sb_pulse_top_family')}</div>
-        <div class="sb-pulse-value" title="${gmvEscapeHtmlEng(top)}">${gmvEscapeHtmlEng(top)}</div>
-        <div class="sb-pulse-sub">${topSub}</div>
       </div>
       <div class="sb-pulse-cell">
         <div class="sb-pulse-label">${engT('sb_pulse_active')}</div>
@@ -25248,7 +25351,11 @@ function gmvRenderEngagementScoreboard(panel, mySeller, isCreator) {
     // [patch: seller_hero_pin] The sb-hero block is now rendered at the top
     // of gmvRenderEngagement (visible on every subtab), so we don't repeat
     // it here. Scoreboard content starts directly with the KPI grid.
+    // [patch: gmv_restructure_v1] Pulse banner ONLY in myperf (was inline above tabs).
+    const _pulseBanner = (mySeller && !isCreator && typeof gmvBuildPulseBannerHtml === 'function')
+                         ? gmvBuildPulseBannerHtml(mySeller) : '';
     panel.innerHTML = `
+      ${_pulseBanner}
       <div class="sb-kpi-grid">
         <article class="sb-kpi sb-kpi--idle">
           <div class="sb-kpi-icon">👥</div>
