@@ -22628,9 +22628,12 @@ function gmvRenderEngagementAssign(panel, mySeller, isCreator) {
       gmvRenderEngagementAssign(panel, mySeller, isCreator);
     });
   });
-  // [patch: assign_open_clientperf_detail] Row click → open the SAME client
-  // detail page that opens from My Clients Performance (instead of the old
-  // product-picker modal). Falls back to the modal if anything fails.
+  // [patch: assign_open_clientperf_detail_v2] Row click → open the SAME
+  // client detail page that opens from My Clients Performance. Previous
+  // version was looking for `.gmv-cp-panel` but the real panel is `#engPanel`,
+  // and the unnecessary 60 ms setTimeout could miss the synchronously-rendered
+  // list. Now: switch subtab, render the list, immediately open the detail
+  // on the same panel.
   panel.querySelectorAll('[data-as-edit]').forEach(b => {
     b.addEventListener('click', () => {
       var phone = b.dataset.asEdit;
@@ -22639,24 +22642,22 @@ function gmvRenderEngagementAssign(panel, mySeller, isCreator) {
         if (window.RihabRouter && typeof window.RihabRouter.push === 'function') {
           window.RihabRouter.push({ feature: 'gmv', page: 'engagement', subtab: 'clientperf', detail: phone });
         }
-        var wrap = panel.closest('#gmvResultsWrap') || panel.parentElement;
+        var wrap = panel.closest('#gmvResultsWrap') || panel.parentElement || document.getElementById('gmvResultsWrap');
         if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
-        // After the clientperf list paints, open the detail for this phone.
-        setTimeout(function(){
-          try {
-            var p = document.querySelector('#gmvResultsWrap .gmv-cp-panel') ||
-                    document.querySelector('#gmvResultsWrap [data-engagement-panel]') ||
-                    document.querySelector('#gmvResultsWrap > div');
-            var globalRows = window.__gmv_cp_rows || null;
-            var T = window.__gmv_cp_T || {};
-            if (p && globalRows && typeof gmvOpenClientPerformance === 'function') {
-              gmvOpenClientPerformance(phone, globalRows, p, mySeller, isCreator, T);
-              return;
-            }
-          } catch(_){}
-        }, 60);
+        // gmvRenderEngagement runs synchronously → #engPanel + rows are
+        // populated by the time it returns. Open the detail right away.
+        var p = document.getElementById('engPanel');
+        var globalRows = window.__gmv_cp_rows || null;
+        var T = window.__gmv_cp_T || {};
+        if (p && globalRows && typeof gmvOpenClientPerformance === 'function') {
+          gmvOpenClientPerformance(phone, globalRows, p, mySeller, isCreator, T);
+        } else {
+          console.warn('[assign->detail] panel/rows missing', { hasPanel: !!p, hasRows: !!globalRows });
+        }
         return;
-      } catch(_) {}
+      } catch(err) {
+        console.warn('[assign->detail] failed, falling back to product picker', err && err.message);
+      }
       // Fallback: original product-picker behavior.
       gmvEngagement.assignEditClient = phone;
       gmvEngagement.assignProductSearch = '';
