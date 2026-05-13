@@ -21786,136 +21786,510 @@ const ENG_MIN_PRODUCTS = 10;     // minimum products to pick
 const ENG_MILESTONE_M1 = 5;      // products that must hit min qty by end of May
 const ENG_MILESTONE_BOTH = 10;   // products that must hit min qty by end of June (cumulative)
 
-// [patch: focus_family_map] Focus products are 23 FAMILIES, not individual SKUs.
-// Each SKU in the order data rolls up to a family below. Achievement & UI
-// will look up the family for an order line via gmvFamilyForSku(code).
-const FOCUS_FAMILIES = [
-  'Al Itkrans + Presto', 'Blandoux', 'Calin RP', 'Calin VP',
-  'Dalaa VP / Baqqal / RP', 'Douceur', 'Fromy', 'Kelloggs', 'Maresol', 'Mia',
-  'Mio Javel', 'Mio Liquid Vaisselle', 'Mio Matic', 'Mio main (1k+500gr)',
-  'Nova', 'Papillon Papier', 'Prima', 'SANGO', 'Shiwame', 'TAJ SAHARA',
-  'TAKYS', 'Tawil', 'The Al Itkane', 'Tobigo'
+// [patch: product_family_source_of_truth]
+// Auto-derived from "Products family (1).xlsx" — 23 families, 458 SKUs.
+// Re-run scripts/build_product_family.py whenever the Excel is updated.
+const PRODUCT_FAMILY_SOURCE = [
+  ["ART00365", "AL ITKANE Vermicelle Gros 10KG", "Al Itkrans + Presto"],
+  ["ART00366", "AL ITKANE Vermicelle Moyen 10KG", "Al Itkrans + Presto"],
+  ["ART00367", "AL ITKANE Langue d'oiseau 10KG", "Al Itkrans + Presto"],
+  ["ART00368", "AL ITKANE Penne 10KG", "Al Itkrans + Presto"],
+  ["ART00369", "AL ITKANE Coquillage 10KG", "Al Itkrans + Presto"],
+  ["ART00370", "AL ITKANE Coquillettes 10KG", "Al Itkrans + Presto"],
+  ["ART00371", "AL ITKANE Coudes 10KG", "Al Itkrans + Presto"],
+  ["ART00372", "AL ITKANE Petit Plomb 10KG", "Al Itkrans + Presto"],
+  ["ART00373", "AL ITKANE Torsade 10KG", "Al Itkrans + Presto"],
+  ["ART00374", "AL ITKANE Etoiles 10KG", "Al Itkrans + Presto"],
+  ["ART00514", "AL ITKANE Couscous Moyen 500G", "Al Itkrans + Presto"],
+  ["ART00515", "AL ITKANE Couscous Moyen 1KG", "Al Itkrans + Presto"],
+  ["ART00516", "AL ITKANE Couscous Fin 500G", "Al Itkrans + Presto"],
+  ["ART00517", "AL ITKANE Couscous Fin 1KG", "Al Itkrans + Presto"],
+  ["ART00533", "AL ITKANE Cheveux d'ange Extra Fin Caisse 10KG", "Al Itkrans + Presto"],
+  ["ART00546", "AL ITKANE Farine Fleur Blé Tendre 5KG", "Al Itkrans + Presto"],
+  ["ART00547", "AL ITKANE Farine Fleur Blé Tendre 10KG", "Al Itkrans + Presto"],
+  ["ART00807", "AL ITKANE Farine Fleur Blé Tendre 25KG - Laminé", "Al Itkrans + Presto"],
+  ["ART01615", "AL ITKANE Spaghetti 250G", "Al Itkrans + Presto"],
+  ["ART01616", "AL ITKANE Spaghetti  500G", "Al Itkrans + Presto"],
+  ["ART01617", "AL ITKANE COUSCOUS FIN 1KG", "Al Itkrans + Presto"],
+  ["ART01618", "AL ITKANE COUSCOUS MOY 1KG", "Al Itkrans + Presto"],
+  ["ART01678", "AL ITKANE  Cheveux D'ange 10KG", "Al Itkrans + Presto"],
+  ["ART02277", "AL ITKANE Vermicelle Moyen 500g X 12", "Al Itkrans + Presto"],
+  ["ART03148", "AL ITKANE Cheveux d'ange 1Kg", "Al Itkrans + Presto"],
+  ["CF33000", "Couscous Moyen 1KG Alitkane 15*1KG", "Al Itkrans + Presto"],
+  ["CF33002", "Couscous Moyen 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33003", "Couscous Fin 1KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33005", "Couscous Fin 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33006", "Couscous Complet  1KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33009", "Couscous Moyen 25KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33010", "Couscous Moyen10KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33011", "Couscous Fin 10KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33013", "Couscous Fin 25KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33014", "Cheveux D'Ange 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33015", "Coquillette 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33016", "Coude 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33017", "Torsette 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33018", "Vermicelle Moyen 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33019", "Vermicelle Fin 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33020", "Vermicelle Gros 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33021", "P. Plomb 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33022", "Langues D'Oiseaux 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33023", "Etoiles 500G Alitkane", "Al Itkrans + Presto"],
+  ["CF33024", "Cheveux D'Ange 5KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33025", "Cheveux D'Ange Lam 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33026", "Cheveux D'Ange Ct 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33027", "Cheveux D'Ange Extra Fin 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33028", "Coude 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33029", "Coquillette 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33030", "Torsade 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33031", "Vermicelle Moyen 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33032", "Vermicelle Gros 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33033", "P. Plomb 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33034", "Langues D'Oiseaux 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33035", "Etoiles 10 KG Alitkane", "Al Itkrans + Presto"],
+  ["CF33063", "penne 500g alitkane", "Al Itkrans + Presto"],
+  ["CF33067", "Couscous Fin 1KG Alitkane 12*1KG", "Al Itkrans + Presto"],
+  ["CF33071", "vermicelle fin 10kg lamine alitkane", "Al Itkrans + Presto"],
+  ["CF33072", "SPAGHETTI ALITKANE 500G", "Al Itkrans + Presto"],
+  ["CF33075", "Coquillage Alitkane 10kg", "Al Itkrans + Presto"],
+  ["CF33076", "Regatoni Alitkane 10kg", "Al Itkrans + Presto"],
+  ["CF33079", "SPAGHETTI ALITKANE 250 G", "Al Itkrans + Presto"],
+  ["CF33080", "NUMÉROS ET ALPHABETS ALITKANE 10KG", "Al Itkrans + Presto"],
+  ["CF33081", "COQUILLAGE ALITKANE 500G", "Al Itkrans + Presto"],
+  ["CF33082", "RÉGATONI  ALITKANE 500G", "Al Itkrans + Presto"],
+  ["CF33083", "VERMICELLE MOYEN ALITKANE 5 KG", "Al Itkrans + Presto"],
+  ["CF33084", "LANGUE D’OISEAU ALITKANE 5 KG", "Al Itkrans + Presto"],
+  ["CF33086", "PETIT PLOMB ALITKANE 5 KG", "Al Itkrans + Presto"],
+  ["CF33092", "COUSCOUS D’ORGE 15*1KG ALITKANE", "Al Itkrans + Presto"],
+  ["CF33097", "NUMEROS ET ALPHABETS ALITKANE 400g", "Al Itkrans + Presto"],
+  ["CF33098", "Papillon ALITKANE 400g", "Al Itkrans + Presto"],
+  ["CF33099", "Animals ALITKANE 400g", "Al Itkrans + Presto"],
+  ["CF33102", "VERMICELLE FIN ALITKANE 5 KG", "Al Itkrans + Presto"],
+  ["CF33104", "ALITKANE COUSCOUS FIN 5KG METALLISE", "Al Itkrans + Presto"],
+  ["CF33105", "ALITKANE COUSCOUS MOY 5KG METALLISE", "Al Itkrans + Presto"],
+  ["CF33112", "ALITKANE COUSCOUS MOY 750G CAISSE 16 UN", "Al Itkrans + Presto"],
+  ["CF33115", "ALITKANE TORSADE COMPLET 12*500G OPP", "Al Itkrans + Presto"],
+  ["CF33116", "ALITKANE PENNE COMPLET 12*500G OPP", "Al Itkrans + Presto"],
+  ["CF33117", "ALITKANE DITALINI  15*400G OPP", "Al Itkrans + Presto"],
+  ["CF33125", "ALITKANE LINGUINE 500G OPP", "Al Itkrans + Presto"],
+  ["CF33137", "ALITKANE CHEVEUX D'ANGE EXTRA FIN 1KG", "Al Itkrans + Presto"],
+  ["CF33319", "ALITKANE COUSCOUS 5 CEREALES 1Kg", "Al Itkrans + Presto"],
+  ["CF400978", "RIZ LONG PRESTO 1KG", "Al Itkrans + Presto"],
+  ["CF400979", "RIZ  LONG PRESTO 5KG", "Al Itkrans + Presto"],
+  ["CF400980", "RIZ MEDIUM PRESTO 1KG", "Al Itkrans + Presto"],
+  ["CF400981", "RIZ MEDIUM PRESTO 5KG", "Al Itkrans + Presto"],
+  ["CF401648", "RIZ ROND PRESTO 5KG", "Al Itkrans + Presto"],
+  ["CF401649", "RIZ ROND PRESTO 01KG", "Al Itkrans + Presto"],
+  ["CF401650", "RIZ ETUVE PRESTO 5KG", "Al Itkrans + Presto"],
+  ["CF401651", "RIZ ETUVE PRESTO 1KG", "Al Itkrans + Presto"],
+  ["ART03744", "BLANDOUX PAPIER HYGIÉNIQUES 3X6-9U(7+2)", "Blandoux"],
+  ["ART00049", "CALIN Couches RP Taille 2", "Calin RP"],
+  ["ART00050", "CALIN Couches RP Taille 3", "Calin RP"],
+  ["ART00051", "CALIN Couches RP Taille 4", "Calin RP"],
+  ["ART00052", "CALIN Couches RP Taille 5", "Calin RP"],
+  ["ART00053", "CALIN Couches RP Taille 6", "Calin RP"],
+  ["ART01318", "CALIN Couches RP Limited Edition Disney Taille 4", "Calin RP"],
+  ["ART01326", "CALIN Couches RP Limited Edition Disney Taille 5", "Calin RP"],
+  ["ART01327", "CALIN Couches RP Limited Edition Disney Taille 3", "Calin RP"],
+  ["ART01328", "CALIN Couches RP Limited Edition Disney Taille 2", "Calin RP"],
+  ["ART01375", "CALIN Special Care RP Taille 1 - 35 Couches", "Calin RP"],
+  ["ART01376", "CALIN Special Care RP Taille 2 - 38 Couches", "Calin RP"],
+  ["ART01377", "CALIN Special Care RP Taille 3 - 34 Couches", "Calin RP"],
+  ["ART01378", "CALIN Special Care RP Taille 4 - 30 Couches", "Calin RP"],
+  ["ART01379", "CALIN Special Care RP Taille 5 - 28 Couches", "Calin RP"],
+  ["ART01380", "CALIN Special Care RP Taille 6 - 22 Couches", "Calin RP"],
+  ["ART01304", "CALIN Couches VP Taille 2 - 66 Couches", "Calin VP"],
+  ["ART01305", "CALIN Couches VP Taille 3 - 56 Couches", "Calin VP"],
+  ["ART01306", "CALIN Couches VP Taille 4 - 52 Couches", "Calin VP"],
+  ["ART01307", "CALIN Couches VP Taille 5 - 42 Couches", "Calin VP"],
+  ["ART01308", "CALIN Couches VP Taille 6 - 36 Couches", "Calin VP"],
+  ["ART01671", "CALIN Couches VP Taille 5 28U +4 GRT", "Calin VP"],
+  ["ART01672", "CALIN Couches VP Taille 6 22U+4 GRT", "Calin VP"],
+  ["ART01673", "CALIN Couches VP Taille 2 50U +4 GRT", "Calin VP"],
+  ["ART01674", "CALIN Couches VP Taille 3 42U + 4 GRT", "Calin VP"],
+  ["ART01675", "CALIN Couches VP Taille 4 36U +4 GRT", "Calin VP"],
+  ["ART02945", "CS-CALIN Couches VP Taille 2 50U +4 GRT", "Calin VP"],
+  ["ART02946", "CS-CALIN Couches VP Taille 3 42U + 4 GRT", "Calin VP"],
+  ["ART02947", "CS-CALIN Couches VP Taille 4 36U +4 GRT", "Calin VP"],
+  ["ART02948", "CS-CALIN Couches VP Taille 5 28U +4 GRT", "Calin VP"],
+  ["ART00007", "DALAA Couches VP Taille 2", "Dalaa VP / Baqqal / RP"],
+  ["ART00008", "DALAA Couches VP Taille 3", "Dalaa VP / Baqqal / RP"],
+  ["ART00009", "DALAA Couches VP Taille 4", "Dalaa VP / Baqqal / RP"],
+  ["ART00010", "DALAA Couches VP Taille 5", "Dalaa VP / Baqqal / RP"],
+  ["ART00011", "DALAA Couches VP Taille 6", "Dalaa VP / Baqqal / RP"],
+  ["ART00409", "DALAA Pack Bakal Taille 4 76U+4U GRT", "Dalaa VP / Baqqal / RP"],
+  ["ART00410", "DALAA Pack Bakal Taille 5 68U+6U GRT", "Dalaa VP / Baqqal / RP"],
+  ["ART00955", "DALAA Pack Bakal Taille 4 76U", "Dalaa VP / Baqqal / RP"],
+  ["ART00956", "DALAA Pack Bakal Taille 5 66U", "Dalaa VP / Baqqal / RP"],
+  ["ART01130", "DALAA Couches RP Taille 4 16U", "Dalaa VP / Baqqal / RP"],
+  ["ART01131", "DALAA Couches RP Taille 5 14U", "Dalaa VP / Baqqal / RP"],
+  ["ART01201", "DALAA Couches VP Taille 2 56U+2U GRT", "Dalaa VP / Baqqal / RP"],
+  ["ART01202", "DALAA Couches VP Taille 3 46U+2U GRT", "Dalaa VP / Baqqal / RP"],
+  ["ART01203", "DALAA Couches VP Taille 4 42U+2U GRT", "Dalaa VP / Baqqal / RP"],
+  ["ART01204", "DALAA Couches VP Taille 5 36U+2U GRT", "Dalaa VP / Baqqal / RP"],
+  ["ART01205", "DALAA Couches VP Taille 6 30U+2U GRT", "Dalaa VP / Baqqal / RP"],
+  ["ART01311", "DALAA Couche Colis Skhawa 3U Taille 4 + 1U VP Taille 5 + Mouchoir Poche Gratuit (1CS = 1U)", "Dalaa VP / Baqqal / RP"],
+  ["ART01398", "DALAA Couche Colis Skhawa 4U VP Taille 3 (46 Couches) + 1 Pack RP Taille 3 (18 Couches)", "Dalaa VP / Baqqal / RP"],
+  ["ART01399", "DALAA Couche Colis Skhawa 4U VP Taille 4 (42 Couches) + 1 Pack RP Taille 4 (16 Couches)", "Dalaa VP / Baqqal / RP"],
+  ["ART01401", "DALAA Couche Colis Skhawa 4U VP Taille 5 (36 Couches) + 1 Pack RP Taille 5 (14 Couches)", "Dalaa VP / Baqqal / RP"],
+  ["ART01402", "DALAA Couche Colis Skhawa 4U VP Taille 6 (30 Couches) + 1 Pack RP Taille 5 (14 Couches)", "Dalaa VP / Baqqal / RP"],
+  ["ART01448", "DALAA Colis Skhawa 4U VP Taille 5 (36 Couches + 2U GRT) + 1U Dalaa Mouchoir 550 + Wooly Mouchoir Poche Pack 15U", "Dalaa VP / Baqqal / RP"],
+  ["ART02949", "CS-DALAA Couches VP Taille 6", "Dalaa VP / Baqqal / RP"],
+  ["ART02950", "CS-DALAA Couches VP Taille 2", "Dalaa VP / Baqqal / RP"],
+  ["ART02951", "CS-DALAA Couches VP Taille 3", "Dalaa VP / Baqqal / RP"],
+  ["ART02952", "CS-DALAA Couches VP Taille 5", "Dalaa VP / Baqqal / RP"],
+  ["ART02953", "CS-DALAA Couches VP Taille 4", "Dalaa VP / Baqqal / RP"],
+  ["ART02959", "CS-DALAA Couches RP Taille 5 14U", "Dalaa VP / Baqqal / RP"],
+  ["ART02960", "CS-DALAA Couches RP Taille 6  11U", "Dalaa VP / Baqqal / RP"],
+  ["ART02961", "CS-DALAA Couches RP Taille 4 16U", "Dalaa VP / Baqqal / RP"],
+  ["ART02962", "CS-DALAA Couches RP Taille 3 18U", "Dalaa VP / Baqqal / RP"],
+  ["ART02963", "CS-DALAA Couches RP Taille 2  22U", "Dalaa VP / Baqqal / RP"],
+  ["ART02983", "DALAA Pack Bakal Taille 5 66+4U GRT", "Dalaa VP / Baqqal / RP"],
+  ["ART03163", "DALAA Pack Bakal Taille 6 56+4U GRT", "Dalaa VP / Baqqal / RP"],
+  ["ART03180", "DALAA Couches VP Taille 4-Pack Vert", "Dalaa VP / Baqqal / RP"],
+  ["ART03192", "DALAA Essentials Pack Baqal Taille 4 76U", "Dalaa VP / Baqqal / RP"],
+  ["ART03193", "DALAA VP Taille 7 26U", "Dalaa VP / Baqqal / RP"],
+  ["ART03203", "DALAA Couches VP Taille 5-Pack Vert", "Dalaa VP / Baqqal / RP"],
+  ["ART03204", "DALAA Couches VP Taille 6-Pack Vert", "Dalaa VP / Baqqal / RP"],
+  ["ART03205", "DALAA Couches VP Taille 3-Pack Vert", "Dalaa VP / Baqqal / RP"],
+  ["ART03207", "DALAA Couches RP Taille 6  11U", "Dalaa VP / Baqqal / RP"],
+  ["ART03208", "DALAA Couches RP Taille 3 18U", "Dalaa VP / Baqqal / RP"],
+  ["ART03209", "DALAA Couches RP Taille 2  22U", "Dalaa VP / Baqqal / RP"],
+  ["ART03239", "DALAA Couches VP Taille 2-Pack Vert", "Dalaa VP / Baqqal / RP"],
+  ["ART03603", "Douceur Boite Mouchoir Flowers  2 plis 600", "Douceur"],
+  ["ART03604", "Douceur Boite Mouchoir 2 plis MAROC 600", "Douceur"],
+  ["ART03779", "KELLOGG'S Nouilles Instantanées Saveur Poulet 70g", "Kelloggs"],
+  ["ART03780", "KELLOGG'S Nouilles Instantanées Saveur Boeuf 70g", "Kelloggs"],
+  ["ART03781", "KELLOGG'S Nouilles Instantanées Saveur Fromage 70g", "Kelloggs"],
+  ["ART03782", "KELLOGG'S Nouilles Instantanées Saveur Légumes 70g", "Kelloggs"],
+  ["ART03783", "KELLOGG'S Nouilles Instantanées Saveur Poulet au Curry 70g", "Kelloggs"],
+  ["ART03784", "KELLOGG'S Nouilles Instantanées Saveur Saucisses Orientales 70g", "Kelloggs"],
+  ["ART03785", "KELLOGG'S Nouilles Instantanées Spicy 100g", "Kelloggs"],
+  ["ART04048", "MARISOL thon entier huile de tournesol unipack 80 g", "Maresol"],
+  ["ART04049", "MARISOL thon entier sauce tomate unipack 80 g", "Maresol"],
+  ["ART04050", "MARISOL thon entier sauce tomate tripack 80 g", "Maresol"],
+  ["ART04051", "MARISOL thon entier huile de tournesol tripack 80 g", "Maresol"],
+  ["ART04052", "MARISOL thon entier huile de tournesol unipack 125 g", "Maresol"],
+  ["ART04053", "MARISOL thon entier huile de tournesol unipack 1700 g", "Maresol"],
+  ["ART04054", "MARISOL thon entier huile de tournesol unipack 400 g", "Maresol"],
+  ["ART04055", "MARISOL thon entier huile de tournesol quadripack 80 g", "Maresol"],
+  ["ART04056", "MARISOL thon entier sauce tomate quadripack 80 g", "Maresol"],
+  ["ART00013", "MIA Maxi Long Rose", "Mia"],
+  ["ART00103", "MIA Maxi Nuit Bleu", "Mia"],
+  ["ART00134", "MIA Maxi Plus Long", "Mia"],
+  ["ART00186", "MIA Maxi Plus Long 16U + 1U GRT", "Mia"],
+  ["ART00301", "MIA Maxi Long Rose 16U + 1 GRT", "Mia"],
+  ["ART00333", "MIA Maxi Normal Mauve", "Mia"],
+  ["ART00675", "MIA Maxi Plus Normal Mauve", "Mia"],
+  ["ART00857", "MIA Maxi Plus Long Cotton Touch", "Mia"],
+  ["ART02125", "MIA Maxi Nuit Bleu 8*24", "Mia"],
+  ["ART02140", "Mia Maxi Long Rose 9*24", "Mia"],
+  ["ART02300", "MIA Maxi Normal Mauve 10*24", "Mia"],
+  ["ART02972", "CS-Mia Serviette Hygiénique Maxi Nuit  12U", "Mia"],
+  ["ART02973", "CS-Mia Serviette Hygiénique Long T 14U", "Mia"],
+  ["ART02974", "CS-Mia Serviette Hygiénique Maxi Normal 15U", "Mia"],
+  ["ART03213", "Mia Serviette Hygiénique Long Value Pack 14U", "Mia"],
+  ["ART03214", "Mia Serviette Hygiénique Maxi Normal  Value Pack 15U", "Mia"],
+  ["ART03986", "Mia Serviette Hygiénique Maxi Nuit  Value Pack 12U", "Mia"],
+  ["ART03987", "MIA Cotton Touch Serviettes Hygièniques Ultra Normal 10U", "Mia"],
+  ["ART03988", "MIA Cotton Touch Serviettes Hygieniques Ultra Slim Long 8U", "Mia"],
+  ["ART03989", "MIA Cotton Touch Serviettes Hygieniques Ultra Slim Nuit 7U", "Mia"],
+  ["ART00297", "MIO Eau de Javel 1L Normal", "Mio Javel"],
+  ["ART01989", "MIO Javel Eclat & Blancheur Régulier 18X1L", "Mio Javel"],
+  ["ART01990", "MIO Javel Eclat & Blancheur Citron 18X1L", "Mio Javel"],
+  ["ART01991", "MIO Javel Eclat & Blancheur Lavande 18X1L", "Mio Javel"],
+  ["ART02709", "MIO Javel  5L Citron", "Mio Javel"],
+  ["ART02710", "MIO Javel  2.5L Citron", "Mio Javel"],
+  ["ART02711", "MIO Javel  5L Lavande", "Mio Javel"],
+  ["ART02712", "MIO Javel  2.5L Lavande", "Mio Javel"],
+  ["ART02713", "MIO Javel  5L Régulier", "Mio Javel"],
+  ["ART02714", "MIO Javel  2.5L Régulier", "Mio Javel"],
+  ["ART02715", "MIO Javel  5L Pin", "Mio Javel"],
+  ["ART02716", "MIO Javel  2.5L Pin", "Mio Javel"],
+  ["ART02717", "MIO Javel 1L Pin", "Mio Javel"],
+  ["ART01972", "MIO Liquide Vaisselle Citron 300G", "Mio Liquid Vaisselle"],
+  ["ART01973", "MIO Liquide Vaisselle Lavande 300G", "Mio Liquid Vaisselle"],
+  ["ART01974", "MIO Liquide Vaisselle Citron 750GX12", "Mio Liquid Vaisselle"],
+  ["ART01981", "MIO Liquide Vaisselle Citron 1250GX12", "Mio Liquid Vaisselle"],
+  ["ART01982", "MIO Liquide Vaisselle Lavande 1250GX12", "Mio Liquid Vaisselle"],
+  ["ART02027", "MIO Liquide vaisselle 750 ml lavande", "Mio Liquid Vaisselle"],
+  ["ART02032", "MIO Liquide Vaisselle Citron 1250GX12", "Mio Liquid Vaisselle"],
+  ["ART02059", "MIO Liquide Vaisselle Aloe Vera 1250G", "Mio Liquid Vaisselle"],
+  ["ART02701", "MIO Liquide Vaisselle 750g Aloe Vera", "Mio Liquid Vaisselle"],
+  ["ART02702", "MIO Liquide Vaisselle 300g Aloe Vera", "Mio Liquid Vaisselle"],
+  ["ART02703", "MIO Liquide Vaisselle 1250g Pomme", "Mio Liquid Vaisselle"],
+  ["ART02704", "MIO Liquide Vaisselle 750g Pomme", "Mio Liquid Vaisselle"],
+  ["ART02705", "MIO Liquide Vaisselle 300g Pomme", "Mio Liquid Vaisselle"],
+  ["ART02706", "MIO Liquide Vaisselle 1250g Fraise", "Mio Liquid Vaisselle"],
+  ["ART02707", "MIO Liquide Vaisselle 750g Fraise", "Mio Liquid Vaisselle"],
+  ["ART02708", "MIO Liquide Vaisselle 300g Fraise", "Mio Liquid Vaisselle"],
+  ["ART02033", "MIO Matic Floral 3L", "Mio Matic"],
+  ["ART02034", "MIO Détérgent Matic Floral 5KG", "Mio Matic"],
+  ["ART02066", "MIO Matic Floral 1L*12", "Mio Matic"],
+  ["ART02071", "Mio Matic Floral Clean and Protect  10kg", "Mio Matic"],
+  ["ART02692", "MIO Poudre Matic  Floral 7.5kg", "Mio Matic"],
+  ["ART02693", "MIO Poudre Matic Floral 6kg", "Mio Matic"],
+  ["ART02694", "MIO Poudre Matic  Floral 3Kg", "Mio Matic"],
+  ["ART02695", "MIO Poudre Matic  Floral 750g+150G Gratuit", "Mio Matic"],
+  ["ART02696", "MIO  Poudre Matic  Floral 400g", "Mio Matic"],
+  ["ART02697", "MIO Liquide Matic 3L Antibactérien", "Mio Matic"],
+  ["ART02698", "MIO Liquide Matic 1L Antibactérien", "Mio Matic"],
+  ["ART02699", "MIO Liquide Matic 3L Savon Marseille", "Mio Matic"],
+  ["ART02700", "MIO Liquide Matic 1L Savon Marseille", "Mio Matic"],
+  ["ART03746", "Mio Matic Floral Rose 3L x 4", "Mio Matic"],
+  ["ART00291", "MIO Détérgent Semi Auto 1KG * 10 Citron", "Mio main (1k+500gr)"],
+  ["ART00292", "MIO Détérgent Semi Auto 1KG * 10 Rose", "Mio main (1k+500gr)"],
+  ["ART00299", "MIO Détérgent Semi Auto 500g*20 Citron", "Mio main (1k+500gr)"],
+  ["ART00300", "MIO Détérgent Semi Auto 500g*20 Rose", "Mio main (1k+500gr)"],
+  ["ART01960", "MIO Citron 1KG", "Mio main (1k+500gr)"],
+  ["ART01963", "MIO Lessive En Poudre Ultra Efficace 10KG", "Mio main (1k+500gr)"],
+  ["ART01967", "MIO Lessive En Poudre Rose 1KG", "Mio main (1k+500gr)"],
+  ["ART01968", "MIO Poudre Citron 16X500G+1GRT", "Mio main (1k+500gr)"],
+  ["ART01971", "MIO Poudre Rose 16X500G+1GRT", "Mio main (1k+500gr)"],
+  ["ART01985", "MIO Savon pate Citron 500GX24", "Mio main (1k+500gr)"],
+  ["ART03997", "MIO Semi -auto poudre lavande 1kg", "Mio main (1k+500gr)"],
+  ["ART00014", "NOVA Large 9U", "Nova"],
+  ["ART01206", "NOVA Comfot Large 10U", "Nova"],
+  ["ART01210", "NOVA Couche Culottes Large 9U - Pack Mauve", "Nova"],
+  ["ART01211", "NOVA Premium Large 9U - Pack Blanc", "Nova"],
+  ["ART01381", "NOVA Couches Adultes Medium 10U", "Nova"],
+  ["ART01453", "NOVA Couches Adultes Medium 9U", "Nova"],
+  ["ART01873", "NOVA Couches Adultes Large 20U", "Nova"],
+  ["ART01902", "NOVA Couches Adultes Medium 10U- Pack Mauve", "Nova"],
+  ["ART02942", "CS-NOVA Couches Adultes Large 20U", "Nova"],
+  ["ART03164", "NOVA Couche Culottes Large 9U - Pack Mauve", "Nova"],
+  ["ART03189", "NOVA Couche Culottes Medium 10U - Pack BLEU", "Nova"],
+  ["ART03315", "PAPILLON Papier HYGIÉNIQUE 2PLIS", "Papillon Papier"],
+  ["ART03498", "PAPILLON Papier Hygiénique 12 Rouleaux", "Papillon Papier"],
+  ["ART03499", "PAPILLON Papier Hygiénique 4 Rouleaux", "Papillon Papier"],
+  ["ART03500", "PAPILLON Papier Hygiénique 4 Rlx - Pack de 16", "Papillon Papier"],
+  ["ART00509", "PRIMA Couches Adultes Medium 9U", "Prima"],
+  ["ART00512", "PRIMA Couches Adultes Large 9U", "Prima"],
+  ["ART00513", "PRIMA Couches Adultes Large 9U", "Prima"],
+  ["ART02943", "CS-PRIMA Couches Adultes Large 9U", "Prima"],
+  ["ART02944", "CS-PRIMA Couches Adultes Medium 9U", "Prima"],
+  ["ART03998", "PRIMA Couches Adultes Culottes Large 9U", "Prima"],
+  ["ART03999", "PRIMA Couches Adultes Culottes Medium 9U", "Prima"],
+  ["ART01389", "SANGO Nettoyant Sol 1L Fresh Rose", "SANGO"],
+  ["ART01390", "SANGO Nettoyant Sol 1L Fleur d'Oranger", "SANGO"],
+  ["ART01391", "SANGO Nettoyant Sol 1L Citron", "SANGO"],
+  ["ART01392", "SANGO Nettoyant Sol 1L Lavande", "SANGO"],
+  ["ART02965", "CS-SANGO Nettoyant Sol 1L Citron", "SANGO"],
+  ["ART02966", "CS-SANGO Nettoyant Sol 1L Fleur d'Oranger", "SANGO"],
+  ["ART02967", "CS-SANGO Nettoyant Sol 1L Lavande", "SANGO"],
+  ["ART02968", "CS-SANGO Nettoyant Sol 1L Rose", "SANGO"],
+  ["ART02969", "CS-Sango Nettoyant sol Oud 1L", "SANGO"],
+  ["ART02970", "CS-Sango Nettoyant sol Ocean 1L", "SANGO"],
+  ["ART02971", "CS-Sango Nettoyant sol Vanille 1L", "SANGO"],
+  ["ART03210", "Sango Nettoyant sol Oud 1L", "SANGO"],
+  ["ART03211", "Sango Nettoyant sol Ocean 1L", "SANGO"],
+  ["ART03212", "Sango Nettoyant sol Vanille 1L", "SANGO"],
+  ["ART03447", "SANGO Sachet Frech Oud 50ML", "SANGO"],
+  ["ART01192", "SHIWAMIE Nouilles Instantanée Légumes 70G", "Shiwame"],
+  ["ART01193", "SHIWAMIE Nouilles Instantanée Crevettes 70G", "Shiwame"],
+  ["ART01194", "SHIWAMIE Nouilles Instantanée Poulet 70G", "Shiwame"],
+  ["ART01195", "SHIWAMIE Nouilles Instantanée Bœuf 70G", "Shiwame"],
+  ["CF33352", "SHIWAMIE CREVETTE 48*70G", "Shiwame"],
+  ["CF33353", "SHIWAMIE POULET 48*70G", "Shiwame"],
+  ["CF33354", "SHIWAMIE LEGUMES 48*70G", "Shiwame"],
+  ["CF33355", "SHIWAMIE BOEUF 48*70G", "Shiwame"],
+  ["ART03709", "TAJ AL SAHARAA 100G", "TAJ SAHARA"],
+  ["ART03710", "TAJ AL SAHARAA 200G", "TAJ SAHARA"],
+  ["ART03711", "TAJ AL SAHARAA 500G", "TAJ SAHARA"],
+  ["ART03703", "TAKIS Chips Queso Volcano 90g", "TAKYS"],
+  ["ART03704", "TAKIS Chips Fuego 90g", "TAKYS"],
+  ["ART03705", "TAKIS Chips Dragon Sweet Chili 90g", "TAKYS"],
+  ["ART03706", "TAKIS Chips Intense Nacho Fromage 90g", "TAKYS"],
+  ["ART03707", "TAKIS Chips Blue Heat 90g", "TAKYS"],
+  ["ART03984", "TAKIS Chips Buckin Ranch 90g", "TAKYS"],
+  ["ART03641", "TAWIL Eau de Javel Régulier 1L", "Tawil"],
+  ["ART03642", "TAWIL Eau de Javel Lavande 1L", "Tawil"],
+  ["ART03643", "TAWIL Eau de Javel Citron 1L", "Tawil"],
+  ["ART03644", "TAWIL Eau de Javel Régulier 2.5 L", "Tawil"],
+  ["ART03645", "TAWIL Eau de Javel Lavande 2.5 L", "Tawil"],
+  ["ART03646", "TAWIL Eau de Javel Citron 2.5 L", "Tawil"],
+  ["ART03647", "TAWIL Eau de Javel Régulier 5L", "Tawil"],
+  ["ART03648", "TAWIL Eau de Javel Lavande 5L", "Tawil"],
+  ["ART03649", "TAWIL Eau de Javel Citron 5L", "Tawil"],
+  ["ART03650", "TAWIL Liquide Vaisselle 300ml Lavande", "Tawil"],
+  ["ART03651", "TAWIL Liquide Vaisselle 300ml Citron", "Tawil"],
+  ["ART03652", "TAWIL Liquide Vaisselle 300ml Coco", "Tawil"],
+  ["ART03653", "TAWIL Liquide Vaisselle 300ml Menthe", "Tawil"],
+  ["ART03654", "TAWIL Liquide Vaisselle 750ml Lavande", "Tawil"],
+  ["ART03655", "TAWIL Liquide Vaisselle 750ml Citron", "Tawil"],
+  ["ART03656", "TAWIL Liquide Vaisselle 750ml Coco", "Tawil"],
+  ["ART03657", "TAWIL Liquide Vaisselle 750ml Menthe", "Tawil"],
+  ["ART03658", "TAWIL Liquide Vaisselle 1250ml Lavande", "Tawil"],
+  ["ART03659", "TAWIL Liquide Vaisselle 1250ml Citron", "Tawil"],
+  ["ART03660", "TAWIL Liquide Vaisselle 1250ml Coco", "Tawil"],
+  ["ART03661", "TAWIL Liquide Vaisselle 1250ml Menthe", "Tawil"],
+  ["ART03662", "TAWIL Nettoyant Sol 1L Lavande", "Tawil"],
+  ["ART03663", "TAWIL Nettoyant Sol 1L Citron", "Tawil"],
+  ["ART03664", "TAWIL Nettoyant Sol 1L Rose", "Tawil"],
+  ["ART03665", "TAWIL Nettoyant Sol 1L Oud", "Tawil"],
+  ["ART03666", "TAWIL Nettoyant Sol 5L Lavande", "Tawil"],
+  ["ART03667", "TAWIL Nettoyant Sol 5L Citron", "Tawil"],
+  ["ART03668", "TAWIL Nettoyant Sol 5L Rose", "Tawil"],
+  ["ART03669", "TAWIL Nettoyant Vitre 750ml", "Tawil"],
+  ["ART03670", "TAWIL Décapant Four 650ml", "Tawil"],
+  ["ART03671", "TAWIL Décapant Carrelage 1.25 L", "Tawil"],
+  ["ART03672", "TAWIL Désodorisant Flora 250ml", "Tawil"],
+  ["ART03673", "TAWIL Matic Lessive Liquide Océanique 3L", "Tawil"],
+  ["ART03674", "TAWIL Matic Lessive Liquide au Savon de Marseille 3L", "Tawil"],
+  ["ART03675", "TAWIL Matic Lessive Liquide Océanique 5L", "Tawil"],
+  ["ART03676", "TAWIL Matic Lessive Liquide au Savon de Marseille 5L", "Tawil"],
+  ["ART03996", "Tawil Antigel 5l", "Tawil"],
+  ["ART03417", "TIYAY 41022 The Chaara 200G", "The Al Itkane"],
+  ["ART03422", "AL ITKANE Thé Selham Haute Qualité 200G", "The Al Itkane"],
+  ["CF34000", "Thé 100G 10016 alitkane", "The Al Itkane"],
+  ["CF34001", "Thé 200G 10016 alitkane", "The Al Itkane"],
+  ["CF34002", "Thé 500G 10016 alitkane", "The Al Itkane"],
+  ["CF34006", "Thé 200G 9371 alitkane", "The Al Itkane"],
+  ["CF34007", "Thé 500G 9371 alitkane", "The Al Itkane"],
+  ["CF34008", "Thé 1 KG 9371 alitkane", "The Al Itkane"],
+  ["CF34009", "Thé 2 KG 9371 alitkane", "The Al Itkane"],
+  ["CF34026", "THE SELHAM 200G", "The Al Itkane"],
+  ["CF34027", "Thé LHAFLA 200G", "The Al Itkane"],
+  ["CF34029", "Thé LHAFLA 100G", "The Al Itkane"],
+  ["CF34030", "THE SELHAM 100G", "The Al Itkane"],
+  ["CF34046", "thé lmhrat 143g", "The Al Itkane"],
+  ["CF34062", "Thé tiyay 41022 200g", "The Al Itkane"],
+  ["CF34063", "Thé tiyay 41022 500g", "The Al Itkane"],
+  ["CF34068", "Thé alouns 200g", "The Al Itkane"],
+  ["CF34069", "THE ZINE 200G", "The Al Itkane"],
+  ["CF34070", "THE ZINE 500 G", "The Al Itkane"],
+  ["ART00221", "TOBIGO Crousty Lemon Cream", "Tobigo"],
+  ["ART00222", "TOBIGO Pyramido All Black", "Tobigo"],
+  ["ART00223", "TOBIGO Pyramido Lemon", "Tobigo"],
+  ["ART00224", "TOBIGO Chookies", "Tobigo"],
+  ["ART00225", "TOBIGO Pyramido Milk Chocolate", "Tobigo"],
+  ["ART00226", "TOBIGO Bleo chocolate enrobé", "Tobigo"],
+  ["ART00227", "TOBIGO Crousty Vanilla Cream", "Tobigo"],
+  ["ART00228", "TOBIGO Trio Choco & Coco", "Tobigo"],
+  ["ART00229", "TOBIGO Cookies", "Tobigo"],
+  ["ART00230", "TOBIGO Bleo Crème Vanille", "Tobigo"],
+  ["ART00232", "TOBIGO Roundy Chocolat Cream", "Tobigo"],
+  ["ART00294", "TOBIGO Petit Beurre", "Tobigo"],
+  ["ART00295", "TOBIGO Cookies Black", "Tobigo"],
+  ["ART00356", "TOBIGO Crousty Watermelon (Pastèque) Cream", "Tobigo"],
+  ["ART00357", "TOBIGO Petit Beurre pépites chocolat", "Tobigo"],
+  ["ART00523", "TOBIGO Muffins Chocolat", "Tobigo"],
+  ["ART00524", "TOBIGO Tartlet Chocolat", "Tobigo"],
+  ["ART00525", "TOBIGO Donut Chocolat *30", "Tobigo"],
+  ["ART00530", "TOBIGO Crousty Chocolat", "Tobigo"],
+  ["ART00531", "TOBIGO Crousty Framboise", "Tobigo"],
+  ["ART00532", "TOBIGO Bleo Bubble Gum", "Tobigo"],
+  ["ART00682", "TOBIGO Donut Chocolat *24", "Tobigo"],
+  ["ART00744", "TOBIGO Mini Crousty Chocolat 90G", "Tobigo"],
+  ["ART00745", "TOBIGO Mini Crousty Vanille 90G", "Tobigo"],
+  ["ART00810", "TOBIGO Roundy Vanille", "Tobigo"],
+  ["ART00811", "TOBIGO Waffle Chocolat", "Tobigo"],
+  ["ART00953", "TOBIGO Igloo Cake", "Tobigo"],
+  ["ART00968", "TOBIGO Roundy Cacao Biscuit Crème Vanille", "Tobigo"],
+  ["ART00969", "TOBIGO Crousty Cherry Cola", "Tobigo"],
+  ["ART00979", "TOBIGO Crousty Bubble Gum", "Tobigo"],
+  ["ART01161", "TOBIGO Donut Cacao Framboise * 24", "Tobigo"],
+  ["ART01454", "TOBIGO Crousty All Black", "Tobigo"],
+  ["ART01475", "TOBIGO Igloo Cake 24U", "Tobigo"],
+  ["ART01476", "TOBIGO Waffle Banane", "Tobigo"],
+  ["ART03300", "Tobigo Petit Beurre Mini Butter Biscuits 88g x 12", "Tobigo"],
+  ["ART03301", "Tobigo Petit Beurre Mini Wafers Filled With Chocolate Cream 86g x 12", "Tobigo"],
+  ["ART03302", "Tobigo Petit Beurre Min Cookies With chocolate chips 88g x 12", "Tobigo"],
+  ["CF35118", "TOBIGO MINI COOKIES 90G CRN 12UN", "Tobigo"],
+  ["CF35120", "TOBIGO MINI CROUSTY CHOCO†90G CRN 12UN", "Tobigo"],
+  ["CF35121", "TOBIGO MINI CROUSTY VANIL 90G CRN 12UN", "Tobigo"],
+  ["CF35122", "TOBIGO MINI†CROUSTY†CITRON†90G CRN 12UN", "Tobigo"],
+  ["CF35127", "TOBIGO ROUNDY CHOCO 60G 30UN", "Tobigo"],
+  ["CF35171", "Seau pate à tartiner DWIST 450 G", "Tobigo"],
+  ["CF35172", "TOBIGO SEAU PATE A TARTINER DWIST 900 G", "Tobigo"],
+  ["CF35178", "TOBIGO MINI†CROUSTY†FRAMBOISE90G CRN12UN", "Tobigo"],
+  ["CF35197", "TOBIGO SUNNY 64G CRN 24UN", "Tobigo"],
+  ["CF35198", "TOBIGO SNOOKIES CHOCOLAT-CAISSE DE 24 UN", "Tobigo"],
+  ["CF35199", "TOBIGO SNOOKIES VANILLE -CAISSE DE 24 UN", "Tobigo"],
+  ["CF35208", "DWIST GAUFRETTE LAO DUO 60 UN", "Tobigo"],
+  ["CF35210", "DWIST GAUFRETTE CHOCOLATñ 60UN", "Tobigo"],
+  ["CF35212", "DWIST GAUFRETTE SAVEUR VANILLE 24G 60UN", "Tobigo"],
+  ["CF35213", "DWIST LOOPY 25G CRN 60 UN", "Tobigo"],
+  ["CF35217", "TOBIGO CROUSTY CHOCOLAT CRN 30UN - NC", "Tobigo"],
+  ["CF35218", "TOBIGO CROUSTY VANILLE CRN 30UN - NC", "Tobigo"],
+  ["CF35219", "TOBIGO CROUSTY CITRON CRN 30UN - NC", "Tobigo"],
+  ["CF35221", "TOBIGO BLÉO CHOCO CRN 30UN - NC", "Tobigo"],
+  ["CF35223", "TOBIGO MINI CROUSTY CHOCO†90G CRN 12UN", "Tobigo"],
+  ["CF35224", "TOBIGO MINI CROUSTY VANIL 90G CRN 12UN", "Tobigo"],
+  ["CF35225", "TOBIGO MINI†CROUSTY†CITRON†90G CRN 12UN", "Tobigo"],
+  ["CF35226", "TOBIGO BLÉO CREAM CRN 30UN - NC", "Tobigo"],
+  ["CF35227", "TOBIGO ROUNDY CHOCO  30UN - NC", "Tobigo"],
+  ["CF35235", "TOBIGO CROUSTY FRAMBOISE CRN 30UN - NC", "Tobigo"],
+  ["CF35237", "TOBIGO ROUNDY VANILLE 30UN - NC", "Tobigo"],
+  ["CF35238", "TOBIGO ROUNDY CACAOTE VANILLE 30UN - NC", "Tobigo"],
+  ["CF35239", "TOBIGO MINI†CROUSTY†FRAMBOISE90G CRN12UN", "Tobigo"],
+  ["CF35240", "TOBIGO PYRAMIDO MEGA CITRON CRN 30UN -NC", "Tobigo"],
+  ["CF35241", "TOBIGO PYRAMIDO MEGA CHOCO CRN 30UN - NC", "Tobigo"],
+  ["CF35242", "TOBIGO SUNNY 64G CRN 24UN", "Tobigo"],
+  ["CF35245", "TOBIGO PETIT CROC PEPITES CRN 30UN", "Tobigo"],
+  ["CF35246", "TOBIGO PETIT CROC CRN 30UN", "Tobigo"],
+  ["CF35249", "TOBIGO CROUSTY HAWAI CRN 30UN", "Tobigo"],
+  ["CF35250", "TOBIGO CROUSTY TIRAMISSU CRN 30UN", "Tobigo"],
+  ["CF35265", "TOBIGO DONITO ALL BLACK CRN 30UN", "Tobigo"],
+  ["CF35266", "TOBIGO DONITO CARAMEL CRN 30UN", "Tobigo"],
+  ["CF35267", "TOBIGO DONITO CHOCO CRN 30UN", "Tobigo"],
+  ["CF35298", "TOBIGO SALEO ORIGINAL 24UN", "Tobigo"],
+  ["CF35516", "TOBIGO MUFFIN  30U - NC", "Tobigo"],
+  ["CF35517", "TOBIGO TARTLET 24U - NC", "Tobigo"],
+  ["CF35518", "TOBIGO DONUT  24U - NC", "Tobigo"],
+  ["CF35524", "TOBIGO DONUT CACAOTE FRAMBOISE 24UN - NC", "Tobigo"],
+  ["CF35525", "TOBIGO IGLO 24 UNITÉS   - NC", "Tobigo"],
+  ["CF35529", "TOBIGO MUFFINS VANILLE 30 UN", "Tobigo"],
+  ["CF35530", "TOBIGO MUFFINS CACAOTÉ 30 UN", "Tobigo"],
+  ["CF35531", "TOBIGO GÉNIO CACAOTÉ 32 UN", "Tobigo"],
+  ["CF35900", "TOBIGO GUSTY 30 UN", "Tobigo"],
+  ["CF35901", "TOBIGO GENIO 40G 32 UN", "Tobigo"],
+  ["CF35902", "TOBIGO TWISTER 32 UN", "Tobigo"],
+  ["CF35903", "TOBIGO JELLY 24 UN", "Tobigo"],
+  ["CF35904", "TOBIGO TWISTER CACAOTE 32 UN", "Tobigo"],
+  ["CF35914", "TOBIGO - MASTER COOKIES - 30 UN", "Tobigo"],
+  ["CF35916", "TOBIGO NAPOLI CRN 30UN", "Tobigo"],
 ];
-// [patch: family_min_mad_hardcoded] Per-family MAD target. A client product
-// is "achieved" when delivered MAD across May+June ≥ this number.
-const FAMILY_MIN_MAD = {
-  'Dalaa VP / Baqqal / RP': 10000,
-  'Calin RP':               10000,
-  'Mio main (1k+500gr)':    10000,
-  'Mia':                    10000,
-  'Calin VP':                5000,
-  'Nova':                    5000,
-  'Prima':                   5000,
-  'Mio Liquid Vaisselle':    5000,
-  'Mio Javel':               2000,
-  'Douceur':                 5000,
-  'Mio Matic':               5000,
-  'Papillon Papier':         5000,
-  'SANGO':                   5000,
-  'Blandoux':                5000,
-  'Tawil':                   5000,
-  'Shiwame':                 5000,
-  'Kelloggs':                5000,
-  'Al Itkrans + Presto':     5000,
-  'The Al Itkane':           5000,
-  'Tobigo':                  5000,
-  'TAJ SAHARA':              4000,
-  'Maresol':                 5000,
-  'TAKYS':                   2000,
-  'Fromy':                   2000,
-};
+
+// Derived: ordered list of family names (preserves the order seen in the file).
+const FOCUS_FAMILIES = (function(){
+  var seen = Object.create(null); var out = [];
+  for (var i = 0; i < PRODUCT_FAMILY_SOURCE.length; i++) {
+    var f = PRODUCT_FAMILY_SOURCE[i][2];
+    if (!seen[f]) { seen[f] = 1; out.push(f); }
+  }
+  return out.sort();
+})();
+
+// SKU code (upper-case) -> family name.
 const FOCUS_FAMILY_MAP = (function(){
-  const M = {};
-  const add = (codes, family) => codes.forEach(c => { M[String(c).trim().toUpperCase()] = family; });
-
-  add(['CF35250','ART00968','CF35266','CF35267','CF35298','CF35516','CF35517','CF35518',
-       'ART00221','ART00222','ART00223','ART00224','ART00225','ART00226','ART00227','ART00228',
-       'ART00229','ART00230','ART00232','ART00294','ART00295','ART00356','ART00357','ART00525',
-       'ART00523','ART00524','ART00530','ART00531','ART00532','ART00682','ART00744','ART00745',
-       'ART00810','ART00811','ART00953','ART00969','ART00979','ART01161','ART01454','ART01475',
-       'ART01476','CF35524','CF35525','CF35529','CF35531','ART03301','ART03300','ART03302',
-       'CF35172','CF35217','CF35218','CF35219','CF35221','CF35226','CF35227','CF35235','CF35237',
-       'CF35238','CF35240','CF35241','CF35249','CF35901','CF35902','CF35903','CF35904','CF35914',
-       'CF35916','CF35208','CF35210','CF35212','CF35213','CF35900','CF35246','CF35245','CF35171',
-       'CF35198','CF35199','CF35223','CF35224','CF35225','CF35239','CF35242','CF35265','CF35530',
-       'CF35120','CF35121','CF35122','CF35178','CF35197','CF35118','CF35127'], 'Tobigo');
-
-  add(['ART03422','ART03417','CF34026','CF34069','CF34070','CF34027','CF34029','CF34030',
-       'CF34046','CF34062','CF34063','CF34068',
-       'CF34000','CF34001','CF34002','CF34006','CF34007','CF34008','CF34009'], 'The Al Itkane');
-
-  add(['ART03641','ART03642','ART03643','ART03644','ART03645','ART03646','ART03647','ART03649',
-       'ART03650','ART03651','ART03652','ART03653','ART03648','ART03663','ART03675','ART03668',
-       'ART03996','ART03670','ART03658','ART03661','ART03673','ART03654','ART03655','ART03656',
-       'ART03657','ART03659','ART03660','ART03662','ART03664','ART03665','ART03666','ART03667',
-       'ART03669','ART03671','ART03672','ART03674','ART03676'], 'Tawil');
-
-  add(['ART03703','ART03704','ART03705','ART03706','ART03707','ART03984'], 'TAKYS');
-  add(['ART03709','ART03711','ART03710'], 'TAJ SAHARA');
-  add(['ART01192','ART01193','ART01194','ART01195','CF33352','CF33353','CF33354','CF33355'], 'Shiwame');
-
-  add(['ART01389','ART01390','ART01391','ART01392',
-       'ART02965','ART02966','ART02967','ART02968','ART02969','ART02970','ART02971',
-       'ART03210','ART03211','ART03212','ART03447'], 'SANGO');
-
-  add(['ART00513','ART00509','ART00512','ART02943','ART02944','ART03998','ART03999'], 'Prima');
-  add(['ART03315','ART03498','ART03499','ART03500'], 'Papillon Papier');
-
-  add(['ART01381','ART00014','ART01873','ART01902','ART01206','ART01210','ART01211','ART01453',
-       'ART02942','ART03164','ART03189'], 'Nova');
-
-  add(['ART02699','ART02033','ART02034','ART02066','ART02071','ART02696','ART02692','ART02695',
-       'ART02694','ART02697','ART02698','ART02700','ART02693','ART03746'], 'Mio Matic');
-
-  add(['ART00292','ART01960','ART01967','ART01963','ART01968','ART00291','ART00299','ART00300',
-       'ART01985','ART01971','ART03997'], 'Mio main (1k+500gr)');
-
-  add(['ART01972','ART02032','ART02059','ART01973','ART01974','ART01981','ART01982','ART02027',
-       'ART02701','ART02702','ART02703','ART02704','ART02705','ART02706','ART02707','ART02708'], 'Mio Liquid Vaisselle');
-
-  add(['ART02710','ART02711','ART02712','ART02713','ART02714','ART00297','ART01989','ART01990',
-       'ART02709','ART02715','ART02716','ART02717','ART01991'], 'Mio Javel');
-
-  add(['ART00103','ART00301','ART00134','ART00333','ART00186','ART00013','ART02125','ART00675',
-       'ART00857','ART02300','ART02140','ART02974','ART02973','ART03989','ART03988','ART02972',
-       'ART03213','ART03214','ART03986','ART03987'], 'Mia');
-
-  add(['ART04049','ART04050','ART04051','ART04053','ART04052','ART04054','ART04055','ART04056',
-       'ART04048'], 'Maresol');
-
-  add(['ART03779','ART03780','ART03781','ART03782','ART03783','ART03784','ART03785'], 'Kelloggs');
-  add(['ART03604','ART03603'], 'Douceur');
-
-  add(['ART01203','ART00956','ART00009','ART00008','ART00007','ART00011','ART01130','ART00010',
-       'ART00409','ART00410','ART00955','ART01131','ART01201','ART01202','ART01204','ART01205',
-       'ART01311','ART01398','ART01399','ART01401','ART01402','ART01448',
-       'ART02951','ART02953','ART02952','ART02950','ART02960','ART02949','ART02962','ART02963',
-       'ART02961','ART02983','ART02959','ART03193','ART03203','ART03204','ART03205','ART03180',
-       'ART03163','ART03192','ART03207','ART03208','ART03209','ART03239'], 'Dalaa VP / Baqqal / RP');
-
-  add(['ART01673','ART01674','ART01671','ART01672','ART01675','ART01304','ART01305','ART01306',
-       'ART01307','ART01308','ART02946','ART02947','ART02948','ART02945'], 'Calin VP');
-
-  add(['ART00049','ART00052','ART00050','ART00051','ART01318','ART01326','ART01327','ART01328',
-       'ART01375','ART01376','ART01377','ART01378','ART01379','ART01380','ART00053'], 'Calin RP');
-
-  add(['ART03744'], 'Blandoux');
-
-  add(['ART01618','ART01616','ART01617','ART01615','ART00367','ART01678','ART00516','ART00369',
-       'ART02277','ART00365','ART00366','ART00368','ART00370','ART00371','ART00372','ART00373',
-       'ART00374','ART00514','ART00515','ART00517','ART00533','ART00546','ART00547','ART00807',
-       'ART03148',
-       'CF33017','CF33018','CF33019','CF33020','CF33000','CF33002','CF33003','CF33005','CF33006',
-       'CF33009','CF33010','CF33011','CF33013','CF33014','CF33015','CF33016','CF33021','CF33022',
-       'CF33023','CF33024','CF33025','CF33026','CF33027','CF33028','CF33029','CF33030','CF33031',
-       'CF33032','CF33033','CF33034','CF33035','CF33063','CF33071','CF33104','CF33072','CF33075',
-       'CF33076','CF33079','CF33081','CF33082','CF33083','CF33084','CF33086','CF33092','CF33097',
-       'CF33098','CF33099','CF33102','CF33105','CF33115','CF33116','CF33117','CF33125','CF33137',
-       'CF33319','CF400978','CF400980','CF401649','CF401651','CF33080','CF33112','CF401650',
-       'CF401648','CF400981','CF400979','CF33067'], 'Al Itkrans + Presto');
-
+  var M = Object.create(null);
+  for (var i = 0; i < PRODUCT_FAMILY_SOURCE.length; i++) {
+    var r = PRODUCT_FAMILY_SOURCE[i];
+    M[String(r[0]).trim().toUpperCase()] = r[2];
+  }
   return M;
 })();
+
+// SKU code (upper-case) -> product display name.
+const FOCUS_SKU_NAME_MAP = (function(){
+  var M = Object.create(null);
+  for (var i = 0; i < PRODUCT_FAMILY_SOURCE.length; i++) {
+    var r = PRODUCT_FAMILY_SOURCE[i];
+    M[String(r[0]).trim().toUpperCase()] = r[1];
+  }
+  return M;
+})();
+
+// Family name -> array of { code, name } SKUs that belong to it.
+const FOCUS_FAMILY_SKUS = (function(){
+  var M = Object.create(null);
+  for (var i = 0; i < PRODUCT_FAMILY_SOURCE.length; i++) {
+    var r = PRODUCT_FAMILY_SOURCE[i];
+    (M[r[2]] = M[r[2]] || []).push({ code: r[0], name: r[1] });
+  }
+  return M;
+})();
+
 // Look up the focus family for an order-line SKU. Case-insensitive.
 // Returns null when the SKU isn't part of any tracked family.
 function gmvFamilyForSku(code) {
@@ -23862,9 +24236,10 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
                    '</div>';
           }).join('');
           var hasSkus = skuCodes.length > 0;
-          var caret = hasSkus
-            ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="opacity:.55;transition:transform .15s"><polyline points="9 18 15 12 9 6"></polyline></svg>'
-            : '';
+          // [patch: family_expand_always] Caret always visible — even empty
+          // families are expandable (they show a "no activity yet" message).
+          var caret =
+            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="opacity:' + (hasSkus ? '.55' : '.3') + ';transition:transform .15s"><polyline points="9 18 15 12 9 6"></polyline></svg>';
           var searchBlob = (fam + ' ' + skuCodes.join(' ') + ' ' +
                             skuCodes.map(function(c){return perSku[c].name;}).join(' ')).toLowerCase();
           // [patch: family_progress_bar] Per-family progress: delivered MAD
@@ -23895,20 +24270,24 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
             '<button type="button" data-fam-select="' + esc2(fam) + '" aria-pressed="' + (committed ? 'true' : 'false') + '" title="' + (committed ? 'إزالة الاختيار' : 'اختر هذه العائلة') + '" style="flex-shrink:0;background:' + (committed ? '#10b981' : '#fff') + ';border:1.5px solid ' + (committed ? '#10b981' : '#cbd5e1') + ';color:' + (committed ? '#fff' : '#94a3b8') + ';width:26px;height:26px;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;padding:0;line-height:1;transition:all .15s">' +
               (committed ? '✓' : '+') +
             '</button>';
+          // [patch: family_expand_always] Body is ALWAYS rendered (even when
+          // no SKU activity) so the user always gets a visual response to
+          // tapping the family head. Empty families show a hint instead of
+          // a blank box.
+          var _emptyHint = '<div style="padding:14px;text-align:center;color:#94a3b8;font-size:12px;background:#fafbfc">لا توجد طلبات لهذه العائلة بعد</div>';
+          var _bodyContent = hasSkus ? skuRows : _emptyHint;
           return '<div class="cp-fam-card" data-fam-key="' + esc2(fam) + '"' +
                  ' data-cp-committed="' + (committed ? '1' : '0') + '"' +
                  ' data-search-text="' + esc2(searchBlob) + '"' +
                  ' style="padding:8px 0;border-bottom:1px solid #f1f5f9">' +
-                   '<div class="cp-fam-head" data-fam-toggle="' + esc2(fam) + '" style="display:flex;align-items:center;gap:8px;cursor:' + (hasSkus ? 'pointer' : 'default') + '">' +
+                   '<div class="cp-fam-head" data-fam-toggle="' + esc2(fam) + '" style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
                      _famSelBtn + caret +
                      '<div style="font-weight:600;color:#0f172a;font-size:13px;flex:1;min-width:0">' + esc2(fam) + commitBadge + '</div>' +
                    '</div>' +
                    _famProgressHtml +
                    '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;direction:ltr">' + (pills || '<span style="color:#94a3b8;font-size:11px">—</span>') + '</div>' +
                    minLine +
-                   (hasSkus
-                     ? '<div class="cp-fam-skus" data-fam-body="' + esc2(fam) + '" style="display:none;margin-top:6px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">' + skuRows + '</div>'
-                     : '') +
+                   '<div class="cp-fam-skus" data-fam-body="' + esc2(fam) + '" style="display:none;margin-top:6px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">' + _bodyContent + '</div>' +
                  '</div>';
         }).join('');
         // [patch: all_families_split] Wrap with search input + group headers.
