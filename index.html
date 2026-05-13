@@ -22512,7 +22512,15 @@ function gmvRenderEngagementAssignProducts(panel, mySeller, isCreator, phone) {
   const L = _labels[engLang()] || _labels.en;
   const esc = (s) => gmvEscapeHtmlEng(s);
 
-  const productCodes = Object.keys(gmvEngagement.focusProducts || {}).sort();
+  // [patch: dedupe_legacy_sku_focus] Only family-level entries (members of
+  // FOCUS_FAMILIES) appear in the picker. Legacy individual SKU codes that
+  // still live in focusProducts are hidden so the seller doesn't see the
+  // same product twice (once as family, once as SKU).
+  const _famSetPick = {};
+  (typeof FOCUS_FAMILIES !== 'undefined' ? FOCUS_FAMILIES : []).forEach(f => { _famSetPick[f] = 1; });
+  const productCodes = Object.keys(gmvEngagement.focusProducts || {})
+    .filter(k => _famSetPick[k])
+    .sort();
   const q = ((gmvEngagement.assignProductSearch || '') + '').trim().toLowerCase();
   // Selection state lives in memory so the user can fiddle before saving.
   if (!gmvEngagement._assignDraft || gmvEngagement._assignDraftFor !== phone) {
@@ -23543,13 +23551,12 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
         ? gmvComputeStatusBreakdownForSellerClient(mySeller, phone, ENG_PERIOD_M1) : {};
       var brkM2 = (typeof gmvComputeStatusBreakdownForSellerClient === 'function')
         ? gmvComputeStatusBreakdownForSellerClient(mySeller, phone, ENG_PERIOD_M2) : {};
-      // [patch: all_families_split] Show ALL 23 families (not just ones with
-      // activity). Committed/selected families come first; rest follow. Both
-      // groups sort by activity (MAD) within themselves.
+      // [patch: all_families_split] Show ALL families (not just ones with
+      // activity). Committed/selected families come first; rest follow.
+      // [patch: dedupe_legacy_sku_focus] Only family-level names — any SKU
+      // codes living in focusProducts or in brk keys are dropped so the
+      // seller doesn't see the same product twice.
       var unique = (typeof FOCUS_FAMILIES !== 'undefined') ? FOCUS_FAMILIES.slice() : [];
-      var allKeys = Object.keys(brkM1).concat(Object.keys(brkM2));
-      var seen = {}; unique.forEach(function(k){ seen[k] = 1; });
-      allKeys.forEach(function(k){ if (!seen[k]) { unique.push(k); seen[k] = 1; } });
       // [patch: family_pipeline_amount] Rank + pill values use MAD amount
       // (rec.*.gmv) instead of unit counts (rec.*.qty).
       function activity(rec){
@@ -24314,7 +24321,13 @@ function gmvOpenBulkAssign(opts) {
     return na.localeCompare(nb);
   });
 
-  const productCodes = Object.keys(gmvEngagement.focusProducts || {}).sort();
+  // [patch: dedupe_legacy_sku_focus] Bulk-assign modal also limits to
+  // family-level entries — same dedupe as the single-client picker.
+  const _famSetBulk = {};
+  (typeof FOCUS_FAMILIES !== 'undefined' ? FOCUS_FAMILIES : []).forEach(f => { _famSetBulk[f] = 1; });
+  const productCodes = Object.keys(gmvEngagement.focusProducts || {})
+    .filter(k => _famSetBulk[k])
+    .sort();
 
   // Ensure modal exists
   let bg = document.getElementById('gmvBulkAssignBg');
