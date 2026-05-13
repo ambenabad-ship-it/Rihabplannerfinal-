@@ -2,8 +2,25 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- [patch: mobile_audit] Pinch-zoom restored (WCAG 1.4.4). maximum-scale/
+     user-scalable=no were blocking sellers from enlarging small Arabic text. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Z · Delivery Planner</title>
+<!-- [patch: sync_lang_dir_first_paint] Read the saved locale BEFORE the
+     1.2 MB bundle parses, so the page doesn't flash English first then
+     swap to Arabic. Keys are kept in sync with the rest of the app. -->
+<script>
+(function(){
+  try {
+    var L = (localStorage.getItem('rihab_app_lang_v1') ||
+             localStorage.getItem('rihab_lang_v1') ||
+             '').toLowerCase();
+    if (L !== 'en' && L !== 'fr' && L !== 'ar') L = 'ar';
+    document.documentElement.lang = L;
+    document.documentElement.dir  = (L === 'ar') ? 'rtl' : 'ltr';
+  } catch (_) {}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&family=Tajawal:wght@400;500;700;800&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
@@ -840,6 +857,61 @@
     max-width: 100vw !important;
     width: 100% !important;
     overscroll-behavior-x: none !important;
+  }
+
+  /* [patch: mobile_audit] Phone (≤480px) overrides. Fixes hard-coded widths
+     that exceeded the viewport, tap-target sizes, font scaling, and the
+     toast position — items 1, 6 and 9 from the mobile audit. */
+  @media (max-width: 480px) {
+    .gmv-cmdbar {
+      flex-wrap: wrap;
+      padding: 8px 10px !important;
+      gap: 6px !important;
+      max-width: 100vw;
+    }
+    .gmv-cmdbar > * { min-width: 0; flex-shrink: 1; }
+    .gmv-cmdbar .cmd-brand,
+    .gmv-cmdbar .cmd-search { min-width: 0; max-width: 100%; }
+    .gmv-cmdbar .cmd-search input,
+    .gmv-cmdbar input[type="search"] {
+      width: 100% !important;
+      max-width: 100% !important;
+      font-size: 16px !important;   /* prevents iOS auto-zoom on focus */
+    }
+    .gmv-as-row {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box;
+    }
+    /* Make sure the language switcher, logout, and small buttons hit the
+       44×44 tap-target minimum (WCAG 2.5.5 + Apple HIG). */
+    .gmv-lang-btn, .gmv-cmdbar .cmd-period,
+    .as-auth-logout, .sb-auth-link,
+    button.lang-btn, a.lang-btn {
+      min-width: 44px;
+      min-height: 44px;
+      font-size: 14px !important;
+      padding: 8px 12px !important;
+    }
+    /* Body / inputs minimum readable font size. */
+    body, .gmv-app, .as-app, .gmv-cp-row, .gmv-cp-row-phone,
+    .gmv-as-row, .ff-mobile { font-size: 14px; }
+    input, select, textarea { font-size: 16px !important; }
+    /* Toast moves to top + safe-area; never wider than viewport. */
+    .st-toast {
+      top: env(safe-area-inset-top, 12px) !important;
+      bottom: auto !important;
+      left: 50% !important;
+      right: auto !important;
+      transform: translate(-50%, 8px) !important;
+      max-width: calc(100vw - 24px) !important;
+      width: max-content;
+      font-size: 13px;
+    }
+    .st-toast.show,
+    .st-toast.is-visible { transform: translate(-50%, 0) !important; }
+    /* Drawer overlay must hug the viewport, not 498px. */
+    .as-overlay { max-width: 100vw; }
   }
   #featureFulfillV2 > iframe {
     display: block !important;
@@ -14186,12 +14258,33 @@ async function sbSignOut() {
   try { await sb.auth.signOut(); } catch (_) {}
   sbUser = null;
 }
+// [patch: sb_read_dedupe] In-flight cache so two initializers that both
+// ask for the same (user_id,key) share ONE network call. The audit found
+// seller_engagements firing 3× and several others 2× per cold load.
+const _sbReadInflight = new Map();      // 'uid|key' -> Promise<value>
+function _sbReadKeyShared(userId, key) {
+  if (!sb || !userId) return Promise.resolve(null);
+  const cacheKey = userId + '|' + key;
+  const inflight = _sbReadInflight.get(cacheKey);
+  if (inflight) return inflight;
+  const p = sb.from('user_data')
+    .select('value').eq('user_id', userId).eq('key', key).maybeSingle()
+    .then(({ data, error }) => {
+      _sbReadInflight.delete(cacheKey);
+      if (error) { console.error('sbRead', key, error); return null; }
+      return data ? data.value : null;
+    })
+    .catch((err) => {
+      _sbReadInflight.delete(cacheKey);
+      console.error('sbRead threw', key, err);
+      return null;
+    });
+  _sbReadInflight.set(cacheKey, p);
+  return p;
+}
 async function sbReadKey(key) {
   if (!sb || !sbUser) return null;
-  const { data, error } = await sb.from('user_data')
-    .select('value').eq('user_id', sbUser.id).eq('key', key).maybeSingle();
-  if (error) { console.error('sbReadKey', error); return null; }
-  return data ? data.value : null;
+  return _sbReadKeyShared(sbUser.id, key);
 }
 async function sbWriteKey(key, value) {
   if (!sb || !sbUser) return false;
@@ -16412,8 +16505,15 @@ try {
         }
         const _perm = _need[_featKey];
         if (_perm && typeof userHasPermission === 'function' && !userHasPermission(_perm)) {
-          if (typeof settingsToast === 'function') settingsToast('You do not have permission to open this feature', 'error');
-          else alert('You do not have permission to open this feature');
+          // [patch: cold_load_no_false_deny] Only show the "permission denied"
+          // toast on a real USER click. When the router is replaying state
+          // (e.g. cold reload) we set window.__router_silent = true; the
+          // permission set may not have hydrated yet, so any "denied" answer
+          // here is unknown, not actually denied. Stay silent in that case.
+          if (!window.__router_silent) {
+            if (typeof settingsToast === 'function') settingsToast('You do not have permission to open this feature', 'error');
+            else alert('You do not have permission to open this feature');
+          }
           return;
         }
         document.querySelectorAll('.as-feature').forEach(b => b.classList.remove('active'));
@@ -16911,23 +17011,24 @@ const GMV_CREATOR_EMAIL = 'ahmed.mouatamid@z.systems';
 const GMV_CREATOR_USER_ID = '23939c8b-61b8-4262-abf1-07d64ed55e4a';
 
 // Read a user_data row by user_id (defaults to current user).
+// [patch: sb_read_dedupe] Routes through _sbReadKeyShared so two callers
+// that both ask for (userId,key) at the same time share one network call.
 async function sbReadKeyAs(userId, key) {
   if (!sb || !userId) return null;
-  const { data, error } = await sb.from('user_data')
-    .select('value').eq('user_id', userId).eq('key', key).maybeSingle();
-  if (error) {
-    console.warn('sbReadKeyAs', error);
+  try {
+    return await _sbReadKeyShared(userId, key);
+  } catch (err) {
+    console.warn('sbReadKeyAs threw', err);
     try {
       window.__gmvSharedReadError = {
         key: key,
-        message: (error && error.message) ? error.message : String(error),
+        message: (err && err.message) ? err.message : String(err),
         when: Date.now()
       };
       if (typeof gmvApplyRoleUI === 'function') gmvApplyRoleUI();
     } catch (_) {}
     return null;
   }
-  return data ? data.value : null;
 }
 
 // For shared keys, viewers read from creator; creator reads from self.
