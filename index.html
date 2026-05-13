@@ -21399,8 +21399,13 @@ async function gmvRenderEngagement(wrap) {
   // hero at the very top so it's always visible on every subtab. Empty if
   // user has no clients or isn't logged in as a seller.
   const _sellerHero = (mySeller && !isCreator) ? gmvBuildSellerHeroHtml(mySeller) : '';
+  // [patch: cp_new_kpis] Pulse banner — BCG-style ops dashboard right under
+  // the hero. Forecast EOM · Top family · Active clients · WoW momentum.
+  const _pulseBanner = (mySeller && !isCreator && typeof gmvBuildPulseBannerHtml === 'function')
+                       ? gmvBuildPulseBannerHtml(mySeller) : '';
   wrap.innerHTML = `
     ${_sellerHero}
+    ${_pulseBanner}
     ${heroCarouselHtml}
     ${rfHero}
     ${uploadsHtml}
@@ -21747,6 +21752,10 @@ const ENG_I18N = {
     pal_sec_ok_t: 'Minimum atteint',     pal_sec_ok_d: '10+ produits engagés, prochain palier en cours.',
     pal_sec_idle_t: 'Pas encore actifs', pal_sec_idle_d: 'Moins de 10 produits engagés.',
     sb_stat_clients: 'Clients', sb_stat_gifts: 'Cadeaux ouverts', sb_stat_gmv: 'GMV cumulé', sb_stat_engaged: 'Engagés',
+    sb_pace_behind: 'En retard', sb_pace_ontrack: 'Dans le tempo', sb_pace_ahead: 'En avance',
+    sb_pipeline: 'Pipeline', sb_days_left: 'Jours restants',
+    sb_pulse_forecast: 'Projection fin de mois', sb_pulse_top_family: 'Famille leader',
+    sb_pulse_active: 'Clients actifs ce mois', sb_pulse_wow: 'Cette semaine vs précédente',
     sb_kpi_clients: 'Clients', sb_kpi_gifts: 'Cadeaux ouverts', sb_kpi_at_min: 'Minimum atteint', sb_kpi_total_gmv: 'GMV total',
     sb_status_title: 'Statut de mon portefeuille',
     pal_portfolio: 'Mon portefeuille', pal_prize_at: 'au',
@@ -21826,6 +21835,10 @@ const ENG_I18N = {
     pal_sec_ok_t: 'Minimum reached',     pal_sec_ok_d: '10+ products committed, working toward next palier.',
     pal_sec_idle_t: 'Not active yet',    pal_sec_idle_d: 'Fewer than 10 products committed.',
     sb_stat_clients: 'Clients', sb_stat_gifts: 'Gifts open', sb_stat_gmv: 'Cumulative GMV', sb_stat_engaged: 'Engaged',
+    sb_pace_behind: 'Behind', sb_pace_ontrack: 'On track', sb_pace_ahead: 'Ahead',
+    sb_pipeline: 'Pipeline', sb_days_left: 'Days left',
+    sb_pulse_forecast: 'Forecast EOM', sb_pulse_top_family: 'Top family',
+    sb_pulse_active: 'Active clients this month', sb_pulse_wow: 'This week vs last',
     sb_kpi_clients: 'Clients', sb_kpi_gifts: 'Gifts open', sb_kpi_at_min: 'At minimum', sb_kpi_total_gmv: 'Total GMV',
     sb_status_title: 'My portfolio status',
     pal_portfolio: 'My portfolio', pal_prize_at: 'at',
@@ -21905,6 +21918,10 @@ const ENG_I18N = {
     pal_sec_ok_t: 'الحد الأدنى مبلوغ', pal_sec_ok_d: '10+ منتجات ملتزم بها، نحو المستوى التالي.',
     pal_sec_idle_t: 'لم ينشط بعد',    pal_sec_idle_d: 'أقل من 10 منتجات ملتزم بها.',
     sb_stat_clients: 'الزبناء', sb_stat_gifts: 'الهدايا المفتوحة', sb_stat_gmv: 'GMV التراكمي', sb_stat_engaged: 'ملتزمين',
+    sb_pace_behind: 'متأخر', sb_pace_ontrack: 'على الطريق', sb_pace_ahead: 'متقدم',
+    sb_pipeline: 'في الطريق', sb_days_left: 'الأيام الباقية',
+    sb_pulse_forecast: 'التوقع آخر الشهر', sb_pulse_top_family: 'العائلة الأولى',
+    sb_pulse_active: 'الزبائن النشطون هاد الشهر', sb_pulse_wow: 'هاد الأسبوع مقابل اللي فات',
     sb_kpi_clients: 'الزبناء', sb_kpi_gifts: 'الهدايا المفتوحة', sb_kpi_at_min: 'الحد الأدنى مبلوغ', sb_kpi_total_gmv: 'GMV الإجمالي',
     sb_status_title: 'حالة محفظتي',
     pal_portfolio: 'محفظتي', pal_prize_at: 'في',
@@ -22713,11 +22730,30 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
   const esc = (s) => gmvEscapeHtmlEng(s);
 
   const lastOrderByPhone = {};
+  // [patch: cp_new_kpis] WoW trend buckets per client: this 7 days vs prior 7.
+  const trendByPhone = {};                                  // { phone: { now, prev } }
+  const pipelineByPhone = {};                               // { phone: pendingMAD }
+  const _nowTs = Date.now();
+  const _t7 = _nowTs - 7 * 86400000;
+  const _t14 = _nowTs - 14 * 86400000;
+  const _pipelineStatuses = { PENDING:1, TO_DELIVER:1, DELIVERY_IN_PROGRESS:1, REPLANED:1, RESCHEDULED:1 };
   (gmv.orders || []).forEach(o => {
-    if (!o || !o.phone || !o.date) return;
-    const ts = +new Date(o.date);
-    if (isFinite(ts) && (!lastOrderByPhone[o.phone] || ts > lastOrderByPhone[o.phone])) {
-      lastOrderByPhone[o.phone] = ts;
+    if (!o || !o.phone) return;
+    if (o.date) {
+      const ts = +new Date(o.date);
+      if (isFinite(ts) && (!lastOrderByPhone[o.phone] || ts > lastOrderByPhone[o.phone])) {
+        lastOrderByPhone[o.phone] = ts;
+      }
+      const mad = (o.amount || 0);
+      if (mad && isFinite(ts)) {
+        if (!trendByPhone[o.phone]) trendByPhone[o.phone] = { now: 0, prev: 0 };
+        if (ts > _t7  && ts <= _nowTs) trendByPhone[o.phone].now  += mad;
+        else if (ts > _t14 && ts <= _t7) trendByPhone[o.phone].prev += mad;
+      }
+    }
+    const st = (o.status || '').toUpperCase();
+    if (_pipelineStatuses[st]) {
+      pipelineByPhone[o.phone] = (pipelineByPhone[o.phone] || 0) + (o.amount || 0);
     }
   });
 
@@ -22781,6 +22817,11 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
     const pctToNext = nextPalier && nextPalier.threshold
       ? Math.min(100, Math.round((cBoth / nextPalier.threshold) * 100))
       : (paliers.length ? 100 : 0);
+    // [patch: cp_new_kpis] Per-row WoW trend + pipeline MAD.
+    const _tBucket = trendByPhone[phone] || { now: 0, prev: 0 };
+    const _trendPct = _tBucket.prev > 0
+      ? Math.round(((_tBucket.now - _tBucket.prev) / _tBucket.prev) * 100)
+      : (_tBucket.now > 0 ? 100 : null);
     return {
       phone, name: c.name || '(no name)',
       cBoth, cM1: cM1v, cM2: cM2v,
@@ -22792,6 +22833,8 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       stPending, stCanceled, stReturned, stToDeliver, stInProgress,
       lastTs, daysSince: lastTs ? Math.floor((Date.now() - lastTs) / 86400000) : null,
       status,
+      trendPct: _trendPct,
+      pipelineMad: pipelineByPhone[phone] || 0,
     };
   });
 
@@ -23009,6 +23052,16 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
     var _pendingSub = (r.stPending > 0)
       ? '<div class="sub">' + _kpiLbls.pending + ' ' + fmt(r.stPending) + '</div>'
       : '';
+    // [patch: cp_new_kpis] Inline trend + pipeline chips next to the status.
+    var _trendChip = '';
+    if (r.trendPct != null) {
+      var _arr = r.trendPct >= 0 ? '↑' : '↓';
+      var _cls = r.trendPct >= 0 ? 'is-up' : 'is-down';
+      _trendChip = '<span class="gmv-cp-trend ' + _cls + '" title="هاد الأسبوع مقابل اللي فات">' + _arr + ' ' + (r.trendPct >= 0 ? '+' : '') + r.trendPct + '%</span>';
+    }
+    var _pipeChip = (r.pipelineMad > 0)
+      ? '<span class="gmv-cp-pipe" title="' + esc(engT('sb_pipeline')) + '"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M3 12h13M11 6l5 6-5 6"/></svg> ' + fmt(r.pipelineMad) + ' MAD</span>'
+      : '';
     return (
       // [patch: row_div_not_button] HTML forbids nested <button> elements;
       // the cog inside the row <button> caused the parser to auto-close the
@@ -23021,6 +23074,8 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
           '<div class="gmv-cp-row-top">' +
             '<div class="gmv-cp-row-name">' + esc(r.name) + '</div>' +
             statusPill(r.status) +
+            _trendChip +
+            _pipeChip +
           '</div>' +
           '<div class="gmv-cp-row-phone">' + esc(r.phone) + ' · ' + T.lastOrder + ': ' + lastOrderTxt +
             (r.focusOrderedCount > 0 ? ' · <span class="gmv-cp-row-buying"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> ' + r.focusOrderedCount + ' ' + T.fromList + '</span>' : '') +
@@ -24932,14 +24987,14 @@ function gmvComputeSellerStats(seller) {
   const caM2 = (typeof gmvCaPerClientPeriod === 'function') ? gmvCaPerClientPeriod(ENG_PERIOD_M2) : {};
   const sortedPaliers = (gmvEngagement.paliers || []).slice().sort((a, b) => (a.palier || 0) - (b.palier || 0));
   let totalGmv = 0, m1Gifts = 0, bothGifts = 0;
-  // [patch: cp_engaged_filter] Count clients with > 10 focus products
-  // committed — same definition as the Engaged filter chip + portfolio hero.
   let engagedCount = 0;
+  let activeCount = 0;
   phones.forEach(phone => {
     const c1 = caM1[phone] || 0;
     const c2 = caM2[phone] || 0;
     const cBoth = c1 + c2;
     totalGmv += cBoth;
+    if (cBoth > 0) activeCount++;
     const targetP = sortedPaliers.find(p => (p.threshold || 0) > cBoth) || null;
     const myProds = Object.keys(cFocus[phone] || {}).filter(c => cFocus[phone][c] && cFocus[phone][c].selected);
     if (myProds.length > 10) engagedCount++;
@@ -24950,8 +25005,110 @@ function gmvComputeSellerStats(seller) {
     if (m1Open) m1Gifts++;
     if (bothOpen) bothGifts++;
   });
-  return { seller, clients: phones.length, totalGmv, giftsTotal: m1Gifts + bothGifts, engagedCount };
+
+  // [patch: cp_new_kpis] BCG-style performance metrics — pace, pipeline,
+  // forecast, top family, WoW momentum.
+  const _now = (function(){
+    try {
+      var f = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca', year:'numeric', month:'2-digit', day:'2-digit' });
+      var s = f.format(new Date()).split('-');
+      return new Date(+s[0], +s[1] - 1, +s[2]);
+    } catch(_) { return new Date(); }
+  })();
+  const _monthEnd = new Date(_now.getFullYear(), _now.getMonth() + 1, 0);
+  const _daysInPeriod = Math.max(1, _monthEnd.getDate());
+  const _daysElapsed  = Math.max(1, Math.min(_daysInPeriod, _now.getDate()));
+  const _daysLeft     = Math.max(0, _daysInPeriod - _daysElapsed);
+  const _topPalier = sortedPaliers.length ? (sortedPaliers[sortedPaliers.length - 1].threshold || 0) : 0;
+  const _target    = _topPalier > 0 ? _topPalier : totalGmv;
+  const _pctTarget = _target > 0 ? (totalGmv / _target) : 0;
+  const _pctTime   = _daysElapsed / _daysInPeriod;
+  const _paceRatio = _pctTime > 0 ? (_pctTarget / _pctTime) : 0;
+  let _paceStatus = 'ontrack';
+  if (_paceRatio < 0.85) _paceStatus = 'behind';
+  else if (_paceRatio > 1.05) _paceStatus = 'ahead';
+  const _forecastEom = Math.round(totalGmv * (_daysInPeriod / _daysElapsed));
+  // Pipeline + top family + WoW pull from gmv.orders / fulfill.orders.
+  const _pipelineSet = { PENDING:1, TO_DELIVER:1, DELIVERY_IN_PROGRESS:1, REPLANED:1, RESCHEDULED:1 };
+  let _pipelineMad = 0;
+  const familyMad = {};
+  let _thisWeek = 0, _prevWeek = 0;
+  try {
+    const _orders = (typeof gmv !== 'undefined' && Array.isArray(gmv.orders)) ? gmv.orders
+                  : (typeof fulfill !== 'undefined' && Array.isArray(fulfill.orders)) ? fulfill.orders : [];
+    const _phoneSet = {}; phones.forEach(p => { _phoneSet[p] = 1; });
+    const _t7  = new Date(_now); _t7.setDate(_now.getDate() - 7);
+    const _t14 = new Date(_now); _t14.setDate(_now.getDate() - 14);
+    const focusByFam = (gmvEngagement.focusProducts || {});
+    _orders.forEach(o => {
+      if (!o || !o.phone || !_phoneSet[o.phone]) return;
+      const mad = (o.amount || o.amt || 0);
+      const st = (o.status || '').toUpperCase();
+      if (_pipelineSet[st]) _pipelineMad += mad;
+      const fam = focusByFam[o.productCode] ? o.productCode
+                : focusByFam[o.productName] ? o.productName : null;
+      if (fam) familyMad[fam] = (familyMad[fam] || 0) + mad;
+      const d = (o.date instanceof Date) ? o.date : (o.date ? new Date(o.date) : null);
+      if (d && !isNaN(d)) {
+        if (d > _t7  && d <= _now) _thisWeek += mad;
+        else if (d > _t14 && d <= _t7) _prevWeek += mad;
+      }
+    });
+  } catch(_) {}
+  let _topFamily = null, _topFamilyMad = 0;
+  Object.keys(familyMad).forEach(f => {
+    if (familyMad[f] > _topFamilyMad) { _topFamily = f; _topFamilyMad = familyMad[f]; }
+  });
+  const _momentumPct = _prevWeek > 0 ? Math.round(((_thisWeek - _prevWeek) / _prevWeek) * 100) : null;
+
+  return {
+    seller, clients: phones.length, totalGmv,
+    giftsTotal: m1Gifts + bothGifts, engagedCount,
+    daysInPeriod: _daysInPeriod, daysElapsed: _daysElapsed, daysLeft: _daysLeft,
+    target: _target, pctTarget: _pctTarget, paceRatio: _paceRatio, paceStatus: _paceStatus,
+    forecastEom: _forecastEom, pipelineMad: _pipelineMad,
+    topFamily: _topFamily, topFamilyMad: _topFamilyMad,
+    activeCount, momentumPct: _momentumPct,
+    thisWeekMad: _thisWeek, prevWeekMad: _prevWeek,
+  };
 }
+// [patch: cp_new_kpis] BCG-style Pulse banner — 4 KPI cells.
+function gmvBuildPulseBannerHtml(seller) {
+  if (!seller) return '';
+  const s = gmvComputeSellerStats(seller);
+  if (!s.clients) return '';
+  const fmt = n => Math.round(n || 0).toLocaleString('en-US');
+  const mom = s.momentumPct;
+  const momLabel = (mom == null) ? '—' : ((mom >= 0 ? '+' : '') + mom + '%');
+  const momCls = (mom == null) ? '' : (mom >= 0 ? 'is-up' : 'is-down');
+  const arrow = (mom == null) ? '' : (mom >= 0 ? '↑ ' : '↓ ');
+  const top = s.topFamily ? s.topFamily : '—';
+  const topSub = s.topFamily ? (fmt(s.topFamilyMad) + ' MAD') : '';
+  return `
+    <section class="sb-pulse">
+      <div class="sb-pulse-cell">
+        <div class="sb-pulse-label">${engT('sb_pulse_forecast')}</div>
+        <div class="sb-pulse-value">${fmt(s.forecastEom)}<small>MAD</small></div>
+        <div class="sb-pulse-sub">${fmt(s.totalGmv)} / ${fmt(s.target)}</div>
+      </div>
+      <div class="sb-pulse-cell">
+        <div class="sb-pulse-label">${engT('sb_pulse_top_family')}</div>
+        <div class="sb-pulse-value" title="${gmvEscapeHtmlEng(top)}">${gmvEscapeHtmlEng(top)}</div>
+        <div class="sb-pulse-sub">${topSub}</div>
+      </div>
+      <div class="sb-pulse-cell">
+        <div class="sb-pulse-label">${engT('sb_pulse_active')}</div>
+        <div class="sb-pulse-value">${s.activeCount}<small>/ ${s.clients}</small></div>
+        <div class="sb-pulse-sub">${s.clients ? Math.round((s.activeCount/s.clients)*100) : 0}%</div>
+      </div>
+      <div class="sb-pulse-cell">
+        <div class="sb-pulse-label">${engT('sb_pulse_wow')}</div>
+        <div class="sb-pulse-value ${momCls}">${arrow}${momLabel}</div>
+        <div class="sb-pulse-sub">${fmt(s.thisWeekMad)} / ${fmt(s.prevWeekMad)}</div>
+      </div>
+    </section>`;
+}
+
 function gmvBuildSellerHeroHtml(seller) {
   if (!seller) return '';
   const s = gmvComputeSellerStats(seller);
@@ -24967,6 +25124,14 @@ function gmvBuildSellerHeroHtml(seller) {
         <div class="sb-hero-stat"><b>${s.giftsTotal}</b><span>${engT('sb_stat_gifts')}</span></div>
         <div class="sb-hero-stat"><b>${fmt(s.totalGmv)}</b><span>MAD · ${engT('sb_stat_gmv')}</span></div>
         <div class="sb-hero-stat"><b>${s.engagedCount || 0}</b><span>${engT('sb_stat_engaged')}</span></div>
+      </div>
+      <!-- [patch: cp_new_kpis] BCG layer: pace pill + pipeline + days left -->
+      <div class="sb-hero-bcg">
+        <span class="sb-pace sb-pace--${s.paceStatus}">
+          <span class="sb-pace-dot"></span>${engT('sb_pace_' + s.paceStatus)}
+        </span>
+        <span class="sb-hero-chip"><b>${fmt(s.pipelineMad || 0)}</b> MAD · ${engT('sb_pipeline')}</span>
+        <span class="sb-hero-chip"><b>${s.daysLeft}</b> · ${engT('sb_days_left')}</span>
       </div>
     </section>`;
 }
@@ -25912,19 +26077,106 @@ function settingsPopulateSellerDropdown() {
   if (help) help.textContent = sorted.length + ' seller(s) detected from your clients file.';
 }
 
+// [patch: seller_credentials_autosuggest] Build a clean login username from
+// the seller's display name. Strips diacritics, lowercases, keeps
+// [a-z0-9._-], collapses runs of spaces/dots, trims to 14 chars.
+function settingsSuggestUsername(seller) {
+  if (!seller) return '';
+  let s = String(seller).normalize('NFD').replace(/[̀-ͯ]/g, '');
+  s = s.toLowerCase()
+       .replace(/[؀-ۿ]/g, '')   // strip Arabic letters
+       .replace(/\s+/g, '.')
+       .replace(/[^a-z0-9._-]/g, '')
+       .replace(/\.{2,}/g, '.')
+       .replace(/^[._-]+|[._-]+$/g, '');
+  if (!s) s = 'seller';
+  return s.slice(0, 14);
+}
+
+// Cryptographically random 10-char password, no ambiguous glyphs.
+function settingsSuggestPassword() {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let out = '';
+  try {
+    const buf = new Uint32Array(10);
+    (window.crypto || window.msCrypto).getRandomValues(buf);
+    for (let i = 0; i < 10; i++) out += alphabet[buf[i] % alphabet.length];
+  } catch (_) {
+    for (let i = 0; i < 10; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  if (!/\d/.test(out))    out = out.slice(0, -1) + '7';
+  if (!/[A-Z]/.test(out)) out = 'K' + out.slice(1);
+  if (!/[a-z]/.test(out)) out = out.slice(0, -1) + 'x';
+  return out;
+}
+
+// Fill the username + password inputs from the seller dropdown selection.
+// `force` overwrites whatever is there now; otherwise only fills if empty.
+function settingsAutoSuggestCredentials(force) {
+  const sel = document.getElementById('stInviteSellerSelect');
+  const userEl = document.getElementById('stInviteUsername');
+  const passEl = document.getElementById('stInvitePassword');
+  if (!sel || !userEl || !passEl) return;
+  const seller = (sel.value || '').trim();
+  if (!seller) return;
+  if (force || !userEl.value) userEl.value = settingsSuggestUsername(seller);
+  if (force || !passEl.value) passEl.value = settingsSuggestPassword();
+}
+
 function settingsOpenInviteModal() {
   const m = document.getElementById('stInviteModal');
   if (m) m.classList.add('open');
   const email = document.getElementById('stInviteEmail');
   const sellerSel = document.getElementById('stInviteSellerSelect');
+  const userEl    = document.getElementById('stInviteUsername');
+  const passEl    = document.getElementById('stInvitePassword');
   if (email) { email.value = ''; setTimeout(() => email.focus(), 50); }
   if (sellerSel) sellerSel.value = '';
+  if (userEl) userEl.value = '';
+  if (passEl) passEl.value = '';
   settingsPopulateSellerDropdown();
   settingsSelectRole('viewer');
   const err = document.getElementById('stInviteError');
   const ok = document.getElementById('stInviteSuccess');
   if (err) err.classList.remove('show');
   if (ok) ok.classList.remove('show');
+  // [patch: seller_credentials_autosuggest] Whenever the creator picks a
+  // seller from the dropdown, fill username + password with suggestions.
+  if (sellerSel && !sellerSel.dataset.autoSuggestWired) {
+    sellerSel.dataset.autoSuggestWired = '1';
+    sellerSel.addEventListener('change', () => settingsAutoSuggestCredentials(true));
+  }
+  // Wire re-roll buttons (rendered in the modal markup).
+  const userBtn = document.getElementById('stInviteUsernameReroll');
+  if (userBtn && !userBtn.dataset.wired) {
+    userBtn.dataset.wired = '1';
+    userBtn.addEventListener('click', () => {
+      const seller = (sellerSel && sellerSel.value || '').trim();
+      if (userEl) userEl.value = settingsSuggestUsername(seller);
+    });
+  }
+  const passBtn = document.getElementById('stInvitePasswordReroll');
+  if (passBtn && !passBtn.dataset.wired) {
+    passBtn.dataset.wired = '1';
+    passBtn.addEventListener('click', () => {
+      if (passEl) passEl.value = settingsSuggestPassword();
+    });
+  }
+  const copyBtn = document.getElementById('stInviteCredCopy');
+  if (copyBtn && !copyBtn.dataset.wired) {
+    copyBtn.dataset.wired = '1';
+    copyBtn.addEventListener('click', () => {
+      const u = (userEl && userEl.value || '').trim();
+      const p = (passEl && passEl.value || '').trim();
+      if (!u && !p) return;
+      const text = 'Login: ' + u + '\nPassword: ' + p;
+      try {
+        navigator.clipboard.writeText(text);
+        copyBtn.textContent = '✓ Copied';
+        setTimeout(() => { copyBtn.textContent = 'Copy login + password'; }, 1500);
+      } catch (_) {}
+    });
+  }
 }
 
 function settingsCloseInviteModal() {
@@ -29830,6 +30082,18 @@ async function fulfillInit() {
   .gmv-cp-sort:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-100); }
 
   .gmv-cp-filters { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  /* [patch: cp_new_kpis] Trend + pipeline chips inline next to status. */
+  .gmv-cp-trend,
+  .gmv-cp-pipe {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .01em;
+    border: 1px solid transparent;
+    font-variant-numeric: tabular-nums;
+  }
+  .gmv-cp-trend.is-up   { background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+  .gmv-cp-trend.is-down { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+  .gmv-cp-pipe { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
   /* [patch: cp_filters_swipe] On phone the filter strip becomes a single
      horizontally-scrollable row instead of wrapping to multiple lines.
      `touch-action: pan-x` opts THIS container out of the parent's pan-y
@@ -30644,6 +30908,62 @@ async function fulfillInit() {
   }
   .sb-hero-stat b  { font-size: 20px; font-weight: 800; display: block; line-height: 1.1; }
   .sb-hero-stat span { opacity: .85; font-size: 11px; letter-spacing: .04em; }
+  /* [patch: cp_new_kpis] BCG hero overlay — pace pill + small chips */
+  .sb-hero-bcg {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
+    position: relative; z-index: 1;
+  }
+  .sb-hero-chip {
+    display: inline-flex; align-items: baseline; gap: 4px;
+    background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.22);
+    padding: 4px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; color: rgba(255,255,255,.95);
+    backdrop-filter: blur(6px);
+  }
+  .sb-hero-chip b { font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+  .sb-pace {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 800; letter-spacing: .02em;
+    border: 1px solid rgba(255,255,255,.25);
+  }
+  .sb-pace-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.35);
+  }
+  .sb-pace--behind   { background: rgba(239,68,68,.25);  color:#fff; }
+  .sb-pace--behind   .sb-pace-dot { background:#ef4444; box-shadow:0 0 0 2px rgba(254,202,202,.6); }
+  .sb-pace--ontrack  { background: rgba(245,158,11,.28); color:#fff; }
+  .sb-pace--ontrack  .sb-pace-dot { background:#f59e0b; box-shadow:0 0 0 2px rgba(254,243,199,.6); }
+  .sb-pace--ahead    { background: rgba(16,185,129,.3);  color:#fff; }
+  .sb-pace--ahead    .sb-pace-dot { background:#10b981; box-shadow:0 0 0 2px rgba(187,247,208,.6); }
+
+  /* [patch: cp_new_kpis] Pulse banner — under the hero, on all subtabs. */
+  .sb-pulse {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    margin: 0 0 14px;
+  }
+  @media (max-width: 720px) {
+    .sb-pulse { grid-template-columns: repeat(2, 1fr); }
+  }
+  .sb-pulse-cell {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;
+    min-width: 0;
+  }
+  .sb-pulse-label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .05em;
+    text-transform: uppercase; color: #64748b;
+  }
+  .sb-pulse-value {
+    font-size: 17px; font-weight: 800; color: #0f172a;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sb-pulse-value small { font-size: 11px; font-weight: 700; color: #64748b; margin-inline-start: 2px; }
+  .sb-pulse-value.is-up   { color: #047857; }
+  .sb-pulse-value.is-down { color: #b91c1c; }
+  .sb-pulse-sub { font-size: 11px; color: #64748b; font-weight: 600; }
 
   .sb-kpi-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -31434,15 +31754,26 @@ async function fulfillInit() {
       <div class="st-help" id="stInviteSellerHelp">Sellers come from your uploaded clients file in GMV Tracker.</div>
     </div>
     <!-- [patch: seller_username_password] Seller-only username + password -->
+    <!-- [patch: seller_credentials_autosuggest] both fields auto-fill when
+         the seller is picked; the 🔄 buttons re-roll a new suggestion. -->
     <div class="st-form-row st-conditional" id="stSellerUsernameRow">
       <label for="stInviteUsername">Username (login)</label>
-      <input type="text" id="stInviteUsername" placeholder="e.g. anas" autocomplete="off" spellcheck="false" autocapitalize="none">
-      <div class="st-help">Seller will type just this on login (no @). Letters, numbers, . _ - only.</div>
+      <div style="display:flex;gap:6px;align-items:stretch">
+        <input type="text" id="stInviteUsername" placeholder="auto-filled from seller name" autocomplete="off" spellcheck="false" autocapitalize="none" style="flex:1">
+        <button type="button" id="stInviteUsernameReroll" class="st-btn secondary" style="white-space:nowrap;padding:0 12px;font-size:12px" title="Suggest a different username">🔄</button>
+      </div>
+      <div class="st-help">Auto-suggested from the seller's name. Letters / numbers / . _ - only.</div>
     </div>
     <div class="st-form-row st-conditional" id="stSellerPasswordRow">
       <label for="stInvitePassword">Initial password</label>
-      <input type="text" id="stInvitePassword" placeholder="At least 6 characters" autocomplete="off">
-      <div class="st-help">Tell the seller this password in person. They can change it later.</div>
+      <div style="display:flex;gap:6px;align-items:stretch">
+        <input type="text" id="stInvitePassword" placeholder="auto-generated when seller is picked" autocomplete="off" style="flex:1;font-family:ui-monospace,monospace;letter-spacing:.04em">
+        <button type="button" id="stInvitePasswordReroll" class="st-btn secondary" style="white-space:nowrap;padding:0 12px;font-size:12px" title="Generate a new password">🔄</button>
+      </div>
+      <div class="st-help">
+        <button type="button" id="stInviteCredCopy" class="st-btn secondary" style="padding:4px 10px;font-size:12px;margin-top:4px">Copy login + password</button>
+        Tell the seller in person. They can change it later.
+      </div>
     </div>
     <div class="st-form-actions">
       <button type="button" class="st-btn secondary" id="stInviteCancel">Cancel</button>
