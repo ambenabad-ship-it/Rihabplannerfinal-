@@ -22399,11 +22399,11 @@ const ENG_I18N = {
     pal_sec_won_t: 'Cadeaux débloqués', pal_sec_won_d: 'Au moins un cadeau de palier ouvert.',
     pal_sec_ok_t: 'Minimum atteint',     pal_sec_ok_d: '10+ produits engagés, prochain palier en cours.',
     pal_sec_idle_t: 'Pas encore actifs', pal_sec_idle_d: 'Moins de 10 produits engagés.',
-    sb_stat_clients: 'Clients', sb_stat_gifts: 'Cadeaux ouverts', sb_stat_gmv: 'GMV cumulé', sb_stat_engaged: 'Engagés',
+    sb_stat_clients: 'Clients', sb_stat_gifts: 'Cadeaux ouverts', sb_stat_gmv: 'GMV livré', sb_stat_engaged: 'Engagés',
     sb_pace_behind: 'En retard', sb_pace_ontrack: 'Dans le tempo', sb_pace_ahead: 'En avance',
-    sb_pipeline: 'Pipeline', sb_days_left: 'Jours restants',
-    sb_pulse_forecast: 'Projection fin de mois', sb_pulse_top_family: 'Famille leader',
-    sb_pulse_active: 'Clients actifs ce mois', sb_pulse_wow: 'Cette semaine vs précédente',
+    sb_pipeline: 'En route (non livré)', sb_days_left: 'Jours restants',
+    sb_pulse_forecast: 'Projection livraison fin de mois', sb_pulse_top_family: 'Famille leader',
+    sb_pulse_active: 'Clients actifs ce mois', sb_pulse_wow: 'Livré · cette semaine vs précédente',
     sb_kpi_clients: 'Clients', sb_kpi_gifts: 'Cadeaux ouverts', sb_kpi_at_min: 'Minimum atteint', sb_kpi_total_gmv: 'GMV total',
     sb_status_title: 'Statut de mon portefeuille',
     pal_portfolio: 'Mon portefeuille', pal_prize_at: 'au',
@@ -22482,11 +22482,11 @@ const ENG_I18N = {
     pal_sec_won_t: 'Gifts unlocked',     pal_sec_won_d: 'At least one palier gift opened.',
     pal_sec_ok_t: 'Minimum reached',     pal_sec_ok_d: '10+ products committed, working toward next palier.',
     pal_sec_idle_t: 'Not active yet',    pal_sec_idle_d: 'Fewer than 10 products committed.',
-    sb_stat_clients: 'Clients', sb_stat_gifts: 'Gifts open', sb_stat_gmv: 'Cumulative GMV', sb_stat_engaged: 'Engaged',
+    sb_stat_clients: 'Clients', sb_stat_gifts: 'Gifts open', sb_stat_gmv: 'Delivered GMV', sb_stat_engaged: 'Engaged',
     sb_pace_behind: 'Behind', sb_pace_ontrack: 'On track', sb_pace_ahead: 'Ahead',
-    sb_pipeline: 'Pipeline', sb_days_left: 'Days left',
-    sb_pulse_forecast: 'Forecast EOM', sb_pulse_top_family: 'Top family',
-    sb_pulse_active: 'Active clients this month', sb_pulse_wow: 'This week vs last',
+    sb_pipeline: 'In transit (not delivered)', sb_days_left: 'Days left',
+    sb_pulse_forecast: 'Delivered forecast EOM', sb_pulse_top_family: 'Top family',
+    sb_pulse_active: 'Active clients this month', sb_pulse_wow: 'Delivered · this week vs last',
     sb_kpi_clients: 'Clients', sb_kpi_gifts: 'Gifts open', sb_kpi_at_min: 'At minimum', sb_kpi_total_gmv: 'Total GMV',
     sb_status_title: 'My portfolio status',
     pal_portfolio: 'My portfolio', pal_prize_at: 'at',
@@ -22565,11 +22565,11 @@ const ENG_I18N = {
     pal_sec_won_t: 'الهدايا مفتوحة',  pal_sec_won_d: 'هدية مستوى واحدة على الأقل مفتوحة.',
     pal_sec_ok_t: 'الحد الأدنى مبلوغ', pal_sec_ok_d: '10+ منتجات ملتزم بها، نحو المستوى التالي.',
     pal_sec_idle_t: 'لم ينشط بعد',    pal_sec_idle_d: 'أقل من 10 منتجات ملتزم بها.',
-    sb_stat_clients: 'الزبناء', sb_stat_gifts: 'الهدايا المفتوحة', sb_stat_gmv: 'GMV التراكمي', sb_stat_engaged: 'ملتزمين',
-    sb_pace_behind: 'متأخر', sb_pace_ontrack: 'على الطريق', sb_pace_ahead: 'متقدم',
-    sb_pipeline: 'في الطريق', sb_days_left: 'الأيام الباقية',
-    sb_pulse_forecast: 'التوقع آخر الشهر', sb_pulse_top_family: 'العائلة الأولى',
-    sb_pulse_active: 'الزبائن النشطون هاد الشهر', sb_pulse_wow: 'هاد الأسبوع مقابل اللي فات',
+    sb_stat_clients: 'الزبناء', sb_stat_gifts: 'الهدايا المفتوحة', sb_stat_gmv: 'GMV الموصّل', sb_stat_engaged: 'ملتزمين',
+    sb_pace_behind: 'متأخر', sb_pace_ontrack: 'على المسار', sb_pace_ahead: 'متقدم',
+    sb_pipeline: 'في الطريق (لم يُسلَّم)', sb_days_left: 'الأيام الباقية',
+    sb_pulse_forecast: 'توقع التسليم آخر الشهر', sb_pulse_top_family: 'العائلة الأولى',
+    sb_pulse_active: 'الزبائن النشطون هذا الشهر', sb_pulse_wow: 'موصّل · هذا الأسبوع مقابل الماضي',
     sb_kpi_clients: 'الزبناء', sb_kpi_gifts: 'الهدايا المفتوحة', sb_kpi_at_min: 'الحد الأدنى مبلوغ', sb_kpi_total_gmv: 'GMV الإجمالي',
     sb_status_title: 'حالة محفظتي',
     pal_portfolio: 'محفظتي', pal_prize_at: 'في',
@@ -23423,12 +23423,14 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
       lastOrderByPhone[o.phone] = ts;
     }
     const mad = (o.amount || 0);
-    if (mad) {
+    const st = (o.status || '').toUpperCase();
+    // [patch: delivered_only_metrics] Trend chip uses DELIVERED-only just
+    // like the cumulative GMV hero. Pipeline keeps its own pending bucket.
+    if (mad && st === 'DELIVERED') {
       if (!trendByPhone[o.phone]) trendByPhone[o.phone] = { now: 0, prev: 0 };
       if (ts > _t7  && ts <= _nowTs) trendByPhone[o.phone].now  += mad;
       else if (ts > _t14 && ts <= _t7) trendByPhone[o.phone].prev += mad;
     }
-    const st = (o.status || '').toUpperCase();
     if (_pipelineStatuses[st]) {
       pipelineByPhone[o.phone] = (pipelineByPhone[o.phone] || 0) + (o.amount || 0);
     }
@@ -25756,6 +25758,11 @@ function gmvComputeSellerStats(seller) {
       const mad = (o.amount || o.amt || 0);
       const st = (o.status || '').toUpperCase();
       if (_pipelineSet[st]) _pipelineMad += mad;
+      // [patch: delivered_only_metrics] Top-family + WoW use the SAME
+      // definition as the cumulative GMV hero number — delivered only.
+      // Without this filter, WoW could claim "last week 392k" while the
+      // month total is only 20k (pending/canceled orders inflate WoW).
+      if (st !== 'DELIVERED') return;
       const fam = focusByFam[o.productCode] ? o.productCode
                 : focusByFam[o.productName] ? o.productName : null;
       if (fam) familyMad[fam] = (familyMad[fam] || 0) + mad;
