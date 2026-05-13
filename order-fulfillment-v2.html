@@ -1550,6 +1550,12 @@
 
   /* Hide developer-only chrome from sellers */
   body[data-embed="seller"] #coPhaseDevBar { display: none !important; }
+  /* [patch: creator_dev_when_impersonating] Allow the phase-override bar
+     back through even in seller embed mode when the underlying real user
+     is the creator (parent passed dev=1 in the hash). */
+  body[data-embed="seller"][data-creator-dev="1"] #coPhaseDevBar {
+    display: flex !important;
+  }
   body[data-embed="seller"] [data-role-badge="creator"],
   body[data-embed="seller"] .role-badge-creator { display: none !important; }
 
@@ -1571,8 +1577,15 @@
   // preview chrome and picks the right stage.
   (function () {
     try {
-      var m = (location.hash || '').match(/role=(seller|creator)/);
+      var h = location.hash || '';
+      var m = h.match(/role=(seller|creator)/);
       if (m) document.body.setAttribute('data-embed', m[1]);
+      // [patch: creator_dev_when_impersonating] Parent appends `dev=1` when
+      // the underlying signed-in user is the real creator — we want the
+      // phase-override bar even while viewing the seller UI for testing.
+      if (/[#&]dev=1/.test(h)) {
+        document.body.setAttribute('data-creator-dev', '1');
+      }
     } catch (_) {}
   })();
   // [patch: co_seller_polish] Zoom-shortcut blockers (Ctrl+wheel, Ctrl+±/0,
@@ -3776,7 +3789,12 @@ window.addEventListener('resize', updateTabIndicator);
     setInterval(applyRealPhase, 60*1000);
 
     // [patch: creator_phase_override] Floating control — creator only.
-    if (role === 'creator') {
+    // Also enabled when the underlying real user is the creator but is
+    // currently viewing as a seller (data-creator-dev="1" set via dev=1
+    // in the iframe hash from the parent app).
+    var _showDevBar = (role === 'creator') ||
+                      (document.body && document.body.getAttribute('data-creator-dev') === '1');
+    if (_showDevBar) {
       var phaseHost = document.createElement('div');
       phaseHost.id = 'coPhaseDevBar';
       phaseHost.setAttribute('dir', 'ltr');
