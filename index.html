@@ -14258,33 +14258,29 @@ async function sbSignOut() {
   try { await sb.auth.signOut(); } catch (_) {}
   sbUser = null;
 }
-// [patch: sb_read_dedupe] In-flight cache so two initializers that both
-// ask for the same (user_id,key) share ONE network call. The audit found
-// seller_engagements firing 3× and several others 2× per cold load.
-const _sbReadInflight = new Map();      // 'uid|key' -> Promise<value>
-function _sbReadKeyShared(userId, key) {
-  if (!sb || !userId) return Promise.resolve(null);
-  const cacheKey = userId + '|' + key;
-  const inflight = _sbReadInflight.get(cacheKey);
-  if (inflight) return inflight;
-  const p = sb.from('user_data')
-    .select('value').eq('user_id', userId).eq('key', key).maybeSingle()
-    .then(({ data, error }) => {
-      _sbReadInflight.delete(cacheKey);
-      if (error) { console.error('sbRead', key, error); return null; }
-      return data ? data.value : null;
-    })
-    .catch((err) => {
-      _sbReadInflight.delete(cacheKey);
-      console.error('sbRead threw', key, err);
-      return null;
-    });
-  _sbReadInflight.set(cacheKey, p);
-  return p;
-}
+// [patch: sb_read_dedupe_inline] Dedupe lives entirely inside sbReadKey
+// (no shared helper). Two concurrent callers for the same (user, key)
+// reuse one Promise instead of firing 2× / 3× network requests.
 async function sbReadKey(key) {
   if (!sb || !sbUser) return null;
-  return _sbReadKeyShared(sbUser.id, key);
+  window.__sbReadInflight = window.__sbReadInflight || new Map();
+  var ck = sbUser.id + '|' + key;
+  var inflight = window.__sbReadInflight.get(ck);
+  if (inflight) { try { return await inflight; } catch (_) { return null; } }
+  var p = sb.from('user_data')
+    .select('value').eq('user_id', sbUser.id).eq('key', key).maybeSingle()
+    .then(function (res) {
+      window.__sbReadInflight.delete(ck);
+      if (res && res.error) { console.error('sbReadKey', res.error); return null; }
+      return (res && res.data) ? res.data.value : null;
+    })
+    .catch(function (err) {
+      window.__sbReadInflight.delete(ck);
+      console.error('sbReadKey threw', err);
+      return null;
+    });
+  window.__sbReadInflight.set(ck, p);
+  return p;
 }
 async function sbWriteKey(key, value) {
   if (!sb || !sbUser) return false;
@@ -17011,24 +17007,49 @@ const GMV_CREATOR_EMAIL = 'ahmed.mouatamid@z.systems';
 const GMV_CREATOR_USER_ID = '23939c8b-61b8-4262-abf1-07d64ed55e4a';
 
 // Read a user_data row by user_id (defaults to current user).
-// [patch: sb_read_dedupe] Routes through _sbReadKeyShared so two callers
-// that both ask for (userId,key) at the same time share one network call.
+// [patch: sb_read_dedupe_inline] Dedupe is INLINE so we don't depend on
+// any external helper that might not be hoisted (Safari quirks). Per-
+// process Map keyed by (userId, key) — concurrent callers share one
+// network call instead of firing 2× or 3×.
 async function sbReadKeyAs(userId, key) {
   if (!sb || !userId) return null;
-  try {
-    return await _sbReadKeyShared(userId, key);
-  } catch (err) {
-    console.warn('sbReadKeyAs threw', err);
-    try {
-      window.__gmvSharedReadError = {
-        key: key,
-        message: (err && err.message) ? err.message : String(err),
-        when: Date.now()
-      };
-      if (typeof gmvApplyRoleUI === 'function') gmvApplyRoleUI();
-    } catch (_) {}
-    return null;
-  }
+  window.__sbReadInflight = window.__sbReadInflight || new Map();
+  var ck = userId + '|' + key;
+  var inflight = window.__sbReadInflight.get(ck);
+  if (inflight) { try { return await inflight; } catch (_) { return null; } }
+  var p = sb.from('user_data')
+    .select('value').eq('user_id', userId).eq('key', key).maybeSingle()
+    .then(function (res) {
+      window.__sbReadInflight.delete(ck);
+      if (res && res.error) {
+        console.warn('sbReadKeyAs', res.error);
+        try {
+          window.__gmvSharedReadError = {
+            key: key,
+            message: (res.error.message) ? res.error.message : String(res.error),
+            when: Date.now()
+          };
+          if (typeof gmvApplyRoleUI === 'function') gmvApplyRoleUI();
+        } catch (_) {}
+        return null;
+      }
+      return (res && res.data) ? res.data.value : null;
+    })
+    .catch(function (err) {
+      window.__sbReadInflight.delete(ck);
+      console.warn('sbReadKeyAs threw', err);
+      try {
+        window.__gmvSharedReadError = {
+          key: key,
+          message: (err && err.message) ? err.message : String(err),
+          when: Date.now()
+        };
+        if (typeof gmvApplyRoleUI === 'function') gmvApplyRoleUI();
+      } catch (_) {}
+      return null;
+    });
+  window.__sbReadInflight.set(ck, p);
+  return p;
 }
 
 // For shared keys, viewers read from creator; creator reads from self.
