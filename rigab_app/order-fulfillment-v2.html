@@ -2,7 +2,7 @@
 <!-- saved from url=(0138)file:///C:/Users/KAMALS~1/AppData/Local/Packages/CLAUDE~1/LOCALC~1/Roaming/Claude/LOCAL-~1/8C7000~1/FA2E9C~1/LOA3B1~1/outputs/ORDER-~1.HTM -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Order Fulfillment — Preview v5</title>
 <link rel="preconnect" href="https://fonts.googleapis.com/">
 <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
@@ -1379,6 +1379,32 @@
   body[data-embed="creator"] #sellerStage { display: none !important; }
   body[data-embed="seller"]  #creatorStage { display: none !important; }
   body[data-embed="seller"] .ff-mobile { max-width: 100%; min-height: 100vh; border-radius: 0; }
+
+  /* [patch: co_seller_polish] Viewport lock + zoom prevention + RTL for sellers */
+  body[data-embed="seller"] {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-x: none !important;
+    direction: rtl !important;
+  }
+  body[data-embed="seller"] * { touch-action: manipulation; }
+  body[data-embed="seller"] html, body[data-embed="seller"] body { overflow-x: hidden !important; }
+
+  /* Hide developer-only chrome from sellers */
+  body[data-embed="seller"] #coPhaseDevBar { display: none !important; }
+  body[data-embed="seller"] [data-role-badge="creator"],
+  body[data-embed="seller"] .role-badge-creator { display: none !important; }
+
+  /* Compact the orange CO header (~40% less vertical) when embedded as seller */
+  body[data-embed="seller"] .m-header,
+  body[data-embed="seller"] .ff-header {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+  body[data-embed="seller"] .m-header-title,
+  body[data-embed="seller"] .ff-title { font-size: 16px !important; }
+  body[data-embed="seller"] .m-stepper, body[data-embed="seller"] .ff-stepper { padding: 6px 0 !important; }
 </style>
 </head>
 <body>
@@ -1390,6 +1416,27 @@
     try {
       var m = (location.hash || '').match(/role=(seller|creator)/);
       if (m) document.body.setAttribute('data-embed', m[1]);
+    } catch (_) {}
+  })();
+  // [patch: co_seller_polish] Zoom-shortcut blockers (Ctrl+wheel, Ctrl+±/0,
+  // pinch gestures, double-tap). Applied only in seller embed mode.
+  (function(){
+    try {
+      var inSeller = (location.hash || '').indexOf('role=seller') >= 0;
+      if (!inSeller) return;
+      window.addEventListener('wheel', function(e){ if (e.ctrlKey || e.metaKey) e.preventDefault(); }, { passive: false });
+      window.addEventListener('keydown', function(e){
+        if ((e.ctrlKey || e.metaKey) && ['+','-','=','0','Add','Subtract'].indexOf(e.key) >= 0) e.preventDefault();
+      });
+      ['gesturestart','gesturechange','gestureend'].forEach(function(evt){
+        document.addEventListener(evt, function(e){ e.preventDefault(); }, { passive: false });
+      });
+      var _lastTap = 0;
+      document.addEventListener('touchend', function(e){
+        var now = Date.now();
+        if (now - _lastTap <= 300) e.preventDefault();
+        _lastTap = now;
+      }, { passive: false });
     } catch (_) {}
   })();
   // [patch: number_format_space_comma] Override Number.toLocaleString so every
@@ -1785,17 +1832,17 @@
                 </div>
               </div>
 
-              <!-- Phase explanations -->
+              <!-- [patch: help_v3] Final wording — user-approved Darija. -->
               <div class="help-phase" data-step="1">
                 <div class="ph-num">1</div>
                 <div class="ph-body">
-                  <h3><span>اختر و رتب</span><span class="ph-now hidden">أنت هنا</span></h3>
-                  <div class="ph-time">من <bdi>12:01 ظهرا</bdi> إلى <bdi>20:00 ليلا</bdi> · حوالي 8 ساعات</div>
-                  <div class="ph-do">قلب على الكليانات بالتيليفون أو بالاسم. ضغط على كليان باش تشوف الطلبيات ديالو، ومن بعد على طلبية باش تشوف المنتوجات. زيد الطلبيات اللي بغيتي يتسالاو <strong>غدا</strong>، ورتبهم بالأسهم ↑ / ↓.</div>
+                  <h3><span>اختر و رتّب</span><span class="ph-now hidden">أنت هنا</span></h3>
+                  <div class="ph-time">🕐 من <bdi>12:01</bdi> حتى لـ <bdi>20:00</bdi> · حوالي 8 سوايع</div>
+                  <div class="ph-do">قلّب على زبائنك بالهاتف أو بالاسم. ضغط على أي زبون باش تشوف الطلبيات ديالو، ضغط على أي طلبية باش تشوف المنتوجات ديالها. اختار الطلبيات اللي بغيتي ياخدو السطوك <strong>غداً</strong> ورتّبهم بـ ↑ / ↓.</div>
                   <div class="ph-tips">
-                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>اللي في الفوق كياخذ الستوك الأول إلا نقص — حط أحسن كليان عندك في الفوق.</span></div>
-                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>تقدر تزيد، تنحي ولا ترتب حتى للساعة 20:00.</span></div>
-                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>غير الكليانات اللي عندهم منتوجات متوفرة هما اللي كيتبانو.</span></div>
+                    <div class="tip">⬆️ <span>الطلبيات اللي لفوق كياخدو السطوك اللولين.</span></div>
+                    <div class="tip">⏰ <span>تقدر تزيد، تنحي ولا تبدّل حتى للساعة 20:00.</span></div>
+                    <div class="tip">📦 <span>كيبانو غير الطلبيات اللي فيها منتوجات متوفرة.</span></div>
                   </div>
                 </div>
               </div>
@@ -1803,12 +1850,11 @@
               <div class="help-phase" data-step="2">
                 <div class="ph-num">2</div>
                 <div class="ph-body">
-                  <h3><span>توزيع الستوك</span><span class="ph-now hidden">أنت هنا</span></h3>
-                  <div class="ph-time">من <bdi>20:00</bdi> إلى <bdi>21:00 ليلا</bdi> · ساعة وحدة</div>
-                  <div class="ph-do">النظام كيوزع الستوك على الطلبيات المرتبة في الفوق، عند جميع البياعة. القائمة ديالك <strong>مقفلة</strong>، تقدر تشوفها ولكن ما تقدرش تبدلها.</div>
+                  <h3><span>توزيع السطوك</span><span class="ph-now hidden">أنت هنا</span></h3>
+                  <div class="ph-time">🕐 من <bdi>20:00</bdi> حتى لـ <bdi>21:00</bdi> · ساعة وحدة</div>
+                  <div class="ph-do">النظام كيوزع السطوك حسب الترتيب. اللائحة ديالك <strong>كتولي مقفولة</strong> — تقدر تشوفها ولكن ما تقدرش تبدلها.</div>
                   <div class="ph-tips">
-                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>ارتاح — ما كاين والو دير دابا.</span></div>
-                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>النتائج كتبان على الساعة 21:00 بالضبط.</span></div>
+                    <div class="tip">✅ <span>النتائج كتبان مع 21:00 بالضبط.</span></div>
                   </div>
                 </div>
               </div>
@@ -1816,13 +1862,13 @@
               <div class="help-phase" data-step="3">
                 <div class="ph-num">3</div>
                 <div class="ph-body">
-                  <h3><span>أكد التوزيع</span><span class="ph-now hidden">أنت هنا</span></h3>
-                  <div class="ph-time">من <bdi>21:00 ليلا</bdi> إلى <bdi>10:59 صباحا</bdi> غدا · حوالي 14 ساعة</div>
-                  <div class="ph-do">لكل طلبية غادي تشوف <strong>كامل</strong>، <strong>ناقص</strong>، ولا <strong>ما كاينش</strong>. ضغط على <strong>أكد</strong> باش يتسالى غدا، ولا <strong>تخطى</strong> باش تنحيه من اللائحة.</div>
+                  <h3><span>أكّد التوزيع</span><span class="ph-now hidden">أنت هنا</span></h3>
+                  <div class="ph-time">🕐 من <bdi>21:00 ليلاً</bdi> حتى لـ <bdi>10:59 صباحاً</bdi> · حوالي 14 ساعة</div>
+                  <div class="ph-do">لكل طلبية كتشوف <strong>كامل</strong>، <strong>ناقص</strong> ولا <strong>ما كاينش</strong>. اضغط <strong>أكّد</strong> باش يتسالى غداً، ولا <strong>تخطى</strong> باش تنحيه من اللائحة.</div>
                   <div class="ph-tips">
-                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>حتى الطلبيات الناقصة تقدر تأكدها — الكليان كياخذ اللي كاين في الستوك.</span></div>
-                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>تخطى الطلبيات اللي نسبة الستوك ديالها قليلة بزاف.</span></div>
-                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>القرارات <strong>كتقفل على الساعة 10:59 صباحا بالضبط</strong> — ما تتأخرش.</span></div>
+                    <div class="tip">📦 <span>حتى الطلبيات الناقصة تقدر تأكدها — الزبون كياخد اللي كاين.</span></div>
+                    <div class="tip">⏭️ <span>تخطى الطلبيات اللي نسبة السطوك ديالها قليلة بزاف.</span></div>
+                    <div class="tip">⚠️ <span>القرارات كتقفل <strong>10:59 صباحاً بالضبط</strong> — ما تتأخرش.</span></div>
                   </div>
                 </div>
               </div>
@@ -1831,11 +1877,11 @@
                 <div class="ph-num">4</div>
                 <div class="ph-body">
                   <h3><span>الإرسال</span><span class="ph-now hidden">أنت هنا</span></h3>
-                  <div class="ph-time">من <bdi>10:59</bdi> إلى <bdi>11:59 صباحا</bdi> · ساعة وحدة</div>
-                  <div class="ph-do">القرارات ديالك وصلات للسوبرفيزور على الساعة <strong>10:59 صباحا</strong>. ما بين الساعة 11:00 و 11:58، الإرسال راه <strong>في طور المعالجة</strong> عند السوبرفيزور و المسؤولين على التوصيل. على الساعة <strong>11:59 صباحا</strong> كيتم الإرسال النهائي لرجالة التوصيل. ما عندكش حتى شي حاجة دير.</div>
+                  <div class="ph-time">🕐 من <bdi>10:59</bdi> حتى لـ <bdi>11:59 صباحاً</bdi> · ساعة وحدة</div>
+                  <div class="ph-do">قراراتك وصلات للسوبرفيزور على <strong>10:59</strong>. ما بين 11:00 و 11:58 الإرسال راه في طور المعالجة. على <strong>11:59 صباحاً</strong> كيتم الإرسال النهائي لرجالة التوصيل. ما عندك ما تدير.</div>
                   <div class="ph-tips">
-                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>العداد كيبين الوقت اللي باقي للإرسال النهائي.</span></div>
-                    <div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>النافذة الجديدة كتفتح على الساعة 12:01 للتوصيل ديال بعد غدا.</span></div>
+                    <div class="tip">⏳ <span>العداد كيبين الوقت اللي باقي للإرسال النهائي.</span></div>
+                    <div class="tip">🔄 <span>نافذة جديدة كتفتح <strong>12:01</strong> للتوصيل ديال بعد غداً.</span></div>
                   </div>
                 </div>
               </div>
@@ -1847,11 +1893,11 @@
                   نصائح سريعة
                 </h4>
                 <ul>
-                  <li><strong>قلب بذكاء.</strong> كتب شي جزء من رقم التيليفون (مثلا <code dir="ltr" style="font-family:var(--font-mono);font-size:11px;background:#fff;padding:1px 5px;border-radius:4px;border:.5px solid var(--border);display:inline-block">6612</code>) ولا شي حروف من اسم الكليان.</li>
-                  <li><strong>النقطة الخضراء</strong> على منتوج كتعني بلي راه متوفر اليوم. المنتوجات الباهتة ما غاديش يتسالاو.</li>
-                  <li><strong>الكليانات الكبار (AMA)</strong> كاينين في تبويب آخر — كيتسالاو ديركت من المورد قبل 4 أيام.</li>
-                  <li><strong>إلى ما كنتش متأكد،</strong> رتب حسب قيمة الطلبية (الأكبر فوق) ولا حسب وفاء الكليان.</li>
-                  <li><strong>عيط مباشرة.</strong> كليك على رقم التيليفون فأي كرت باش تعيط للكليان من التيليفون ديالك.</li>
+                  <li>🔎 <strong>قلّب بذكاء.</strong> كتب شي جزء من الرقم (مثلاً <code dir="ltr" style="font-family:var(--font-mono);font-size:11px;background:#fff;padding:1px 5px;border-radius:4px;border:.5px solid var(--border);display:inline-block">6612</code>) ولا شي حروف من اسم الزبون.</li>
+                  <li>🟢 <strong>نقطة خضراء</strong> على منتوج = متوفر اليوم. المنتوجات الباهتة ما غاديش يتسالاو.</li>
+                  <li>🏬 <strong>الزبائن الكبار</strong> عندهم تبويب خاص — كيتزوّدو ديركت من المورد بعد 4 أيام.</li>
+                  <li>📊 <strong>إلى ما كنتش متأكد،</strong> رتب حسب قيمة الطلبية (الأكبر فوق) ولا حسب وفاء الزبون.</li>
+                  <li>📞 <strong>عيّط مباشرة.</strong> كليك على الرقم فأي كرت باش تعيّط للزبون.</li>
                 </ul>
               </div>
             </div>
