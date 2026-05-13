@@ -26106,18 +26106,40 @@ function settingsPopulateSellerDropdown() {
 
 // [patch: seller_credentials_autosuggest] Build a clean login username from
 // the seller's display name. Strips diacritics, lowercases, keeps
-// [a-z0-9._-], collapses runs of spaces/dots, trims to 14 chars.
+// [a-z0-9._-]. For Arabic-only names we transliterate the most common
+// letters to Latin so the username is meaningful. Always returns something
+// usable (with a short random suffix if all else fails).
 function settingsSuggestUsername(seller) {
-  if (!seller) return '';
-  let s = String(seller).normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (!seller) seller = '';
+  var AR_MAP = {
+    'ا':'a','أ':'a','إ':'i','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h',
+    'خ':'kh','د':'d','ذ':'dh','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d',
+    'ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','ل':'l','م':'m',
+    'ن':'n','ه':'h','و':'w','ي':'y','ى':'a','ة':'h','ء':'','ؤ':'w','ئ':'y',
+  };
+  var s = String(seller).normalize('NFD').replace(/[̀-ͯ]/g, '');
+  s = s.split('').map(function(c){ return AR_MAP[c] != null ? AR_MAP[c] : c; }).join('');
   s = s.toLowerCase()
-       .replace(/[؀-ۿ]/g, '')   // strip Arabic letters
        .replace(/\s+/g, '.')
        .replace(/[^a-z0-9._-]/g, '')
        .replace(/\.{2,}/g, '.')
        .replace(/^[._-]+|[._-]+$/g, '');
   if (!s) s = 'seller';
-  return s.slice(0, 14);
+  // If only the fallback or a very short string remains, append a 4-char
+  // random suffix so creating multiple sellers in a row doesn't collide.
+  if (s === 'seller' || s.length < 3) {
+    var alpha = 'abcdefghjkmnpqrstuvwxyz23456789';
+    var suffix = '';
+    try {
+      var buf = new Uint32Array(4);
+      (window.crypto || window.msCrypto).getRandomValues(buf);
+      for (var i = 0; i < 4; i++) suffix += alpha[buf[i] % alpha.length];
+    } catch (_) {
+      for (var j = 0; j < 4; j++) suffix += alpha[Math.floor(Math.random() * alpha.length)];
+    }
+    s = s + '.' + suffix;
+  }
+  return s.slice(0, 18);
 }
 
 // Cryptographically random 10-char password, no ambiguous glyphs.
@@ -26279,7 +26301,23 @@ async function settingsSubmitInvite() {
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating…'; }
     try {
       const { data, error } = await sb.functions.invoke('create-seller', { body: { username, password, seller } });
-      if (error) throw new Error(error.message || String(error));
+      // [patch: edge_fn_better_errors] supabase-js wraps the non-2xx response
+      // body in error.context. Pull the real message out so we don't show a
+      // generic "non-2xx" string.
+      if (error) {
+        var realMsg = error.message || String(error);
+        try {
+          if (error.context && typeof error.context.json === 'function') {
+            var body = await error.context.json();
+            if (body && body.error) realMsg = body.error;
+            else if (body && body.message) realMsg = body.message;
+          } else if (error.context && typeof error.context.text === 'function') {
+            var txt = await error.context.text();
+            if (txt) realMsg = txt;
+          }
+        } catch (_){}
+        throw new Error(realMsg);
+      }
       if (data && data.error) throw new Error(data.error);
       const email = (data && data.user && data.user.email) || (username + '@rihab.local');
       settings.recentInvites = [{ email, seller, when: Date.now() }, ...settings.recentInvites].slice(0, 50);
