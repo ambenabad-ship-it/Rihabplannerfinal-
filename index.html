@@ -31149,16 +31149,82 @@ async function fulfillInit() {
   .gmv-cp-row.is-inactive .gmv-cp-row-name { color: #475569; }
   .gmv-cp-row.is-inactive .gmv-cp-row-avatar { opacity: .68; }
 
-  /* (4) "No progress yet" placeholder when fill is 0% */
+  /* [patch: cp_row_polish] (4) Solid empty-state progress track instead of
+     the weak dashed line — better visual context at 0%. */
   .gmv-cp-progress[data-empty="1"] {
-    background: transparent !important;
-    border: 1.5px dashed #cbd5e1;
-    height: 8px !important;
+    background: #eef2f6 !important;
+    border: 0;
+    height: 6px !important;
   }
   .gmv-cp-progress[data-empty="1"] > span { display: none; }
-  .gmv-cp-row-progress-pct[data-empty="1"] {
-    color: #94a3b8;
-    font-weight: 600;
+  .gmv-cp-row-progress-pct[data-empty="1"] { color: #94a3b8; font-weight: 600; }
+
+  /* [patch: cp_row_polish] (1) Gear ↔ thumbnail no longer stack on top of
+     each other. End column gets explicit row order + spacing. */
+  .gmv-cp-row-end {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 56px;
+  }
+  .gmv-cp-row-end .client-settings-btn {
+    order: -1;                /* gear first (top), thumbnail below */
+    width: 28px; height: 28px;
+    margin: 0 !important;
+  }
+  .gmv-cp-row-end .gmv-cp-prize-thumb {
+    width: 44px; height: 44px;
+    flex-shrink: 0;
+  }
+  /* [patch: cp_row_polish] (2) KPI cells lose their inner borders + get
+     more breathing room. Single soft container with vertical dividers. */
+  .gmv-cp-kpi-row {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 6px 4px;
+    gap: 0 !important;
+  }
+  .gmv-cp-kpi-cell {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 4px 10px !important;
+    position: relative;
+  }
+  .gmv-cp-kpi-cell + .gmv-cp-kpi-cell::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: 0;
+    top: 18%; bottom: 18%;
+    width: 1px;
+    background: #e2e8f0;
+  }
+  .gmv-cp-kpi-cell .val {
+    font-size: 13.5px !important;
+    line-height: 1.2 !important;
+    white-space: normal;
+    word-break: keep-all;
+  }
+  /* [patch: cp_row_polish] (3) Pipeline pill drops the pill shape so it no
+     longer reads like a twin of the status pill. Status keeps its round
+     chip + dot. */
+  .gmv-cp-pipe {
+    border-radius: 6px !important;
+    padding: 2px 8px !important;
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    border-color: #c7d2fe !important;
+    font-weight: 700 !important;
+  }
+  .gmv-cp-pill {
+    border-radius: 999px !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+  }
+  /* [patch: cp_row_polish] (5) Phone + last-order line gets a darker
+     tone so it passes contrast on real screens (was #94a3b8). */
+  .gmv-cp-row-phone {
+    color: #475569 !important;
   }
 
   /* (5) KPI pill blocks — label on top, value below */
