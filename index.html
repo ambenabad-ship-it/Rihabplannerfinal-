@@ -4354,14 +4354,25 @@
   .rfhead-pct,
   .gmv-allgifts-palier-pct { display: none !important; }
 
-  /* [patch: gmv_restructure_v1] Sticky top — hero + tabs stay visible while
-     the underlying tab content scrolls. */
+  /* [patch: gmv_restructure_v1 + gmv_sticky_js] Sticky top — JS flips
+     `.is-stuck` to position:fixed once scrolled past, with a placeholder
+     div preserving layout. CSS-only sticky breaks on iOS Safari when any
+     ancestor has overflow set, so JS handles the pinning cross-browser. */
   .gmv-sticky-top {
-    position: sticky; top: 0; z-index: 40;
+    position: relative; z-index: 40;
     background: var(--bg, #fff);
     padding-top: 4px;
-    box-shadow: 0 4px 12px -8px rgba(15, 23, 42, .15);
   }
+  .gmv-sticky-top.is-stuck {
+    position: fixed !important;
+    top: 0; left: 0; right: 0;
+    box-shadow: 0 4px 14px -6px rgba(15, 23, 42, .18);
+    padding-inline: 16px;
+    /* Ensure stuck state never exceeds viewport */
+    max-width: 100vw;
+  }
+  /* Placeholder reserves the bar's height so the page below doesn't jump. */
+  .gmv-sticky-placeholder { width: 100%; }
   /* Sub-row spacing inside the sticky cap */
   .gmv-sticky-top .sb-hero { margin-bottom: 8px; }
   .gmv-sticky-top .gmv-engtab-bar { margin: 4px 0 10px; }
@@ -21568,6 +21579,46 @@ async function gmvRenderEngagement(wrap) {
     catch (err) { alert('Paliers upload error: ' + (err.message || err)); }
     try { e.target.value = ''; } catch (_) {}
   });
+  // [patch: gmv_sticky_js] CSS position:sticky breaks on iOS Safari when an
+  // ancestor has any overflow set. We make the .gmv-sticky-top reliably
+  // pinned with a small JS scroll listener: once the user scrolls past
+  // the bar's origin, we flip it to position:fixed and insert a placeholder
+  // of the same height so the page content doesn't jump.
+  (function(){
+    var cap = document.querySelector('#featureGmvMaker .gmv-sticky-top');
+    if (!cap || cap.dataset.stickyWired === '1') return;
+    cap.dataset.stickyWired = '1';
+    var ph = document.createElement('div');
+    ph.className = 'gmv-sticky-placeholder';
+    ph.style.display = 'none';
+    cap.parentNode.insertBefore(ph, cap);
+    var origTop = 0;
+    function measure() {
+      cap.classList.remove('is-stuck');
+      ph.style.display = 'none';
+      origTop = cap.getBoundingClientRect().top + window.pageYOffset;
+      ph.style.height = cap.offsetHeight + 'px';
+    }
+    function check() {
+      if (window.pageYOffset > origTop) {
+        if (!cap.classList.contains('is-stuck')) {
+          ph.style.display = 'block';
+          cap.classList.add('is-stuck');
+        }
+      } else {
+        if (cap.classList.contains('is-stuck')) {
+          cap.classList.remove('is-stuck');
+          ph.style.display = 'none';
+        }
+      }
+    }
+    measure();
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', function(){ measure(); check(); }, { passive: true });
+    // Re-measure after images / async content settle.
+    setTimeout(function(){ measure(); check(); }, 300);
+    setTimeout(function(){ measure(); check(); }, 1200);
+  })();
   // [patch: gmv_restructure_v1] Wire the Gifts Plan modal (open/close).
   (function(){
     var openBtn = document.getElementById('gmvGiftsPlanBtn');
@@ -23161,23 +23212,30 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
      // GMV / Products / Level, pending sub-line under GMV, dashed empty
      // progress bar, is-inactive class for faded styling.
     var _rowClassExtra = (r.status === 'cold') ? ' is-inactive' : '';
-    var _gmvKpiVal = '<b>' + fmt(r.cBoth) + '</b> / ' + fmt((r.nextPalier && r.nextPalier.threshold) || 0) + ' MAD';
-    var _prodKpiVal = '<b>' + r.productsAchieved + '</b> / ' + r.productsMin;
+    // [patch: cp_row_layout_fix] KPI values wrapped in <bdi dir="ltr"> so
+    // "0 / 100 000" digit groups stay LTR even inside the RTL card and
+    // don't visually swap into "100 000 / 0".
+    var _gmvKpiVal = '<bdi dir="ltr"><b>' + fmt(r.cBoth) + '</b> / ' + fmt((r.nextPalier && r.nextPalier.threshold) || 0) + '</bdi> MAD';
+    var _prodKpiVal = '<bdi dir="ltr"><b>' + r.productsAchieved + '</b> / ' + r.productsMin + '</bdi>';
     var _lvlKpiVal = palierTxt;
     var _kpiLbls = ({
       en: { gmv: 'GMV', prod: 'Products', lvl: 'Level', pending: 'incl. pending:' },
       fr: { gmv: 'GMV', prod: 'Produits', lvl: 'Palier', pending: 'dont en attente:' },
       ar: { gmv: 'GMV', prod: 'منتجات',   lvl: 'المستوى', pending: 'منها قيد الانتظار:' },
     })[engLang()] || { gmv: 'GMV', prod: 'Products', lvl: 'Level', pending: 'incl. pending:' };
-    var _pendingSub = (r.stPending > 0)
-      ? '<div class="sub">' + _kpiLbls.pending + ' ' + fmt(r.stPending) + '</div>'
-      : '';
-    // [patch: cp_new_kpis] Inline trend + pipeline chips next to the status.
+    // [patch: cp_row_layout_fix] Drop the duplicated "pending" subline —
+    // the same info already lives on the pipeline chip next to the status.
+    var _pendingSub = '';
+    // [patch: cp_new_kpis + cp_row_layout_fix] Trend chip — cap exact
+    // -100% to "—" so it doesn't look catastrophic when the prior week
+    // happened to be 0.
     var _trendChip = '';
     if (r.trendPct != null) {
+      var _isMinus100 = (r.trendPct <= -100);
       var _arr = r.trendPct >= 0 ? '↑' : '↓';
       var _cls = r.trendPct >= 0 ? 'is-up' : 'is-down';
-      _trendChip = '<span class="gmv-cp-trend ' + _cls + '" title="هاد الأسبوع مقابل اللي فات">' + _arr + ' ' + (r.trendPct >= 0 ? '+' : '') + r.trendPct + '%</span>';
+      var _label = _isMinus100 ? '—' : (_arr + ' ' + (r.trendPct >= 0 ? '+' : '') + r.trendPct + '%');
+      _trendChip = '<span class="gmv-cp-trend ' + _cls + '" title="هذا الأسبوع مقابل الماضي"><bdi dir="ltr">' + _label + '</bdi></span>';
     }
     var _pipeChip = (r.pipelineMad > 0)
       ? '<span class="gmv-cp-pipe" title="' + esc(engT('sb_pipeline')) + '"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M3 12h13M11 6l5 6-5 6"/></svg> ' + fmt(r.pipelineMad) + ' MAD</span>'
