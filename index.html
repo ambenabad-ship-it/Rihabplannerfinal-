@@ -22337,10 +22337,37 @@ function gmvRenderEngagementAssign(panel, mySeller, isCreator) {
       gmvRenderEngagementAssign(panel, mySeller, isCreator);
     });
   });
-  // Wire row click → enter product picker
+  // [patch: assign_open_clientperf_detail] Row click → open the SAME client
+  // detail page that opens from My Clients Performance (instead of the old
+  // product-picker modal). Falls back to the modal if anything fails.
   panel.querySelectorAll('[data-as-edit]').forEach(b => {
     b.addEventListener('click', () => {
-      gmvEngagement.assignEditClient = b.dataset.asEdit;
+      var phone = b.dataset.asEdit;
+      try {
+        gmvEngagement.activeSubtab = 'clientperf';
+        if (window.RihabRouter && typeof window.RihabRouter.push === 'function') {
+          window.RihabRouter.push({ feature: 'gmv', page: 'engagement', subtab: 'clientperf', detail: phone });
+        }
+        var wrap = panel.closest('#gmvResultsWrap') || panel.parentElement;
+        if (wrap && typeof gmvRenderEngagement === 'function') gmvRenderEngagement(wrap);
+        // After the clientperf list paints, open the detail for this phone.
+        setTimeout(function(){
+          try {
+            var p = document.querySelector('#gmvResultsWrap .gmv-cp-panel') ||
+                    document.querySelector('#gmvResultsWrap [data-engagement-panel]') ||
+                    document.querySelector('#gmvResultsWrap > div');
+            var globalRows = window.__gmv_cp_rows || null;
+            var T = window.__gmv_cp_T || {};
+            if (p && globalRows && typeof gmvOpenClientPerformance === 'function') {
+              gmvOpenClientPerformance(phone, globalRows, p, mySeller, isCreator, T);
+              return;
+            }
+          } catch(_){}
+        }, 60);
+        return;
+      } catch(_) {}
+      // Fallback: original product-picker behavior.
+      gmvEngagement.assignEditClient = phone;
       gmvEngagement.assignProductSearch = '';
       gmvRenderEngagementAssign(panel, mySeller, isCreator);
     });
@@ -23496,12 +23523,21 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
                 fmtMad(delivered) + ' / ' + fmtMad(_famMin) + ' MAD' +
               '</div>'
             : '';
+          // [patch: family_select_toggle] Toggle button to select THIS family
+          // as a focus product for this client. Tapping it sets/clears
+          // clientFocus[phone][fam].selected. The "Selected" section in the
+          // page header automatically promotes selected families to the top.
+          var _famSelBtn =
+            '<button type="button" data-fam-select="' + esc2(fam) + '" aria-pressed="' + (committed ? 'true' : 'false') + '" title="' + (committed ? 'إزالة الاختيار' : 'اختر هذه العائلة') + '" style="flex-shrink:0;background:' + (committed ? '#10b981' : '#fff') + ';border:1.5px solid ' + (committed ? '#10b981' : '#cbd5e1') + ';color:' + (committed ? '#fff' : '#94a3b8') + ';width:26px;height:26px;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;padding:0;line-height:1;transition:all .15s">' +
+              (committed ? '✓' : '+') +
+            '</button>';
           return '<div class="cp-fam-card" data-fam-key="' + esc2(fam) + '"' +
                  ' data-cp-committed="' + (committed ? '1' : '0') + '"' +
                  ' data-search-text="' + esc2(searchBlob) + '"' +
                  ' style="padding:8px 0;border-bottom:1px solid #f1f5f9">' +
-                   '<div class="cp-fam-head" data-fam-toggle="' + esc2(fam) + '" style="display:flex;align-items:center;gap:6px;cursor:' + (hasSkus ? 'pointer' : 'default') + '">' + caret +
-                     '<div style="font-weight:600;color:#0f172a;font-size:13px">' + esc2(fam) + commitBadge + '</div>' +
+                   '<div class="cp-fam-head" data-fam-toggle="' + esc2(fam) + '" style="display:flex;align-items:center;gap:8px;cursor:' + (hasSkus ? 'pointer' : 'default') + '">' +
+                     _famSelBtn + caret +
+                     '<div style="font-weight:600;color:#0f172a;font-size:13px;flex:1;min-width:0">' + esc2(fam) + commitBadge + '</div>' +
                    '</div>' +
                    _famProgressHtml +
                    '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;direction:ltr">' + (pills || '<span style="color:#94a3b8;font-size:11px">—</span>') + '</div>' +
@@ -23868,6 +23904,43 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
         body.style.display = open ? 'none' : '';
         var caret = h.querySelector('svg');
         if (caret) caret.style.transform = open ? '' : 'rotate(90deg)';
+      });
+    });
+    // [patch: family_select_toggle] Per-FAMILY select button: tap to
+    // mark/unmark the family as a focus product for this client.
+    // Selected families auto-move to the top because the panel already
+    // renders a "Selected" section above the "Not selected" section.
+    // State persists to Supabase via:
+    //   gmvEngagement.commitments[seller].clientFocus[phone][famName] = { selected: true }
+    var _famSaveT = null;
+    panel.querySelectorAll('[data-fam-select]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();                         // don't trigger family expand
+        var fam = btn.getAttribute('data-fam-select');
+        if (!fam) return;
+        try {
+          var seller = mySeller || '';
+          var period = (typeof gmvCurrentPeriodKey === 'function') ? gmvCurrentPeriodKey() : '';
+          if (!gmvEngagement.commitments[seller]) gmvEngagement.commitments[seller] = {};
+          if (!gmvEngagement.commitments[seller].clientFocus) gmvEngagement.commitments[seller].clientFocus = {};
+          var byClient = gmvEngagement.commitments[seller].clientFocus;
+          if (!byClient[phone]) byClient[phone] = {};
+          var cur = byClient[phone][fam];
+          if (cur && cur.selected) {
+            delete byClient[phone][fam];
+          } else {
+            byClient[phone][fam] = Object.assign({}, cur || {}, { selected: true });
+          }
+          clearTimeout(_famSaveT);
+          _famSaveT = setTimeout(function(){
+            try {
+              if (typeof gmvSaveEngagementCommitment === 'function') {
+                gmvSaveEngagementCommitment(seller, period, { clientFocus: byClient });
+              }
+            } catch(_){}
+          }, 250);
+          gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T);
+        } catch(err) { console.warn('[fam toggle] failed:', err && err.message); }
       });
     });
     // [patch: all_families_split] Search bar — filter cards by family name
@@ -24859,6 +24932,9 @@ function gmvComputeSellerStats(seller) {
   const caM2 = (typeof gmvCaPerClientPeriod === 'function') ? gmvCaPerClientPeriod(ENG_PERIOD_M2) : {};
   const sortedPaliers = (gmvEngagement.paliers || []).slice().sort((a, b) => (a.palier || 0) - (b.palier || 0));
   let totalGmv = 0, m1Gifts = 0, bothGifts = 0;
+  // [patch: cp_engaged_filter] Count clients with > 10 focus products
+  // committed — same definition as the Engaged filter chip + portfolio hero.
+  let engagedCount = 0;
   phones.forEach(phone => {
     const c1 = caM1[phone] || 0;
     const c2 = caM2[phone] || 0;
@@ -24866,6 +24942,7 @@ function gmvComputeSellerStats(seller) {
     totalGmv += cBoth;
     const targetP = sortedPaliers.find(p => (p.threshold || 0) > cBoth) || null;
     const myProds = Object.keys(cFocus[phone] || {}).filter(c => cFocus[phone][c] && cFocus[phone][c].selected);
+    if (myProds.length > 10) engagedCount++;
     const m1Count   = (typeof gmvClientAchievedM1   === 'function') ? gmvClientAchievedM1(seller, phone, myProds)   : 0;
     const bothCount = (typeof gmvClientAchievedBoth === 'function') ? gmvClientAchievedBoth(seller, phone, myProds) : 0;
     const m1Open   = !!(targetP && c1    >= (targetP.threshold || 0) && m1Count   >= ENG_CLIENT_MILESTONE_M1);
@@ -24873,7 +24950,7 @@ function gmvComputeSellerStats(seller) {
     if (m1Open) m1Gifts++;
     if (bothOpen) bothGifts++;
   });
-  return { seller, clients: phones.length, totalGmv, giftsTotal: m1Gifts + bothGifts };
+  return { seller, clients: phones.length, totalGmv, giftsTotal: m1Gifts + bothGifts, engagedCount };
 }
 function gmvBuildSellerHeroHtml(seller) {
   if (!seller) return '';
@@ -24889,6 +24966,7 @@ function gmvBuildSellerHeroHtml(seller) {
         <div class="sb-hero-stat"><b>${s.clients}</b><span>${engT('sb_stat_clients')}</span></div>
         <div class="sb-hero-stat"><b>${s.giftsTotal}</b><span>${engT('sb_stat_gifts')}</span></div>
         <div class="sb-hero-stat"><b>${fmt(s.totalGmv)}</b><span>MAD · ${engT('sb_stat_gmv')}</span></div>
+        <div class="sb-hero-stat"><b>${s.engagedCount || 0}</b><span>${engT('sb_stat_engaged')}</span></div>
       </div>
     </section>`;
 }
