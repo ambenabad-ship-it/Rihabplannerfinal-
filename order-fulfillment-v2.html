@@ -1000,6 +1000,73 @@
   .m-modal-btn.primary{background:#111827;color:#fff}
   .m-modal-btn.primary:disabled{opacity:.4;cursor:not-allowed}
   .m-modal-btn.primary:not(:disabled):hover{background:#1f2937;transform:translateY(-1px)}
+  /* [patch: order_products_avail] Expandable product breakdown inside any
+     order card. Used by alloc-cards (P3 + bonus), final cards (P4), and
+     can be dropped into P1/P2 cards too. */
+  .co-pd-wrap {
+    margin-top: 8px;
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 8px;
+  }
+  .co-pd-wrap > summary {
+    cursor: pointer; list-style: none;
+    font: 600 11px var(--font-ar, inherit);
+    color: #475569;
+    padding: 4px 8px; border-radius: 6px;
+    background: #f1f5f9;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .co-pd-wrap > summary::-webkit-details-marker { display: none; }
+  .co-pd-wrap > summary::before {
+    content: '▸';
+    transition: transform .15s ease;
+    font-size: 10px;
+  }
+  .co-pd-wrap[open] > summary::before { transform: rotate(90deg); }
+  .co-pd-list {
+    margin-top: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .co-pd-row {
+    background: #fafbfc; border: 1px solid #e2e8f0;
+    border-radius: 8px; padding: 8px 10px;
+  }
+  .co-pd-head {
+    display: flex; align-items: baseline; gap: 6px;
+    margin-bottom: 5px; min-width: 0;
+  }
+  .co-pd-code {
+    font: 700 10px ui-monospace, monospace;
+    color: #475569; white-space: nowrap;
+  }
+  .co-pd-name {
+    font: 500 11.5px var(--font-ar, inherit);
+    color: #0f172a; flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .co-pd-foot {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .co-pd-bar {
+    flex: 1; height: 6px; border-radius: 99px;
+    background: #e2e8f0; overflow: hidden;
+  }
+  .co-pd-bar > span {
+    display: block; height: 100%; border-radius: 99px;
+    transition: width .25s ease;
+  }
+  .co-pd-pct {
+    font: 700 11px ui-monospace, monospace;
+    min-width: 32px; text-align: end;
+  }
+  .co-pd-qty {
+    font: 600 11px var(--font-ar, inherit);
+    color: #64748b;
+    background: #fff; border: 1px solid #e2e8f0;
+    padding: 2px 6px; border-radius: 6px;
+    white-space: nowrap;
+  }
+
   .alloc-card{
     background:#fff;
     border:.5px solid var(--border);border-radius:14px;
@@ -2971,6 +3038,46 @@ function renderRing(pct, cls){
     </div>`;
 }
 
+// [patch: order_products_avail] Available qty for a SKU = current stock
+// from the parent (sell-unit adjusted, same number Delivery Planning shows).
+function _coStockOf(code) {
+  try {
+    return Math.max(0, parseFloat((window.CO && window.CO.effectiveStock || {})[code]) || 0);
+  } catch(_) { return 0; }
+}
+
+// Build an expandable <details> listing every product in an order with
+// ordered qty, available qty, and a colored % bar. `isAllocated` switches
+// "available" between deliverable (P3+) and min(ordered, stock) (P1/P2).
+function buildOrderProductsDetails(productLines, isAllocated) {
+  if (!Array.isArray(productLines) || !productLines.length) return '';
+  var rows = productLines.map(function(l){
+    var ordered = parseFloat(l.qty) || 0;
+    var alloc   = parseFloat(l.deliverable);
+    var available = isAllocated && isFinite(alloc) ? alloc
+                  : Math.min(ordered, _coStockOf(l.productCode || ''));
+    var pct = ordered > 0 ? Math.min(100, Math.round((available / ordered) * 100)) : 0;
+    var color = pct >= 80 ? '#10b981' : (pct >= 40 ? '#f59e0b' : '#ef4444');
+    var enc = function(s){ return String(s||'').replace(/[<>&"]/g, function(c){
+      return ({ '<':'&lt;', '>':'&gt;', '&':'&amp;', '"':'&quot;' })[c]; }); };
+    return '<div class="co-pd-row">' +
+             '<div class="co-pd-head">' +
+               '<span class="co-pd-code">' + enc(l.productCode || '—') + '</span>' +
+               '<span class="co-pd-name">' + enc(l.productName || '') + '</span>' +
+             '</div>' +
+             '<div class="co-pd-foot">' +
+               '<div class="co-pd-bar"><span style="width:' + pct + '%;background:' + color + '"></span></div>' +
+               '<span class="co-pd-pct" style="color:' + color + '">' + pct + '%</span>' +
+               '<span class="co-pd-qty">' + Math.round(available) + ' / ' + Math.round(ordered) + '</span>' +
+             '</div>' +
+           '</div>';
+  }).join('');
+  return '<details class="co-pd-wrap">' +
+           '<summary>عرض المنتوجات (' + productLines.length + ')</summary>' +
+           '<div class="co-pd-list">' + rows + '</div>' +
+         '</details>';
+}
+
 function renderAllocations(){
   const wrap = document.getElementById('allocList');
   wrap.innerHTML = ALLOCATIONS.map(a => {
@@ -3005,6 +3112,7 @@ function renderAllocations(){
           ${renderRing(pct, cls)}
           <div class="prod-summary">${summary}</div>
         </div>
+        ${buildOrderProductsDetails(a.productLines, true)}
         <div class="alloc-actions">
           <button class="big-btn skip ${a.decision === 'skip' ? 'is-on' : ''}" data-id="${a.orderId}" data-act="skip">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -3095,6 +3203,7 @@ function renderBonusAllocations(){
           ${renderRing(pct, cls)}
           <div class="prod-summary">${summary}</div>
         </div>
+        ${buildOrderProductsDetails(a.productLines, true)}
         <div class="alloc-actions">
           <button class="big-btn skip ${a.decision === 'skip' ? 'is-on' : ''}" data-id="${a.orderId}" data-act="skip">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -3458,7 +3567,9 @@ document.getElementById('bottomBtn').addEventListener('click', () => {
 /* ============================== FINAL ============================== */
 function renderFinal(){
   const wrap = document.getElementById('finalList');
-  wrap.innerHTML = ALLOCATIONS.map(a => {
+  // [patch: order_products_avail] P4 final list now expandable per product
+  // showing what actually got shipped vs ordered.
+  wrap.innerHTML = ALLOCATIONS.concat(BONUS_ALLOCATIONS || []).map(a => {
     const pct = Math.round(a.ratio * 100);
     const cls = a.ratio >= 1 ? 'full' : a.ratio > 0 ? 'partial' : 'none';
     const decCls = a.decision === 'confirm' ? 'confirmed' : 'skipped';
@@ -3471,6 +3582,7 @@ function renderFinal(){
           </div>
           <span class="badge ${decCls === 'confirmed' ? 'confirmed' : 'skipped'}">${decCls === 'confirmed' ? 'مؤكدة' : 'متخطاة'}</span>
         </div>
+        ${buildOrderProductsDetails(a.productLines, true)}
       </div>`;
   }).join('');
 }

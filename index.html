@@ -22737,19 +22737,32 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
   const _t7 = _nowTs - 7 * 86400000;
   const _t14 = _nowTs - 14 * 86400000;
   const _pipelineStatuses = { PENDING:1, TO_DELIVER:1, DELIVERY_IN_PROGRESS:1, REPLANED:1, RESCHEDULED:1 };
+  // [patch: eng_window_filter] Per-row aggregations also restricted to the
+  // engagement window (May + June 2026). Same scope as the hero stats.
+  const _parseMonth2 = (s) => {
+    const m = (s || '').match(/^(\d{4})-(\d{1,2})$/);
+    if (!m) return { start: null, end: null };
+    const y = +m[1], mo = +m[2] - 1;
+    return { start: new Date(y, mo, 1, 0, 0, 0, 0).getTime(), end: new Date(y, mo + 1, 0, 23, 59, 59, 999).getTime() };
+  };
+  const _mwA = _parseMonth2(ENG_PERIOD_M1);
+  const _mwB = _parseMonth2(ENG_PERIOD_M2);
+  const _engStartTs = (_mwA.start && _mwB.start) ? Math.min(_mwA.start, _mwB.start) : (_mwA.start || _mwB.start);
+  const _engEndTs   = (_mwA.end   && _mwB.end)   ? Math.max(_mwA.end,   _mwB.end)   : (_mwA.end   || _mwB.end);
   (gmv.orders || []).forEach(o => {
     if (!o || !o.phone) return;
-    if (o.date) {
-      const ts = +new Date(o.date);
-      if (isFinite(ts) && (!lastOrderByPhone[o.phone] || ts > lastOrderByPhone[o.phone])) {
-        lastOrderByPhone[o.phone] = ts;
-      }
-      const mad = (o.amount || 0);
-      if (mad && isFinite(ts)) {
-        if (!trendByPhone[o.phone]) trendByPhone[o.phone] = { now: 0, prev: 0 };
-        if (ts > _t7  && ts <= _nowTs) trendByPhone[o.phone].now  += mad;
-        else if (ts > _t14 && ts <= _t7) trendByPhone[o.phone].prev += mad;
-      }
+    if (!o.date) return;
+    const ts = +new Date(o.date);
+    if (!isFinite(ts)) return;
+    if (_engStartTs && (ts < _engStartTs || ts > _engEndTs)) return;        // engagement window gate
+    if (!lastOrderByPhone[o.phone] || ts > lastOrderByPhone[o.phone]) {
+      lastOrderByPhone[o.phone] = ts;
+    }
+    const mad = (o.amount || 0);
+    if (mad) {
+      if (!trendByPhone[o.phone]) trendByPhone[o.phone] = { now: 0, prev: 0 };
+      if (ts > _t7  && ts <= _nowTs) trendByPhone[o.phone].now  += mad;
+      else if (ts > _t14 && ts <= _t7) trendByPhone[o.phone].prev += mad;
     }
     const st = (o.status || '').toUpperCase();
     if (_pipelineStatuses[st]) {
@@ -25028,7 +25041,21 @@ function gmvComputeSellerStats(seller) {
   if (_paceRatio < 0.85) _paceStatus = 'behind';
   else if (_paceRatio > 1.05) _paceStatus = 'ahead';
   const _forecastEom = Math.round(totalGmv * (_daysInPeriod / _daysElapsed));
-  // Pipeline + top family + WoW pull from gmv.orders / fulfill.orders.
+  // [patch: eng_window_filter] All engagement-feature aggregations now
+  // count ONLY orders dated inside the engagement window (May + June 2026,
+  // i.e. ENG_PERIOD_M1 + ENG_PERIOD_M2). Anything outside is ignored.
+  const _parseMonth = (s) => {
+    const m = (s || '').match(/^(\d{4})-(\d{1,2})$/);
+    if (!m) return { start: null, end: null };
+    const y = +m[1], mo = +m[2] - 1;
+    return { start: new Date(y, mo, 1, 0, 0, 0, 0), end: new Date(y, mo + 1, 0, 23, 59, 59, 999) };
+  };
+  const _mw1 = _parseMonth(ENG_PERIOD_M1);
+  const _mw2 = _parseMonth(ENG_PERIOD_M2);
+  const _engStart = (_mw1.start && _mw2.start) ? (_mw1.start < _mw2.start ? _mw1.start : _mw2.start) : (_mw1.start || _mw2.start);
+  const _engEnd   = (_mw1.end   && _mw2.end)   ? (_mw1.end   > _mw2.end   ? _mw1.end   : _mw2.end)   : (_mw1.end   || _mw2.end);
+  const _inEng = (d) => d && _engStart && _engEnd && d >= _engStart && d <= _engEnd;
+
   const _pipelineSet = { PENDING:1, TO_DELIVER:1, DELIVERY_IN_PROGRESS:1, REPLANED:1, RESCHEDULED:1 };
   let _pipelineMad = 0;
   const familyMad = {};
@@ -25042,17 +25069,17 @@ function gmvComputeSellerStats(seller) {
     const focusByFam = (gmvEngagement.focusProducts || {});
     _orders.forEach(o => {
       if (!o || !o.phone || !_phoneSet[o.phone]) return;
+      const d = (o.date instanceof Date) ? o.date : (o.date ? new Date(o.date) : null);
+      if (!d || isNaN(d)) return;
+      if (!_inEng(d)) return;                            // engagement window gate
       const mad = (o.amount || o.amt || 0);
       const st = (o.status || '').toUpperCase();
       if (_pipelineSet[st]) _pipelineMad += mad;
       const fam = focusByFam[o.productCode] ? o.productCode
                 : focusByFam[o.productName] ? o.productName : null;
       if (fam) familyMad[fam] = (familyMad[fam] || 0) + mad;
-      const d = (o.date instanceof Date) ? o.date : (o.date ? new Date(o.date) : null);
-      if (d && !isNaN(d)) {
-        if (d > _t7  && d <= _now) _thisWeek += mad;
-        else if (d > _t14 && d <= _t7) _prevWeek += mad;
-      }
+      if (d > _t7  && d <= _now) _thisWeek += mad;
+      else if (d > _t14 && d <= _t7) _prevWeek += mad;
     });
   } catch(_) {}
   let _topFamily = null, _topFamilyMad = 0;
