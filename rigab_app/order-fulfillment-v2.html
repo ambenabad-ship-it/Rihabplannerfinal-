@@ -250,19 +250,26 @@
     font-weight:400;
   }
   .m-hero .phase-detail strong{color:rgba(255,255,255,.95);font-weight:600}
-  /* [patch: delivery_day_chip] */
+  /* [patch: delivery_day_chip] Promoted to the hero's primary title slot
+     after we removed the redundant "توصيل الغد" h1. */
   .m-hero .delivery-target{
-    display:inline-flex;align-items:center;gap:6px;
-    margin-top:8px;padding:4px 10px 4px 8px;
-    background:rgba(255,255,255,.13);
-    border:.5px solid rgba(255,255,255,.18);
-    border-radius:999px;
-    font-size:11.5px;font-weight:500;
-    color:rgba(255,255,255,.92);
-    backdrop-filter:blur(8px);
+    display:inline-flex;align-items:center;gap:10px;
+    margin-top:10px;padding:9px 16px 9px 14px;
+    background:rgba(255,255,255,.15);
+    border:1px solid rgba(255,255,255,.22);
+    border-radius:14px;
+    font-size:18px;font-weight:600;line-height:1.25;
+    color:rgba(255,255,255,.95);
+    backdrop-filter:blur(10px);
+    letter-spacing:.005em;
   }
-  .m-hero .delivery-target strong{color:#fff;font-weight:700;margin:0 2px}
-  .m-hero .delivery-target svg{opacity:.85;flex-shrink:0}
+  .m-hero .delivery-target strong{
+    color:#fff;font-weight:800;margin:0 3px;
+    font-size:22px;letter-spacing:.01em;
+  }
+  .m-hero .delivery-target svg{
+    width:20px;height:20px;opacity:.95;flex-shrink:0;
+  }
   .ff-mobile[dir="rtl"] .m-hero .delivery-target{font-family:var(--font-ar)}
 
   /* Live phase progress bar at hero bottom */
@@ -1634,7 +1641,6 @@
             <div class="top-row">
               <div>
                 <div class="hello">كريم · الثلاثاء 12 ماي</div>
-                <h1>توصيل الغد</h1>
               </div>
               <div class="hero-btns">
                 <button class="menu-btn help-pulse" id="helpBtn" aria-label="How it works">
@@ -2877,6 +2883,26 @@ function renderLockedList(){
 
 /* ============================== ALLOCATIONS ============================== */
 function buildAllocations(){
+  // [patch: co_real_allocations] When the parent app sent real allocations
+  // (from the same engine + sell-unit-adjusted stock Delivery Planning
+  // uses), bypass the mockup entirely. We show ONLY the orders the seller
+  // actually picked (myList client or pickedOrders entry). The rest stay
+  // in CO.allocations as a candidate pool for Pass B (bonus promotion).
+  try {
+    if (window.CO && Array.isArray(window.CO.allocations) && window.CO.allocations.length){
+      var picked = window.CO.allocations.filter(function(a){ return a.picked; });
+      // Sort by ratio DESC then by amount DESC so high-fill orders surface first.
+      picked.sort(function(a,b){
+        if (b.ratio !== a.ratio) return b.ratio - a.ratio;
+        return (b.total||0) - (a.total||0);
+      });
+      // Reset priority numbers to 1..N for clean UI badges.
+      return picked.map(function(a, i){
+        return Object.assign({}, a, { priority: i + 1, decision: null });
+      });
+    }
+  } catch(_){}
+  // Fallback: original mockup (demo / dev mode).
   return SELECTED.map((s, i) => {
     const c = CLIENTS.find(x => x.id === s.clientId);
     const o = c.orders.find(x => x.id === s.orderId);
@@ -3154,8 +3180,55 @@ function redistributeStockOnSkip(skippedAlloc){
     BONUS_ALLOCATIONS.forEach(function(b){ picked[b.orderId] = true; });
 
     var candidates = [];
-    // Mockup CLIENTS path
-    if (Array.isArray(CLIENTS)){
+    // [patch: co_real_allocations] Preferred path: real allocations from the
+    // parent (sell-unit adjusted stock). Each row already carries the real
+    // fillable ratio against initial stock — use that as the upper bound for
+    // how much of the freed pool a candidate can absorb.
+    var usedReal = false;
+    try {
+      if (window.CO && Array.isArray(window.CO.allocations) && window.CO.allocations.length){
+        usedReal = true;
+        window.CO.allocations.forEach(function(a){
+          if (a.picked) return;             // those are seller's main list
+          if (picked[a.orderId]) return;
+          // The allocator already computed how much stock could be given.
+          // Treat the freed pool as "extra units" that can lift a.linesOk
+          // closer to a.lines, capped at a.lines. The new ratio is what
+          // a.linesOk+units / a.lines gives. We only enter the bonus tab if
+          // we can hit ≥ SKIP_REASON_THRESHOLD overall.
+          var need = Math.max(0, (a.lines||0) - (a.linesOk||0));
+          if (!need) {
+            // Already at 100% from initial allocation — just lift it onto bonus.
+            candidates.push({
+              order: { id: a.orderId, products: new Array(a.lines||1), total: a.total||0 },
+              client: { id: a.clientId, name: a.clientName, phone: a.phone, vip: !!(window.CO.vipClients||{})[a.phone], color: '#10b981' },
+              lines: a.lines||1,
+              maxFill: 1,
+              givenUnits: 0,                // already fillable from initial pool
+              currentLinesOk: a.linesOk||0,
+              vip: !!(window.CO.vipClients||{})[a.phone], mad: a.total||0
+            });
+            return;
+          }
+          var canGive = Math.min(need, remaining);
+          var finalOk = (a.linesOk||0) + canGive;
+          var finalRatio = (a.lines||0) ? finalOk / a.lines : 0;
+          if (finalRatio + 1e-9 < SKIP_REASON_THRESHOLD) return;
+          candidates.push({
+            order: { id: a.orderId, products: new Array(a.lines), total: a.total||0 },
+            client: { id: a.clientId, name: a.clientName, phone: a.phone, vip: !!(window.CO.vipClients||{})[a.phone], color: '#10b981' },
+            lines: a.lines,
+            maxFill: finalRatio,
+            givenUnits: canGive,             // new units consumed from freed pool
+            currentLinesOk: a.linesOk||0,
+            vip: !!(window.CO.vipClients||{})[a.phone],
+            mad: a.total||0
+          });
+        });
+      }
+    } catch(_){}
+    // Fallback A — mockup CLIENTS path (no real data yet)
+    if (!usedReal && Array.isArray(CLIENTS)){
       CLIENTS.forEach(function(c){
         (c.orders || []).forEach(function(o){
           if (picked[o.id]) return;
@@ -3165,41 +3238,46 @@ function redistributeStockOnSkip(skippedAlloc){
           if (maxFill + 1e-9 < SKIP_REASON_THRESHOLD) return;
           candidates.push({
             order: o, client: c, lines: lines, maxFill: maxFill,
+            givenUnits: Math.min(lines, remaining), currentLinesOk: 0,
             vip: !!c.vip, mad: o.total || 0
           });
         });
       });
     }
-    // Embed CO.orders path (real data, when iframe wired)
-    try {
-      if (typeof CO !== 'undefined' && CO && Array.isArray(CO.orders)){
-        var byCode = {};
-        CO.orders.forEach(function(row){
-          if (!row || !row.orderCode) return;
-          if (row.status === 'CANCELED' || row.status === 'RETURNED') return;
-          if (picked[row.orderCode]) return;
-          if (!byCode[row.orderCode]){
-            byCode[row.orderCode] = {
-              id: row.orderCode, phone: row.phone,
-              clientName: (CO.clients[row.phone]||{}).name || row.phone,
-              vip: !!CO.vipClients[row.phone], lines: 0, mad: 0
-            };
-          }
-          byCode[row.orderCode].lines++;
-          byCode[row.orderCode].mad += (row.amount || 0);
-        });
-        Object.keys(byCode).forEach(function(code){
-          var ob = byCode[code];
-          var maxFill = Math.min(1, remaining / Math.max(1, ob.lines));
-          if (maxFill + 1e-9 < SKIP_REASON_THRESHOLD) return;
-          candidates.push({
-            order: { id: ob.id, products: new Array(ob.lines), total: ob.mad },
-            client: { id: ob.phone, name: ob.clientName, phone: ob.phone, vip: ob.vip, color: '#10b981' },
-            lines: ob.lines, maxFill: maxFill, vip: ob.vip, mad: ob.mad
+    // Fallback B — embed CO.orders path (real orders but no allocations yet)
+    if (!usedReal){
+      try {
+        if (typeof CO !== 'undefined' && CO && Array.isArray(CO.orders)){
+          var byCode = {};
+          CO.orders.forEach(function(row){
+            if (!row || !row.orderCode) return;
+            if (row.status === 'CANCELED' || row.status === 'RETURNED') return;
+            if (picked[row.orderCode]) return;
+            if (!byCode[row.orderCode]){
+              byCode[row.orderCode] = {
+                id: row.orderCode, phone: row.phone,
+                clientName: (CO.clients[row.phone]||{}).name || row.phone,
+                vip: !!CO.vipClients[row.phone], lines: 0, mad: 0
+              };
+            }
+            byCode[row.orderCode].lines++;
+            byCode[row.orderCode].mad += (row.amount || 0);
           });
-        });
-      }
-    } catch(_){}
+          Object.keys(byCode).forEach(function(code){
+            var ob = byCode[code];
+            var maxFill = Math.min(1, remaining / Math.max(1, ob.lines));
+            if (maxFill + 1e-9 < SKIP_REASON_THRESHOLD) return;
+            candidates.push({
+              order: { id: ob.id, products: new Array(ob.lines), total: ob.mad },
+              client: { id: ob.phone, name: ob.clientName, phone: ob.phone, vip: ob.vip, color: '#10b981' },
+              lines: ob.lines, maxFill: maxFill,
+              givenUnits: Math.min(ob.lines, remaining), currentLinesOk: 0,
+              vip: ob.vip, mad: ob.mad
+            });
+          });
+        }
+      } catch(_){}
+    }
 
     // Score: VIP first, then largest MAD, then closest-to-full fill.
     candidates.sort(function(a,b){
@@ -3210,8 +3288,15 @@ function redistributeStockOnSkip(skippedAlloc){
 
     for (var k = 0; k < candidates.length && remaining > 0; k++){
       var cd = candidates[k];
-      var units = Math.min(cd.lines, remaining);
-      var ratio = units / cd.lines;
+      // With real allocations we already know how many fresh units this
+      // candidate would consume from the freed pool (`givenUnits`) and how
+      // much it already had allocated from the initial pool (`currentLinesOk`).
+      // Without real allocations, fall back to the old units calculation.
+      var give = (typeof cd.givenUnits === 'number') ? cd.givenUnits : Math.min(cd.lines, remaining);
+      give = Math.min(give, remaining);
+      var alreadyOk = cd.currentLinesOk || 0;
+      var linesOk = Math.min(cd.lines, alreadyOk + give);
+      var ratio = cd.lines ? (linesOk / cd.lines) : 0;
       if (ratio + 1e-9 < SKIP_REASON_THRESHOLD) continue;
       BONUS_ALLOCATIONS.push({
         orderId: cd.order.id, clientId: cd.client.id,
@@ -3219,10 +3304,10 @@ function redistributeStockOnSkip(skippedAlloc){
         total: cd.order.total || 0, color: cd.client.color || '#10b981',
         priority: 99 + BONUS_ALLOCATIONS.length,
         ratio: ratio, lines: cd.lines,
-        linesOk: units,
+        linesOk: linesOk,
         decision: null, bonus: true,
       });
-      remaining -= units;
+      remaining -= give;
       // Flash the bonus tab counter
       var bc = document.getElementById('allocBonusCnt');
       if (bc){ bc.setAttribute('data-hot','1'); setTimeout(function(){ bc.removeAttribute('data-hot'); }, 400); }
@@ -3560,9 +3645,24 @@ window.addEventListener('resize', updateTabIndicator);
         if (m.pickedOrders && typeof m.pickedOrders === 'object') CO.pickedOrders = m.pickedOrders;
         if (m.vipClients   && typeof m.vipClients   === 'object') CO.vipClients   = m.vipClients;
         if (m.vipOrders    && typeof m.vipOrders    === 'object') CO.vipOrders    = m.vipOrders;
-        console.log('[confirm_orders] data —', Object.keys(CO.clients).length, 'clients,', CO.orders.length, 'orders, seller:', CO.seller);
+        // [patch: co_real_allocations] Real allocations from the parent's
+        // Order Fulfillment engine (sell-unit adjusted stock, same as
+        // Delivery Planning). When present, the mockup ratios in
+        // buildAllocations() are bypassed.
+        if (Array.isArray(m.allocations))                       CO.allocations    = m.allocations;
+        if (m.effectiveStock && typeof m.effectiveStock === 'object') CO.effectiveStock = m.effectiveStock;
+        console.log('[confirm_orders] data —',
+          Object.keys(CO.clients).length, 'clients,',
+          CO.orders.length, 'orders,',
+          (CO.allocations||[]).length, 'allocations, seller:', CO.seller);
         renderRealClients();
         updateRealStats();
+        // If we're currently in P3, repaint with the new real allocations.
+        try {
+          if (typeof CURRENT_PHASE !== 'undefined' && CURRENT_PHASE === 'p3' && typeof applyPhaseView === 'function'){
+            applyPhaseView();
+          }
+        } catch(_){}
       } else if (m.type === 'co:setPhase' && m.phase) {
         // [patch: phase_router_broadcast] Parent (router) is telling us to
         // jump to a specific phase, e.g. after refreshing on #/confirm/p3.
@@ -3782,6 +3882,9 @@ window.addEventListener('resize', updateTabIndicator);
     // (the mockup's demo renderer) can defer to us when embed mode is active.
     window.renderRealClients = renderRealClients;
     window.updateRealStats   = updateRealStats;
+    // [patch: co_real_allocations] Expose the embed state so the outer P3
+    // builder (buildAllocations) can override mockup ratios with real ones.
+    window.CO = CO;
     function renderRealClients(){
       var host = document.getElementById('clientResults');
       if (!host) return;

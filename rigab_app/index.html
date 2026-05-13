@@ -827,6 +827,27 @@
     max-width: none; margin: 0; padding: 0 24px;
   }
 
+  /* [patch: gmv_viewport_lock] Same swipe + zoom lock as the Confirm Orders
+     iframe — prevents the page from sliding off-screen when the seller
+     swipes horizontally on phone, and keeps pinch-zoom off. */
+  #featureGmvMaker {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    width: 100% !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-x: none !important;
+  }
+  #featureGmvMaker * { touch-action: pan-y !important; }
+  #featureGmvMaker button,
+  #featureGmvMaker a,
+  #featureGmvMaker input,
+  #featureGmvMaker textarea,
+  #featureGmvMaker select,
+  #featureGmvMaker [role="button"],
+  #featureGmvMaker [contenteditable="true"] {
+    touch-action: manipulation !important;
+  }
+
   /* Command bar — sticky, blur on scroll, never wastes height. */
   .gmv-cmdbar {
     position: sticky; top: 0; z-index: 30;
@@ -4315,6 +4336,11 @@
   .gmv-cp-hero-pct,
   .gmv-cp-row-pct { display: none !important; }
 
+  /* [patch: remove_gift_pct] Hide the % chip mirrored into the rfhead (the
+     orange palier carousel) AND the % label inside the all-gifts modal. */
+  .rfhead-pct,
+  .gmv-allgifts-palier-pct { display: none !important; }
+
   /* Fix #6 — bigger primary section tabs (Assign / My clients / My perf) */
   .gmv-engtab-bar {
     height: auto;
@@ -4597,6 +4623,147 @@
   .cp-action-bar a:hover, .cp-action-bar button:hover { background: #f8fafc; }
   .cp-action-bar a.primary:hover { background: #1e293b; color: #fff; }
 
+  /* [patch: client_detail_20pt] Final polish batch. */
+
+  /* (1) Compact pinned orange seller hero */
+  .sb-hero-pinned {
+    padding: 10px 14px !important;
+    margin-bottom: 8px !important;
+    border-radius: 12px !important;
+  }
+  .sb-hero-pinned .sb-hero-eyebrow { font-size: 10px !important; margin-bottom: 2px !important; }
+  .sb-hero-pinned .sb-hero-name    { font-size: 17px !important; margin: 0 !important; }
+  .sb-hero-pinned .sb-hero-stats {
+    display: flex !important; flex-direction: row !important; gap: 14px !important;
+    margin-top: 6px !important; flex-wrap: wrap !important;
+  }
+  .sb-hero-pinned .sb-hero-stat { padding: 0 !important; background: transparent !important; }
+  .sb-hero-pinned .sb-hero-stat b { font-size: 16px !important; }
+  .sb-hero-pinned .sb-hero-stat span { font-size: 10.5px !important; opacity: .85; }
+
+  /* (2) Remove decorative half-circle */
+  .sb-hero-pinned::before { display: none !important; }
+
+  /* (4) Compact money hero — bar+pct on one line, "to-go" on its own line */
+  .cp-money-hero { padding: 12px 14px !important; }
+  .cp-money-hero .val { font-size: 22px !important; }
+  .cp-money-hero .val .gap { display: block !important; margin: 4px 0 0 !important; font-size: 13px !important; }
+
+  /* (10) Thicker bar + % at end of fill */
+  .cp-money-hero .bar { height: 12px !important; }
+  .cp-money-hero .bar > span { position: relative; }
+  .cp-money-hero .bar > span::after {
+    content: attr(data-pct);
+    position: absolute; inset-inline-end: 6px; top: 50%; transform: translateY(-50%);
+    color: #fff; font-size: 10px; font-weight: 800;
+    text-shadow: 0 1px 2px rgba(0,0,0,.25);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* (11) Pending as amber pill */
+  .cp-money-hero .sub .pending {
+    background: #fef3c7; color: #92400e;
+    padding: 2px 10px; border-radius: 99px; font-weight: 700;
+    font-size: 11.5px;
+  }
+  .cp-money-hero .sub .pending b { color: #92400e; }
+
+  /* (12) Next-action: bring CTA closer + bigger icon */
+  .cp-next-action { padding: 10px 12px !important; gap: 8px !important; }
+  .cp-next-action-icon { width: 32px !important; height: 32px !important; font-size: 16px !important; }
+
+  /* (13) Sub-tabs = underline, filter chips stay pills */
+  .cp-tabs {
+    background: transparent !important; padding: 0 !important;
+    border-bottom: 1.5px solid #e2e8f0;
+    border-radius: 0 !important;
+    margin-bottom: 8px !important;
+  }
+  .cp-tab {
+    border-radius: 0 !important;
+    border-bottom: 2px solid transparent;
+    background: transparent !important;
+  }
+  .cp-tab.is-active {
+    background: transparent !important;
+    border-bottom-color: #0f172a !important;
+    box-shadow: none !important;
+  }
+  .cp-tab .badge { background: rgba(15,23,42,.06) !important; }
+
+  /* (14) Order header alignment */
+  .cp-order-block > div:first-child {
+    grid-template-columns: auto 1fr auto !important;
+  }
+
+  /* (15) Clean row separator instead of dotted underline */
+  .cp-order-lines > div {
+    border-top: 1px solid #f1f5f9 !important;
+    border-style: solid !important;
+  }
+  .cp-order-lines > div > span:first-child {
+    direction: ltr; unicode-bidi: isolate;
+  }
+
+  /* (16) Bottom action bar shadow + page bottom padding */
+  .cp-action-bar {
+    box-shadow: 0 -8px 16px -10px rgba(15,23,42,.18) !important;
+    border-top: 1px solid #e2e8f0 !important;
+  }
+  #clientPerfPage { padding-bottom: 80px; }
+
+  /* (17) Equal-weight Call + SMS buttons (both filled dark) */
+  .cp-action-bar a, .cp-action-bar button {
+    background: #0f172a !important;
+    color: #fff !important;
+    border-color: #0f172a !important;
+    font-weight: 700;
+  }
+  .cp-action-bar a:hover, .cp-action-bar button:hover { background: #1e293b !important; }
+  .cp-action-bar a.primary { background: linear-gradient(135deg, #BF3A22, #8b2715) !important; border-color: #8b2715 !important; }
+
+  /* [patch: sticky_header_restructure] Sticky bar layout: back far-right, then
+     avatar + name/phone, then level pill, then cog far-left (RTL flow). */
+  .cp-sticky-bar {
+    display: grid !important;
+    grid-template-columns: auto auto 1fr auto auto !important;
+    gap: 8px !important;
+    align-items: center !important;
+    padding: 10px 12px !important;
+  }
+  .cp-sticky-bar .cp-back        { grid-column: 1; }
+  .cp-sticky-bar .cp-avatar      { grid-column: 2; }
+  .cp-sticky-bar > div:nth-of-type(1) { grid-column: 3; min-width: 0; }
+  .cp-sticky-bar .cp-meta        { display: flex; gap: 6px; align-items: center; }
+  .cp-sticky-bar .cp-phone-link  { font-size: 10.5px !important; padding: 2px 6px !important; }
+  .cp-sticky-bar .cp-sep         { display: none !important; }
+  .cp-sticky-bar .cp-level {
+    grid-column: 4;
+    background: #fef0ec; color: #BF3A22; border: 1px solid #f9a48c;
+    padding: 4px 10px; border-radius: 99px;
+    font-size: 11px; font-weight: 700;
+    align-self: center;
+    white-space: nowrap;
+  }
+  .cp-sticky-bar .client-settings-btn { grid-column: 5; margin: 0 !important; }
+
+  /* (7) Engagement tabs — tighter and clearer active state */
+  .gmv-engtab-bar {
+    padding: 4px !important; gap: 4px !important;
+    background: #f1f5f9 !important; border-radius: 11px !important;
+  }
+  .gmv-engtab {
+    height: 40px !important; padding: 8px 14px !important;
+    font-size: 13px !important; border-radius: 8px !important;
+    background: transparent !important; color: #475569 !important;
+    font-weight: 600 !important;
+  }
+  .gmv-engtab.is-active, .gmv-engtab.active {
+    background: #0f172a !important; color: #fff !important;
+    box-shadow: 0 2px 5px rgba(15,23,42,.20) !important;
+    font-weight: 800 !important;
+  }
+
   /* [patch: merge_rf_into_carousel] When the carousel has class .rf-tinted
      it carries the orange gradient (was .rf-hero) AND it has a header row
      with the fortune-wheel + title + period + seller. Saves one whole
@@ -4730,13 +4897,45 @@
   .gmv-cp-hero.rf-tinted .gmv-cp-hero-title { font-size: 13px !important; margin-top: 1px !important; }
   .gmv-cp-hero.rf-tinted .gmv-cp-hero-sub { font-size: 10.5px !important; margin-top: 1px !important; }
   .gmv-cp-hero.rf-tinted .gmv-cp-hero-bar { height: 4px !important; margin-bottom: 8px !important; }
-  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prizes { gap: 6px !important; }
-  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize { padding: 5px 6px !important; gap: 6px !important; }
+  /* [patch: carousel_thumbs_tier_pills] Bigger thumbnails + colored tier pills */
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prizes { gap: 8px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize {
+    padding: 8px !important; gap: 8px !important;
+    background: rgba(255,255,255,.10) !important;
+    border-color: rgba(255,255,255,.22) !important;
+    border-radius: 12px !important;
+  }
   .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-img,
-  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-placeholder { width: 36px !important; height: 36px !important; }
-  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-imgs img { width: 28px !important; height: 28px !important; margin-left: -8px !important; }
-  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-tag { font-size: 8.5px !important; letter-spacing: .06em !important; }
-  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-name { font-size: 10.5px !important; line-height: 1.2 !important; -webkit-line-clamp: 1 !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-placeholder { width: 54px !important; height: 54px !important; border-radius: 10px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-imgs img { width: 38px !important; height: 38px !important; margin-left: -10px !important; }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-name {
+    font-size: 11.5px !important; line-height: 1.25 !important;
+    -webkit-line-clamp: 2 !important;
+    display: -webkit-box !important; -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    color: #fff !important; font-weight: 600 !important;
+  }
+  /* Tier pill — colored per slot (Bronze / Silver / Gold) */
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-tag {
+    display: inline-block !important;
+    padding: 2px 8px !important; border-radius: 99px !important;
+    font-size: 9px !important; font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .08em !important;
+    margin-bottom: 3px !important;
+  }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-1 .gmv-cp-hero-prize-tag {
+    background: linear-gradient(135deg, #b57032, #8a4d1a) !important;
+    color: #fff !important;
+  }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-2 .gmv-cp-hero-prize-tag {
+    background: linear-gradient(135deg, #9aa9bd, #6b7b8c) !important;
+    color: #fff !important;
+  }
+  .gmv-cp-hero.rf-tinted .gmv-cp-hero-prize-3 .gmv-cp-hero-prize-tag {
+    background: linear-gradient(135deg, #f4d656, #c9a227) !important;
+    color: #3f2d00 !important;
+  }
 
   /* Slimmer nav row */
   .gmv-cp-hero.rf-tinted .gmv-cp-hero-nav {
@@ -16206,6 +16405,59 @@ try {
               const pickedOrders = _readLocalMap('rihab_co_picked_v1');
               const vipClients   = _readLocalMap('rihab_co_vip_clients_v1');
               const vipOrders    = _readLocalMap('rihab_co_vip_orders_v1');
+              // [patch: co_real_allocations] Build the per-seller allocations
+              // straight from fulfill.allocations (the same engine + same
+              // sell-unit-adjusted stock Delivery Planning uses). Confirm
+              // Orders' P3 mockup ratios get replaced by these real numbers.
+              const allocationsForSeller = (function buildSellerAllocations(){
+                try {
+                  if (typeof fulfill === 'undefined' || !fulfill) return null;
+                  if (!Array.isArray(fulfill.orders) || !fulfill.orders.length) return null;
+                  if (!fulfill.stock || !Object.keys(fulfill.stock).length) return null;
+                  // Make sure stock is sell-unit converted before allocating.
+                  try { if (typeof fulfillApplySellUnitToStock === 'function') fulfillApplySellUnitToStock(); } catch(_){}
+                  // Run / refresh the allocator if results are missing.
+                  if (!fulfill.allocations || !fulfill.allocations.full) {
+                    try { if (typeof fulfillRunAllocator === 'function') fulfillRunAllocator(); } catch(_){}
+                  }
+                  if (!fulfill.allocations) return null;
+                  const pickedMap = pickedOrders || {};
+                  const myMap = {};
+                  (myList || []).forEach(p => { myMap[p] = true; });
+                  const all = []
+                    .concat(fulfill.allocations.full   || [])
+                    .concat(fulfill.allocations.partial|| [])
+                    .concat(fulfill.allocations.waiting|| []);
+                  return all
+                    .filter(o => !seller || (o.seller || '') === seller)
+                    .map((o, i) => {
+                      const isPicked = !!(myMap[o.phone] || pickedMap[o.code]);
+                      const ratio = (o.totalQty > 0) ? Math.min(1, (o.deliverableTotal || 0) / o.totalQty) : 0;
+                      return {
+                        orderId:    o.code,
+                        clientId:   o.phone,
+                        clientName: o.name || o.phone || '',
+                        phone:      o.phone || '',
+                        total:      o.totalAmt || 0,
+                        color:      '',
+                        priority:   i + 1,
+                        ratio:      ratio,
+                        lines:      o.totalQty || 0,
+                        linesOk:    o.deliverableTotal || 0,
+                        decision:   null,
+                        picked:     isPicked,
+                        // Per-product breakdown for richer UI later if needed.
+                        productLines: (o.lines || []).map(l => ({
+                          productCode: l.productCode || '',
+                          productName: l.productName || '',
+                          qty:         l.qty || 0,
+                          deliverable: l.deliverable || 0,
+                          amount:      l.amount || 0,
+                        })),
+                      };
+                    });
+                } catch (e) { console.warn('[co:data] allocations build failed:', e && e.message); return null; }
+              })();
               iframe.contentWindow.postMessage({
                 type: 'co:data',
                 role: _role,
@@ -16217,6 +16469,8 @@ try {
                 pickedOrders: pickedOrders,
                 vipClients: vipClients,
                 vipOrders: vipOrders,
+                allocations:    allocationsForSeller,
+                effectiveStock: (fulfill && fulfill._sellUnitApplied) ? fulfill.stock : null,
               }, '*');
               // Also fetch latest from Supabase
               if (typeof sbReadKey === 'function') {
@@ -16295,6 +16549,59 @@ try {
                     fulfillExportTab(m.kind || 'full');
                   }
                 } catch (err) { console.error('export failed:', err); }
+              } else if (m.type === 'co:skipReason') {
+                // [patch: skip_reason_persist] Seller skipped a high-fill
+                // order — log it to public.order_skip_reasons so creators and
+                // other sellers can read it. localStorage mirror keeps the
+                // feature usable offline / before Supabase is wired.
+                try {
+                  const row = {
+                    order_code:   m.orderId || '',
+                    client_phone: m.clientId || null,
+                    seller:       m.seller || null,
+                    reason:       m.reason || '',
+                    fill_ratio:   typeof m.fillRatio === 'number' ? m.fillRatio : null,
+                    was_bonus:    !!m.wasBonus,
+                  };
+                  try {
+                    const key = 'rihab_co_skip_reasons_v1';
+                    const cur = JSON.parse(localStorage.getItem(key) || '{}');
+                    cur[row.order_code] = Object.assign({}, row, { at: m.reasonAt || new Date().toISOString() });
+                    localStorage.setItem(key, JSON.stringify(cur));
+                  } catch(_) {}
+                  try {
+                    const sbRef = (typeof sb !== 'undefined' && sb) ? sb
+                                 : ((typeof window.sbClient === 'object' && window.sbClient) ? window.sbClient : null);
+                    if (sbRef && typeof sbRef.from === 'function') {
+                      const { error } = await sbRef.from('order_skip_reasons').insert(row);
+                      if (error) console.warn('[co:skipReason] supabase write failed:', error.message);
+                    }
+                  } catch (err) {
+                    console.warn('[co:skipReason] supabase write threw:', err && err.message);
+                  }
+                } catch (err) { console.warn('co:skipReason handler failed:', err && err.message); }
+              } else if (m.type === 'co:freeStock') {
+                // [patch: stock_waterfall] Pass C/D — cross-seller redistribution.
+                // For now we just log the freed units; full cross-seller
+                // re-allocation will be wired once the per-seller allocation
+                // engine exposes a re-run hook. The seller's own bucket
+                // (Pass A + B) is already handled inside the iframe.
+                try {
+                  console.log('[co:freeStock]', m.seller, 'orderId=', m.orderId,
+                    'remainingUnits=', m.remainingUnits);
+                  const key = 'rihab_co_free_stock_log_v1';
+                  const cur = JSON.parse(localStorage.getItem(key) || '[]');
+                  cur.push({
+                    at: new Date().toISOString(),
+                    seller: m.seller || null,
+                    orderId: m.orderId,
+                    clientId: m.clientId,
+                    remainingUnits: m.remainingUnits || 0,
+                  });
+                  // Keep only the last 200 events.
+                  if (cur.length > 200) cur.splice(0, cur.length - 200);
+                  localStorage.setItem(key, JSON.stringify(cur));
+                } catch (_) {}
               }
             });
             // Resend data every 30s in case it updates
@@ -16304,6 +16611,38 @@ try {
         if (settings) settings.style.display = feat === 'settings' ? '' : 'none';
         if (feat === 'gmv' && typeof gmvInit === 'function') {
           try { gmvInit(); } catch (err) { console.error('gmv init failed:', err); }
+          // [patch: gmv_zoom_block] Install once. Mirrors the zoom-shortcut
+          // blockers used inside the Confirm Orders iframe so phones can't
+          // pinch / Ctrl-wheel / double-tap-zoom the My Performance pages.
+          try {
+            if (!window._gmvZoomBlockInstalled) {
+              window._gmvZoomBlockInstalled = true;
+              var gmvEl = document.getElementById('featureGmvMaker');
+              var inGmv = function () {
+                return gmvEl && gmvEl.style.display !== 'none' && gmvEl.offsetParent !== null;
+              };
+              window.addEventListener('wheel', function (e) {
+                if (!inGmv()) return;
+                if (e.ctrlKey || e.metaKey) { e.preventDefault(); }
+              }, { passive: false, capture: true });
+              window.addEventListener('keydown', function (e) {
+                if (!inGmv()) return;
+                if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+                  e.preventDefault();
+                }
+              }, { capture: true });
+              ['gesturestart','gesturechange','gestureend'].forEach(function (evt) {
+                window.addEventListener(evt, function (e) { if (inGmv()) e.preventDefault(); }, { passive: false });
+              });
+              var _lastTap = 0;
+              window.addEventListener('touchend', function (e) {
+                if (!inGmv()) return;
+                var now = Date.now();
+                if (now - _lastTap < 300) e.preventDefault();
+                _lastTap = now;
+              }, { passive: false });
+            }
+          } catch (err) { console.warn('gmv zoom-block install failed:', err && err.message); }
         }
         if (feat === 'fulfill' && typeof fulfillInit === 'function') {
           try { fulfillInit(); } catch (err) { console.error('fulfill init failed:', err); }
@@ -21144,11 +21483,39 @@ const ENG_MILESTONE_BOTH = 10;   // products that must hit min qty by end of Jun
 // will look up the family for an order line via gmvFamilyForSku(code).
 const FOCUS_FAMILIES = [
   'Al Itkrans + Presto', 'Blandoux', 'Calin RP', 'Calin VP',
-  'Dalaa VP / Baqqal / RP', 'Douceur', 'Kelloggs', 'Maresol', 'Mia',
+  'Dalaa VP / Baqqal / RP', 'Douceur', 'Fromy', 'Kelloggs', 'Maresol', 'Mia',
   'Mio Javel', 'Mio Liquid Vaisselle', 'Mio Matic', 'Mio main (1k+500gr)',
   'Nova', 'Papillon Papier', 'Prima', 'SANGO', 'Shiwame', 'TAJ SAHARA',
   'TAKYS', 'Tawil', 'The Al Itkane', 'Tobigo'
 ];
+// [patch: family_min_mad_hardcoded] Per-family MAD target. A client product
+// is "achieved" when delivered MAD across May+June ≥ this number.
+const FAMILY_MIN_MAD = {
+  'Dalaa VP / Baqqal / RP': 10000,
+  'Calin RP':               10000,
+  'Mio main (1k+500gr)':    10000,
+  'Mia':                    10000,
+  'Calin VP':                5000,
+  'Nova':                    5000,
+  'Prima':                   5000,
+  'Mio Liquid Vaisselle':    5000,
+  'Mio Javel':               2000,
+  'Douceur':                 5000,
+  'Mio Matic':               5000,
+  'Papillon Papier':         5000,
+  'SANGO':                   5000,
+  'Blandoux':                5000,
+  'Tawil':                   5000,
+  'Shiwame':                 5000,
+  'Kelloggs':                5000,
+  'Al Itkrans + Presto':     5000,
+  'The Al Itkane':           5000,
+  'Tobigo':                  5000,
+  'TAJ SAHARA':              4000,
+  'Maresol':                 5000,
+  'TAKYS':                   2000,
+  'Fromy':                   2000,
+};
 const FOCUS_FAMILY_MAP = (function(){
   const M = {};
   const add = (codes, family) => codes.forEach(c => { M[String(c).trim().toUpperCase()] = family; });
@@ -21251,19 +21618,25 @@ function gmvAllFocusFamilies() { return FOCUS_FAMILIES.slice(); }
 
 // [patch: family_rollup] Make sure every family has an entry in
 // gmvEngagement.focusProducts. Called after gmvLoadEngagement so the data is
-// loaded first; we ADD missing families (preserving any existing min/name
-// the creator already set). Without this seed, the compute helpers would
-// reject every order line because no family is "tracked" yet.
+// loaded first.
+// [patch: family_min_mad_hardcoded] Also apply the hardcoded FAMILY_MIN_MAD
+// targets — so every family always has the right MAD threshold even when
+// the Supabase-stored entry has min=0 (from older seed).
 function gmvSeedFamiliesIntoFocus() {
   if (!gmvEngagement || !gmvEngagement.focusProducts) return false;
-  let added = 0;
+  let changed = 0;
   FOCUS_FAMILIES.forEach(fam => {
     if (!gmvEngagement.focusProducts[fam]) {
       gmvEngagement.focusProducts[fam] = { family: fam, min: 0, name: fam };
-      added++;
+      changed++;
+    }
+    var hardMin = FAMILY_MIN_MAD[fam];
+    if (typeof hardMin === 'number' && gmvEngagement.focusProducts[fam].min !== hardMin) {
+      gmvEngagement.focusProducts[fam].min = hardMin;
+      changed++;
     }
   });
-  return added > 0;
+  return changed > 0;
 }
 
 function gmvComputeSoldForSeller(seller, period) {
@@ -22010,13 +22383,15 @@ function gmvRenderEngagementAssignProducts(panel, mySeller, isCreator, phone) {
   // Partition into the two tabs (using current draft state).
   const selectedCodes    = productCodes.filter(c => draft.has(c));
   const notSelectedCodes = productCodes.filter(c => !draft.has(c));
-  // Within the active tab, apply search.
-  const tabPool = activeTab === 'selected' ? selectedCodes : notSelectedCodes;
-  const filtered = tabPool.filter(code => {
+  // [patch: single_list_autosave] Drop the Selected / Not-selected tab split.
+  // One unified list, selected on top, not-selected below. Search filters
+  // across both groups.
+  const _matchesQ = (code) => {
     if (!q) return true;
     const m = gmvEngagement.focusProducts[code] || {};
     return (code + ' ' + (m.name || '') + ' ' + (m.family || '')).toLowerCase().includes(q);
-  });
+  };
+  const filtered = selectedCodes.filter(_matchesQ).concat(notSelectedCodes.filter(_matchesQ));
 
   // How many "not selected" focus products has this client already organically
   // ordered? Useful headline for the seller to know an opportunity exists.
@@ -22073,18 +22448,8 @@ function gmvRenderEngagementAssignProducts(panel, mySeller, isCreator, phone) {
     }).join('');
   }
 
-  // Tab bar HTML (counts include hot indicator on Not selected tab if any
-  // products were organically ordered without being selected).
-  const tabBarHtml =
-    '<div class="gmv-as-prodtabs" role="tablist">' +
-      '<button type="button" class="gmv-as-prodtab' + (activeTab === 'selected' ? ' is-active' : '') + '" data-prodtab="selected">' +
-        L.tabSelected + ' <span class="gmv-as-prodtab-count">' + selectedCodes.length + '</span>' +
-      '</button>' +
-      '<button type="button" class="gmv-as-prodtab' + (activeTab === 'notselected' ? ' is-active' : '') + '" data-prodtab="notselected">' +
-        L.tabNotSelected + ' <span class="gmv-as-prodtab-count">' + notSelectedCodes.length + '</span>' +
-        (organicNotSelected > 0 ? ' <span class="gmv-as-prodtab-hot" title="' + esc(L.orderedOrganically) + '">' + organicNotSelected + '</span>' : '') +
-      '</button>' +
-    '</div>';
+  // [patch: single_list_autosave] Tab bar removed — single list now.
+  const tabBarHtml = '';
 
   const _shortBy = Math.max(0, MIN_REQ - draft.size);
   const _meetsMin = draft.size >= MIN_REQ;
@@ -22126,9 +22491,12 @@ function gmvRenderEngagementAssignProducts(panel, mySeller, isCreator, phone) {
         '<button type="button" class="gmv-as-mini-btn" data-asprod-act="none">' + L.clear + '</button>' +
       '</div>' +
       '<div class="gmv-as-prodlist">' + listHtml + '</div>' +
+      // [patch: single_list_autosave] Save button gone — auto-save on toggle.
       '<div class="gmv-as-footer">' +
-        '<button type="button" class="gmv-as-btn secondary" id="gmvAsCancel">' + L.cancel + '</button>' +
-        '<button type="button" class="gmv-as-btn primary" id="gmvAsSave"' + (_meetsMin ? '' : ' disabled title="' + esc(L.tooFew) + '"') + '>' + L.save + (_meetsMin ? '' : ' (' + draft.size + '/' + MIN_REQ + ')') + '</button>' +
+        '<button type="button" class="gmv-as-btn secondary" id="gmvAsCancel">' + L.back + '</button>' +
+        '<span class="gmv-as-saved-flash" id="gmvAsSavedFlash" style="font-size:12px;font-weight:700;color:#16a34a;opacity:0;transition:opacity .2s;align-self:center;margin-inline-start:auto;">' +
+          (engLang() === 'ar' ? 'تم الحفظ ✓' : (engLang() === 'fr' ? 'Enregistré ✓' : 'Saved ✓')) +
+        '</span>' +
       '</div>' +
     '</section>';
 
@@ -22204,51 +22572,51 @@ function gmvRenderEngagementAssignProducts(panel, mySeller, isCreator, phone) {
       else saveBtn.setAttribute('title', L.tooFew);
     }
   };
+  // [patch: single_list_autosave] Debounced auto-save — fires after the
+  // seller stops toggling for ~300ms. No Save button anymore. Selecting an
+  // item also moves it to the top on next render.
+  let _autoSaveT = null;
+  const _flashSaved = () => {
+    const f = document.getElementById('gmvAsSavedFlash');
+    if (!f) return;
+    f.style.opacity = '1';
+    clearTimeout(f.__t);
+    f.__t = setTimeout(() => { f.style.opacity = '0'; }, 1500);
+  };
+  const _autoSave = () => {
+    clearTimeout(_autoSaveT);
+    _autoSaveT = setTimeout(async () => {
+      try {
+        const existing = gmvEngagement.commitments[seller] || {};
+        const next = JSON.parse(JSON.stringify(existing.clientFocus || {}));
+        next[phone] = {};
+        draft.forEach(code => { next[phone][code] = { selected: true }; });
+        await gmvSaveEngagementCommitment(seller, period, { clientFocus: next });
+        _flashSaved();
+      } catch (e) {
+        if (typeof settingsToast === 'function') settingsToast('Save failed: ' + (e.message || e), 'error');
+      }
+    }, 300);
+  };
   panel.querySelectorAll('[data-asprod]').forEach(cb => {
     cb.addEventListener('change', () => {
       const code = cb.dataset.asprod;
       if (cb.checked) draft.add(code);
       else draft.delete(code);
-      // Re-render the picker so toggled items move between tabs and tab
-      // counts update. Slightly more work but keeps tabs accurate.
+      _autoSave();
+      // Re-render so the newly-selected item bubbles to the top.
       gmvRenderEngagementAssignProducts(panel, mySeller, isCreator, phone);
     });
   });
-
   // Select all visible / clear
   panel.querySelectorAll('[data-asprod-act]').forEach(b => {
     b.addEventListener('click', () => {
       const a = b.dataset.asprodAct;
       if (a === 'all') filtered.forEach(c => draft.add(c));
       else if (a === 'none') draft.clear();
+      _autoSave();
       gmvRenderEngagementAssignProducts(panel, mySeller, isCreator, phone);
     });
-  });
-
-  // Save (with min-products guard)
-  const _save = document.getElementById('gmvAsSave');
-  if (_save) _save.addEventListener('click', async () => {
-    if (draft.size < MIN_REQ) {
-      if (typeof settingsToast === 'function') settingsToast(L.tooFew, 'error');
-      // Shake the counter to draw attention
-      const counter = document.getElementById('gmvAsSelCount');
-      if (counter) { counter.classList.remove('shake'); void counter.offsetWidth; counter.classList.add('shake'); }
-      return;
-    }
-    _save.disabled = true; _save.textContent = '…';
-    try {
-      const existing = gmvEngagement.commitments[seller] || {};
-      const next = JSON.parse(JSON.stringify(existing.clientFocus || {}));
-      next[phone] = {};
-      draft.forEach(code => { next[phone][code] = { selected: true }; });
-      await gmvSaveEngagementCommitment(seller, period, { clientFocus: next });
-      if (typeof settingsToast === 'function') settingsToast('Saved · ' + draft.size + ' ' + L.selected, 'success');
-      backOut();
-    } catch (e) {
-      if (typeof settingsToast === 'function') settingsToast('Save failed: ' + (e.message || e), 'error');
-      else alert('Save failed: ' + (e.message || e));
-      _save.disabled = false; _save.textContent = L.save;
-    }
   });
 }
 
@@ -22723,14 +23091,9 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
         '<h2 class="gmv-cp-title">' + T.title + '</h2>' +
         '<div class="gmv-cp-sub">' + T.sub + '</div>' +
       '</header>' +
-      '<div class="gmv-cp-kpis">' +
-        kpiCard(T.kTotal,    fmt(kpiTotalGmv) + ' <span class="gmv-cp-kpi-unit">MAD</span>', '') +
-        kpiCard(_kpiLblsTop.target, fmt(kpiTarget) + ' <span class="gmv-cp-kpi-unit">MAD</span>', '') +
-        kpiCard(T.kProgress, kpiPctPaliers + '<span class="gmv-cp-kpi-unit">%</span>', '') +
-        kpiCard(T.kActive,   kpiActive + ' <span class="gmv-cp-kpi-unit">/ ' + allPhones.length + '</span>', '') +
-        kpiCard(_kpiLblsTop.inactive, kpiInactive + ' <span class="gmv-cp-kpi-unit">/ ' + allPhones.length + '</span>', '') +
-        kpiCard(_kpiLblsTop.noprods, kpiNoProds + ' <span class="gmv-cp-kpi-unit">/ ' + allPhones.length + '</span>', '') +
-      '</div>' +
+      // [patch: kpis_into_chips] KPI strip removed — counts now live inside
+      // each filter chip below.
+      '' +
       // [patch: ui_overhaul_pass2] Combined toolbar — search + sort + filters
       // + reset, single row.
       '<div class="gmv-cp-toolbar">' +
@@ -22740,12 +23103,13 @@ function gmvRenderClientsPerformance(panel, mySeller, isCreator) {
         '<select id="gmvCpSort" class="gmv-cp-sort" aria-label="' + esc(T.sort) + '">' +
           sortOpts.map(o => '<option value="' + o[0] + '"' + (fSort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') +
         '</select>' +
+      // [patch: kpis_into_chips] Every chip now carries its count badge.
       '<div class="gmv-cp-filters">' +
-        filterChip('buying',  T.flt_buying) +
-        filterChip('ontrack', T.flt_ontrack) +
-        filterChip('won',     T.flt_won) +
-        filterChip('cold',    T.flt_cold,   insightCold.length) +
-        filterChip('noprod',  T.flt_noprod, insightNoProducts.length) +
+        filterChip('buying',  T.flt_buying,  kpiActive) +
+        filterChip('ontrack', T.flt_ontrack, rows.filter(function(r){ return r.status === 'ontrack'; }).length) +
+        filterChip('won',     T.flt_won,     kpiGiftsWon) +
+        filterChip('cold',    T.flt_cold,    insightCold.length) +
+        filterChip('noprod',  T.flt_noprod,  insightNoProducts.length) +
         '<button type="button" class="gmv-cp-filter-reset" data-cp-filter-reset>' +
           (engLang() === 'ar' ? 'إعادة ضبط' : (engLang() === 'fr' ? 'Réinitialiser' : 'Reset')) +
         '</button>' +
@@ -23076,11 +23440,28 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
           var caret = hasSkus
             ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="opacity:.55;transition:transform .15s"><polyline points="9 18 15 12 9 6"></polyline></svg>'
             : '';
-          // [patch: all_families_split] Card carries data-cp-committed +
-          // a flat searchable text blob so the search input can match the
-          // family name, all its SKU codes, and all SKU names quickly.
           var searchBlob = (fam + ' ' + skuCodes.join(' ') + ' ' +
                             skuCodes.map(function(c){return perSku[c].name;}).join(' ')).toLowerCase();
+          // [patch: family_progress_bar] Per-family progress: delivered MAD
+          // vs family-level min target. Family min comes from
+          // gmvEngagement.focusProducts[fam].min (creator-set) OR fall back
+          // to the seller's per-client target in focus[fam].minMad/minQty.
+          var _famMeta = (gmvEngagement.focusProducts || {})[fam] || {};
+          var _famMin = _famMeta.min || (focus[fam] && (focus[fam].minMad || focus[fam].minQty)) || 0;
+          var _famPct = _famMin > 0 ? Math.min(100, Math.round((delivered / _famMin) * 100)) : 0;
+          var _famTier = _famPct < 30 ? 'low' : (_famPct < 70 ? 'med' : 'high');
+          var _famBarColor = _famPct >= 100 ? '#16a34a' : (_famPct >= 70 ? '#16a34a' : (_famPct >= 30 ? '#f59e0b' : '#ef4444'));
+          var _famProgressHtml = _famMin > 0
+            ? '<div style="display:flex;align-items:center;gap:6px;margin-top:6px">' +
+                '<div style="flex:1;height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden">' +
+                  '<div style="width:' + _famPct + '%;height:100%;background:' + _famBarColor + ';border-radius:99px;transition:width .4s"></div>' +
+                '</div>' +
+                '<span style="font-size:11px;font-weight:700;color:' + _famBarColor + ';min-width:34px;text-align:end;font-variant-numeric:tabular-nums">' + _famPct + '%</span>' +
+              '</div>' +
+              '<div style="font-size:10.5px;color:#64748b;margin-top:2px;direction:ltr;text-align:end">' +
+                fmtMad(delivered) + ' / ' + fmtMad(_famMin) + ' MAD' +
+              '</div>'
+            : '';
           return '<div class="cp-fam-card" data-fam-key="' + esc2(fam) + '"' +
                  ' data-cp-committed="' + (committed ? '1' : '0') + '"' +
                  ' data-search-text="' + esc2(searchBlob) + '"' +
@@ -23088,6 +23469,7 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
                    '<div class="cp-fam-head" data-fam-toggle="' + esc2(fam) + '" style="display:flex;align-items:center;gap:6px;cursor:' + (hasSkus ? 'pointer' : 'default') + '">' + caret +
                      '<div style="font-weight:600;color:#0f172a;font-size:13px">' + esc2(fam) + commitBadge + '</div>' +
                    '</div>' +
+                   _famProgressHtml +
                    '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;direction:ltr">' + (pills || '<span style="color:#94a3b8;font-size:11px">—</span>') + '</div>' +
                    minLine +
                    (hasSkus
@@ -23195,6 +23577,8 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
       fr: { lbl:'GMV ce mois', toGo:'restant', pending:'dont en attente', toTarget:'/ Cible' },
       en: { lbl:'GMV this month', toGo:'to go', pending:'incl. pending', toTarget:'/ Target' },
     })[engLang()] || { lbl:'GMV this month', toGo:'to go', pending:'incl. pending', toTarget:'/ Target' };
+    // [patch: sticky_header_restructure] Grid columns:
+    //   back · avatar · (name+phone) · level pill · cog
     var _stickyHeader =
       '<div class="cp-sticky-bar">' +
         '<button type="button" class="cp-back" data-cp-back>' +
@@ -23203,14 +23587,13 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
           '</svg>' +
         '</button>' +
         '<div class="cp-avatar">' + esc2(firstLetter2(row.name)) + '</div>' +
-        '<div style="min-width:0;flex:1;">' +
+        '<div style="min-width:0;">' +
           '<h1>' + esc2(row.name) + '</h1>' +
           '<div class="cp-meta">' +
             '<a class="cp-phone-link" href="tel:' + esc2(row.phone) + '">' + esc2(row.phone) + '</a>' +
-            '<span class="cp-sep">·</span>' +
-            '<span class="cp-level">' + esc2(L.level) + ' ' + (row.nextPalier ? row.nextPalier.palier : '—') + '</span>' +
           '</div>' +
         '</div>' +
+        '<span class="cp-level">' + esc2(L.level) + ' ' + (row.nextPalier ? row.nextPalier.palier : '—') + '</span>' +
         '<button type="button" class="client-settings-btn" data-cp-perf-settings="' + esc2(phone) + '" title="' + esc2(L.targetBtn) + '" aria-label="' + esc2(L.targetBtn) + '">' +
           '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
             '<circle cx="12" cy="12" r="3"/>' +
@@ -23224,7 +23607,7 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
         '<div class="val">' + fmtN(totalGmv) + ' MAD' +
           (_gap > 0 ? '<span class="gap">— ' + fmtN(_gap) + ' ' + esc2(_moneyLbls.toGo) + '</span>' : '') +
         '</div>' +
-        '<div class="bar"><span style="width:' + pct + '%"></span></div>' +
+        '<div class="bar"><span style="width:' + pct + '%" data-pct="' + pct + '%"></span></div>' +
         '<div class="sub">' +
           '<span><b>' + pct + '%</b> ' + esc2(_moneyLbls.toTarget) + ' ' + fmtN(nextThr) + ' MAD</span>' +
           (_pendingMad > 0 ? '<span class="pending">' + esc2(_moneyLbls.pending) + ' <b>' + fmtN(_pendingMad) + ' MAD</b></span>' : '') +
@@ -23240,13 +23623,14 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
           '<button type="button" class="cp-next-action-cta" data-cp-next-action="' + _nextAct.key + '">' + esc2(_nextAct.cta) + '</button>' +
         '</div>'
       : '');
+    // [patch: products_default_tab] Products opens first now.
     var _tabBar =
       '<div class="cp-tabs">' +
-        '<button type="button" class="cp-tab is-active" data-cp-tab="orders">' + esc2(_tabLbls.orders) +
-          (_ordersCount > 0 ? ' <span class="badge">' + _ordersCount + '</span>' : '') +
-        '</button>' +
-        '<button type="button" class="cp-tab" data-cp-tab="products">' + esc2(_tabLbls.products) +
+        '<button type="button" class="cp-tab is-active" data-cp-tab="products">' + esc2(_tabLbls.products) +
           (_commitCount > 0 ? ' <span class="badge">' + _commitCount + '</span>' : '') +
+        '</button>' +
+        '<button type="button" class="cp-tab" data-cp-tab="orders">' + esc2(_tabLbls.orders) +
+          (_ordersCount > 0 ? ' <span class="badge">' + _ordersCount + '</span>' : '') +
         '</button>' +
         '<button type="button" class="cp-tab" data-cp-tab="activity">' + esc2(_tabLbls.activity) + '</button>' +
         '<button type="button" class="cp-tab" data-cp-tab="notes">' + esc2(_tabLbls.notes) + '</button>' +
@@ -23257,8 +23641,8 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
         _moneyHero +
         _nextActionHtml +
         _tabBar +
-        // [patch: client_perf_outstanding] Orders tab — default visible
-        '<div class="cp-panel is-active" data-cp-panel="orders">' +
+        // [patch: products_default_tab] Orders is no longer default.
+        '<div class="cp-panel" data-cp-panel="orders">' +
         (function(){
           var ordersForPhone = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders))
             ? fulfill.orders.filter(function(o){ return o && o.phone === phone; })
@@ -23351,8 +23735,8 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
           '</section>';
         })() +
         '</div>' /* close orders panel */ +
-        // Products tab — uses the existing prodList HTML built earlier.
-        '<div class="cp-panel" data-cp-panel="products">' +
+        // [patch: products_default_tab] Products is now the default tab.
+        '<div class="cp-panel is-active" data-cp-panel="products">' +
           '<section class="cp-block">' + prodList + '</section>' +
         '</div>' +
         // Activity tab — full event feed (last orders, days since, etc.)
@@ -23401,8 +23785,8 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
         '<div class="cp-panel" data-cp-panel="notes">' +
           '<section class="cp-block">' +
             '<textarea id="cpNotes" placeholder="' + esc2(L.notesPh) + '">' + esc2(noteVal) + '</textarea>' +
-            '<div id="cpNotesSaved" style="margin-top:6px;font-size:11px;color:#16a34a;font-weight:700;opacity:0;transition:opacity .2s">✓ ' +
-              (engLang() === 'ar' ? 'محفوظ' : (engLang() === 'fr' ? 'Enregistré' : 'Saved')) +
+            '<div id="cpNotesSaved" style="margin-top:6px;font-size:11px;color:#16a34a;font-weight:700;opacity:0;transition:opacity .2s">' +
+              (engLang() === 'ar' ? 'تم الحفظ ✓' : (engLang() === 'fr' ? 'Enregistré ✓' : 'Saved ✓')) +
             '</div>' +
           '</section>' +
         '</div>' +
@@ -26266,9 +26650,38 @@ async function fulfillParseAma(file) {
   return set;
 }
 
+// ---- Sell-unit normalisation (Confirm Orders ⇄ Delivery Planning) ------
+// [patch: co_sell_unit] Delivery Planning converts atomic stock to PACKING
+// units via awalArticlesLookup (line ~7150). The Order Fulfillment
+// allocator hadn't been doing that, so Confirm Orders showed different
+// "available" qty than Delivery Planner for the same SKU. This helper
+// converts fulfill.stock once, idempotent via fulfill._sellUnitApplied.
+function fulfillApplySellUnitToStock() {
+  if (!fulfill || !fulfill.stock) return false;
+  if (fulfill._sellUnitApplied) return true;
+  if (typeof awalArticlesLookup === 'undefined' || !awalArticlesLookup) return false;
+  let converted = 0;
+  Object.keys(fulfill.stock).forEach(code => {
+    const art = awalArticlesLookup.get(code);
+    const raw = parseFloat(fulfill.stock[code]) || 0;
+    if (art && art.sellUnit === 'PACKING' && art.pkgQty && art.pkgQty > 0) {
+      fulfill.stock[code] = Math.max(0, Math.floor(raw / art.pkgQty));
+      converted++;
+    } else {
+      fulfill.stock[code] = Math.max(0, raw);
+    }
+  });
+  fulfill._sellUnitApplied = true;
+  if (converted) console.log('[OF] sell-unit converted', converted, 'SKU(s) to PACKING units');
+  return true;
+}
+
 // ---- Allocator ----------------------------------------------------
 function fulfillRunAllocator() {
   if (!fulfill.orders.length) return;
+  // [patch: co_sell_unit] Make stock consistent with Delivery Planning
+  // before allocating. Idempotent.
+  try { fulfillApplySellUnitToStock(); } catch(_) {}
 
   // Group lines by orderCode.
   const byCode = {};
