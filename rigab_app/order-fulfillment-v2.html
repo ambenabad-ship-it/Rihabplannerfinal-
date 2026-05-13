@@ -250,6 +250,20 @@
     font-weight:400;
   }
   .m-hero .phase-detail strong{color:rgba(255,255,255,.95);font-weight:600}
+  /* [patch: delivery_day_chip] */
+  .m-hero .delivery-target{
+    display:inline-flex;align-items:center;gap:6px;
+    margin-top:8px;padding:4px 10px 4px 8px;
+    background:rgba(255,255,255,.13);
+    border:.5px solid rgba(255,255,255,.18);
+    border-radius:999px;
+    font-size:11.5px;font-weight:500;
+    color:rgba(255,255,255,.92);
+    backdrop-filter:blur(8px);
+  }
+  .m-hero .delivery-target strong{color:#fff;font-weight:700;margin:0 2px}
+  .m-hero .delivery-target svg{opacity:.85;flex-shrink:0}
+  .ff-mobile[dir="rtl"] .m-hero .delivery-target{font-family:var(--font-ar)}
 
   /* Live phase progress bar at hero bottom */
   .hero-progress{
@@ -867,6 +881,118 @@
   /*  Allocation cards (Phase 3) — premium                          */
   /* ============================================================== */
   .m-alloc{padding:10px 14px 130px;display:flex;flex-direction:column;gap:9px}
+  /* [patch: bonus_tab] tab strip + bonus empty state */
+  .m-alloc-tabs{
+    display:flex;align-items:center;gap:6px;
+    background:#f3f4f6;border-radius:12px;padding:4px;
+    margin:4px 0 6px;position:relative;
+  }
+  .m-alloc-tab{
+    flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    height:38px;border:none;background:transparent;
+    border-radius:9px;font:600 13px var(--font-ar,inherit);color:#5b6478;
+    cursor:pointer;transition:background .18s ease,color .18s ease,box-shadow .18s ease;
+  }
+  .m-alloc-tab.active{
+    background:#fff;color:#111827;
+    box-shadow:0 1px 2px rgba(15,23,42,.05),0 1px 6px rgba(15,23,42,.04);
+  }
+  .m-alloc-tab-cnt{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:22px;height:20px;padding:0 6px;border-radius:999px;
+    background:#e2e6ec;color:#374151;font:700 11px var(--font-mono,inherit);
+    font-variant-numeric:tabular-nums slashed-zero;letter-spacing:.02em;
+  }
+  .m-alloc-tab.active .m-alloc-tab-cnt{background:#111827;color:#fff}
+  .m-alloc-tab-cnt.is-bonus[data-hot="1"]{
+    background:#10b981;color:#fff;animation:bonus-pop .35s ease;
+  }
+  @keyframes bonus-pop{0%{transform:scale(.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+  .bonus-empty{
+    margin:30px auto;max-width:280px;text-align:center;
+    color:#6b7280;font:500 13px var(--font-ar,inherit);
+  }
+  .bonus-empty svg{color:#9aa3b3;margin-bottom:8px}
+  .bonus-empty .be-title{color:#111827;font-weight:700;font-size:14px;margin-bottom:6px}
+  .bonus-empty .be-sub{line-height:1.55}
+  .bonus-empty .be-sub b{color:#10b981;font-weight:700}
+  /* Bonus alloc cards get a subtle green frame to set them apart */
+  .alloc-card.bonus-card{border:1px solid rgba(16,185,129,.22)}
+  .alloc-card.bonus-card .bonus-tag{
+    position:absolute;top:-9px;right:12px;
+    background:#10b981;color:#fff;
+    font:700 10px var(--font-ar,inherit);
+    padding:3px 8px;border-radius:999px;letter-spacing:.02em;
+    box-shadow:0 2px 6px rgba(16,185,129,.32);
+  }
+  .ff-mobile[dir="rtl"] .alloc-card.bonus-card .bonus-tag{right:auto;left:12px}
+  /* [patch: skip_reason_modal] */
+  .m-modal-shroud{
+    position:fixed;inset:0;z-index:9999;
+    background:rgba(15,23,42,.55);backdrop-filter:blur(3px);
+    display:flex;align-items:flex-end;justify-content:center;
+    padding:0;
+    animation:shroud-in .18s ease;
+  }
+  .m-modal-shroud.hidden{display:none}
+  @keyframes shroud-in{from{opacity:0}to{opacity:1}}
+  .m-modal{
+    background:#fff;width:100%;max-width:560px;
+    border-radius:18px 18px 0 0;
+    padding:18px 18px 14px;
+    box-shadow:0 -8px 32px rgba(15,23,42,.18);
+    animation:modal-up .22s cubic-bezier(.2,.7,.3,1);
+    display:flex;flex-direction:column;gap:14px;
+  }
+  @keyframes modal-up{from{transform:translateY(18px);opacity:.7}to{transform:translateY(0);opacity:1}}
+  .m-modal-head{display:flex;gap:12px;align-items:flex-start}
+  .m-modal-warn{
+    flex-shrink:0;width:38px;height:38px;border-radius:12px;
+    background:rgba(245,158,11,.12);color:#d97706;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .m-modal-warn svg{width:20px;height:20px}
+  .m-modal-title-wrap{flex:1;min-width:0}
+  .m-modal-eyebrow{
+    font:600 11.5px var(--font-ar,inherit);color:#6b7280;
+    letter-spacing:.02em;margin-bottom:2px;
+  }
+  .m-modal-eyebrow b{color:#d97706;font-weight:800}
+  .m-modal-title{
+    margin:0 0 4px;font:700 16px var(--font-ar,inherit);color:#111827;
+    line-height:1.35;
+  }
+  .m-modal-sub{
+    font:400 12.5px var(--font-ar,inherit);color:#4b5563;line-height:1.55;
+  }
+  .m-modal-sub b{color:#111827;font-weight:700}
+  .m-modal-body{display:flex;flex-direction:column;gap:6px}
+  .m-modal-body textarea{
+    width:100%;min-height:96px;resize:vertical;
+    padding:11px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+    font:400 13.5px var(--font-ar,inherit);color:#111827;
+    background:#fafbfc;outline:none;line-height:1.55;
+    transition:border-color .15s ease,background .15s ease;
+  }
+  .m-modal-body textarea:focus{border-color:#111827;background:#fff}
+  .m-modal-hint{
+    display:flex;align-items:center;justify-content:space-between;
+    font:600 11px var(--font-ar,inherit);color:#6b7280;
+  }
+  .m-modal-hint .tnum{color:#111827;font-weight:700}
+  .m-modal-min{color:#d97706}
+  .m-modal-min.ok{color:#10b981}
+  .m-modal-actions{display:flex;gap:8px;justify-content:flex-end}
+  .m-modal-btn{
+    height:42px;padding:0 18px;border-radius:10px;border:none;
+    font:700 13px var(--font-ar,inherit);cursor:pointer;
+    transition:transform .12s ease,opacity .15s ease,background .15s ease;
+  }
+  .m-modal-btn.cancel{background:transparent;color:#6b7280}
+  .m-modal-btn.cancel:hover{background:#f3f4f6;color:#111827}
+  .m-modal-btn.primary{background:#111827;color:#fff}
+  .m-modal-btn.primary:disabled{opacity:.4;cursor:not-allowed}
+  .m-modal-btn.primary:not(:disabled):hover{background:#1f2937;transform:translateY(-1px)}
   .alloc-card{
     background:#fff;
     border:.5px solid var(--border);border-radius:14px;
@@ -1527,6 +1653,18 @@
               </span>
               <span class="countdown" id="phaseCountdown">04<span class="sep">:</span>17<span class="sep">:</span>30</span>
             </div>
+            <!-- [patch: delivery_day_chip] Shows the seller which day these
+                 picks will be delivered. Computed on Morocco wall-clock and
+                 refreshed on every applyPhase() call. -->
+            <div class="delivery-target" id="deliveryTarget">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M1 3h15v13H1z"></path>
+                <path d="M16 8h4l3 3v5h-7z"></path>
+                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+              </svg>
+              <span>التوصيل نهار <strong id="deliveryDayLabel">—</strong></span>
+            </div>
             <div class="hero-progress"><div class="hero-progress-fill" id="phaseProgress" style="width: 46.2422%;"></div></div>
           </div>
 
@@ -1786,7 +1924,53 @@
                     <div class="sub">قراراتك توصل لـ<b>السوبرفيزور</b> و <b>رجالة التوصيل</b> على <b>10:59 غدا</b> — أكد بعقل</div>
                   </div>
                 </div>
+                <!-- [patch: bonus_tab] Main alloc + bonus tab fed by leftover
+                     stock when sellers skip orders. -->
+                <div class="m-alloc-tabs" id="allocTabs">
+                  <button class="m-alloc-tab active" data-alloc-tab="main">
+                    اللائحة المختارة
+                    <span class="m-alloc-tab-cnt tnum" id="allocMainCnt">0</span>
+                  </button>
+                  <button class="m-alloc-tab" data-alloc-tab="bonus">
+                    مأهلة إضافية
+                    <span class="m-alloc-tab-cnt tnum is-bonus" id="allocBonusCnt">0</span>
+                  </button>
+                </div>
                 <div id="allocList"></div>
+                <div id="bonusList" class="hidden"></div>
+                <div id="bonusEmpty" class="bonus-empty hidden">
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                  <div class="be-title">ماكاينش طلبيات مأهلة دابا</div>
+                  <div class="be-sub">إلى تخطّيت شي طلبية، السطوك كيتقسم على طلبيات أخرى ديالك. اللي يقدر يتكمل بـ <b>80٪</b> ولا أكثر يطلع هنا.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- [patch: skip_reason_modal] Forces ≥10-char reason on skip when
+               fill ratio ≥ 80%. Reason is persisted via co:skipReason. -->
+          <div class="m-modal-shroud hidden" id="skipReasonShroud" aria-hidden="true">
+            <div class="m-modal" role="dialog" aria-modal="true" aria-labelledby="skipReasonTitle">
+              <div class="m-modal-head">
+                <div class="m-modal-warn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><circle cx="12" cy="17" r=".5"></circle></svg>
+                </div>
+                <div class="m-modal-title-wrap">
+                  <div class="m-modal-eyebrow">السطوك متوفر بنسبة <b id="skipReasonRatio">—</b></div>
+                  <h3 class="m-modal-title" id="skipReasonTitle">علاش بغيتي تخطى هاد الطلبية؟</h3>
+                  <div class="m-modal-sub">عافاك كتب السبب — على الأقل <b>10 حروف</b>. هاد السبب كيتسجل ويوصل للسوبرفيزور و للسيلرز الآخرين باش يفهمو القرار.</div>
+                </div>
+              </div>
+              <div class="m-modal-body">
+                <textarea id="skipReasonInput" placeholder="مثال: الزبون مسد التيليفون، الزبون بدّل الرأي، طلبية كاينة عند سيلر آخر…" dir="rtl" rows="4" maxlength="500"></textarea>
+                <div class="m-modal-hint">
+                  <span id="skipReasonCount" class="tnum">0</span> / 10 حروف
+                  <span class="m-modal-min" id="skipReasonHint">باقي 10</span>
+                </div>
+              </div>
+              <div class="m-modal-actions">
+                <button class="m-modal-btn cancel" id="skipReasonCancel">إلغاء</button>
+                <button class="m-modal-btn primary" id="skipReasonSubmit" disabled>أكد التخطي</button>
               </div>
             </div>
           </div>
@@ -2081,6 +2265,11 @@ let CURRENT_SELLER = 'karim';
 let CURRENT_PHASE = 'p1';
 let CURRENT_TAB = 'find';
 let ALLOCATIONS = [];
+// [patch: bonus_tab] Orders auto-promoted from leftover stock when other
+// orders are skipped. Same shape as ALLOCATIONS plus `bonus: true`.
+let BONUS_ALLOCATIONS = [];
+let ALLOC_TAB = 'main';                          // 'main' | 'bonus'
+let SKIP_REASON_THRESHOLD = 0.8;                 // ≥80% fill → reason required
 
 const PHASES = {
   p1: { idx:1, pill:'المرحلة 1 · اختر و رتب', cls:'p1', detail:'زيد الكليانات اللي بغيتي يتسالاو غدا (<strong>الثلاثاء 12 ماي</strong>) و رتبهم. القفل على الساعة <strong>20:00 ليلا</strong>.' },
@@ -2151,6 +2340,10 @@ function tick(){
   _simNow = new Date(_simNow.getTime() + 1000);
   updateClocks();
 }
+// [patch: delivery_day_chip] Refresh the delivery-day label every minute so
+// it rolls over correctly at midnight even when the phase itself hasn't
+// changed (e.g. Friday extended P1 → Saturday extended P1).
+setInterval(function(){ try { updateDeliveryDayChip(); } catch(_){} }, 60*1000);
 function updateClocks(){
   if (!_simNow || !_simEnd || !_phaseStart) return;
   const cd = document.getElementById('phaseCountdown');
@@ -2191,6 +2384,62 @@ function applyRole(role){
 }
 
 /* ============================== PHASE ============================== */
+// [patch: delivery_day_chip] Morocco-time delivery-day computation. Mirrors
+// computePhase() rules so the chip stays in sync with the phase clock even
+// when the parent app forces a phase via co:setPhase.
+var DELIVERY_DOW_AR = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+function _coMoroccoNow(){
+  try {
+    var fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Casablanca',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
+    });
+    var p = {};
+    fmt.formatToParts(new Date()).forEach(function(x){ p[x.type] = x.value; });
+    var dowMap = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+    var hh = parseInt(p.hour, 10); if (hh === 24) hh = 0;
+    return {
+      dow: dowMap[p.weekday],
+      t: hh * 60 + parseInt(p.minute, 10),
+      ymd: p.year + '-' + p.month + '-' + p.day
+    };
+  } catch (_) {
+    var d = new Date();
+    return {
+      dow: d.getDay(),
+      t: d.getHours() * 60 + d.getMinutes(),
+      ymd: d.toISOString().slice(0,10)
+    };
+  }
+}
+function _coDeliveryOffset(phase){
+  // If we know the phase the page is currently locked to (creator override
+  // or router broadcast), derive offset from phase + weekday; otherwise from
+  // wall-clock. Phases p1/p2/p3-early = J+2; p3-late/p4 = J+1.
+  var n = _coMoroccoNow(), dow = n.dow, t = n.t;
+  // Friday extended cycle (Fri 12:01 → Mon 11:59) → Monday delivery.
+  if (dow === 5 && t >= (12*60+1)) return 3;             // Fri afternoon → Mon (J+3)
+  if (dow === 6)                   return 2;             // Sat → Mon (J+2)
+  if (dow === 0)                   return 1;             // Sun → Mon (J+1)
+  if (dow === 1 && t < (11*60+59)) return 0;             // Mon morning P3/P4 → Mon today
+  // Standard cycle.
+  if (t >= (12*60+1) && t < (21*60)) return 2;           // P1, P2 → J+2
+  if (t >= (21*60))                  return 2;           // P3 early → J+2
+  return 1;                                              // P3 late / P4 → J+1
+}
+function updateDeliveryDayChip(){
+  var el = document.getElementById('deliveryDayLabel');
+  if (!el) return;
+  var n = _coMoroccoNow();
+  var off = _coDeliveryOffset();
+  // Compose a Date in Morocco's date frame and add the offset in days.
+  var ymd = n.ymd.split('-');
+  var base = new Date(Date.UTC(+ymd[0], +ymd[1]-1, +ymd[2]));
+  base.setUTCDate(base.getUTCDate() + off);
+  el.textContent = DELIVERY_DOW_AR[base.getUTCDay()];
+}
+
 function applyPhase(phase){
   var _prev = CURRENT_PHASE;
   CURRENT_PHASE = phase;
@@ -2220,6 +2469,7 @@ function applyPhase(phase){
   document.getElementById('creatorP4').classList.toggle('hidden', phase !== 'p4');
   applyPhaseView();
   updateStats();
+  try { updateDeliveryDayChip(); } catch(_){}
 }
 
 function applyPhaseView(){
@@ -2243,7 +2493,12 @@ function applyPhaseView(){
   } else if (CURRENT_PHASE === 'p3'){
     document.getElementById('viewAlloc').classList.remove('hidden');
     ALLOCATIONS = buildAllocations();
+    // [patch: bonus_tab] Bonus list is only populated on-skip; reset whenever
+    // the seller (re)enters P3 so we don't keep stale promotions.
+    if (!Array.isArray(BONUS_ALLOCATIONS)) BONUS_ALLOCATIONS = [];
+    setAllocTab('main');
     renderAllocations();
+    renderBonusAllocations();
     setBottomBar('confirming');
   } else {
     document.getElementById('viewFinal').classList.remove('hidden');
@@ -2285,9 +2540,12 @@ function setBottomBar(state){
     b.innerHTML = 'حدث';
     b.classList.add('locked');
   } else if (state === 'confirming'){
-    const conf = ALLOCATIONS.filter(a => a.decision === 'confirm').length;
-    t.textContent = `${conf} / ${ALLOCATIONS.length} مؤكدة`;
-    s.textContent = 'كليك على أكد ولا تخطى';
+    const allList = ALLOCATIONS.concat(BONUS_ALLOCATIONS || []);
+    const conf = allList.filter(a => a.decision === 'confirm').length;
+    t.textContent = `${conf} / ${allList.length} مؤكدة`;
+    s.textContent = (BONUS_ALLOCATIONS && BONUS_ALLOCATIONS.length)
+      ? ('+' + BONUS_ALLOCATIONS.length + ' مأهلة إضافية · كليك على أكد ولا تخطى')
+      : 'كليك على أكد ولا تخطى';
     b.innerHTML = 'أكد كلشي';
     b.classList.add('primary');
   } else {
@@ -2698,12 +2956,368 @@ function renderAllocations(){
   }).join('');
   wrap.querySelectorAll('.big-btn').forEach(b => {
     b.addEventListener('click', () => {
-      const a = ALLOCATIONS.find(x => x.orderId === b.dataset.id);
+      const id = b.dataset.id;
+      const a = ALLOCATIONS.find(x => x.orderId === id) ||
+                BONUS_ALLOCATIONS.find(x => x.orderId === id);
+      if (!a) return;
       const act = b.dataset.act;
+      // [patch: skip_reason_gate] If the seller is *skipping* a high-fill
+      // order (≥ SKIP_REASON_THRESHOLD), force a ≥10-char reason first.
+      // Toggling a skip back off (act already === 'skip') just clears it.
+      if (act === 'skip' && a.decision !== 'skip' && a.ratio >= SKIP_REASON_THRESHOLD){
+        openSkipReasonModal(a, function(reason){
+          a.decision = 'skip';
+          a.skip_reason = reason;
+          a.skip_reason_at = new Date().toISOString();
+          postSkipReason(a);
+          redistributeStockOnSkip(a);
+          renderAllocations();
+          renderBonusAllocations();
+          setBottomBar('confirming');
+        });
+        return;
+      }
+      const becomingSkip = (act === 'skip' && a.decision !== 'skip');
       a.decision = a.decision === act ? null : act;
-      renderAllocations(); setBottomBar('confirming');
+      if (becomingSkip) redistributeStockOnSkip(a);
+      renderAllocations();
+      renderBonusAllocations();
+      setBottomBar('confirming');
     });
   });
+  updateAllocCounts();
+}
+
+/* ============================== BONUS ============================== */
+// [patch: bonus_tab] Render the bonus allocations list (orders the seller
+// never picked but got allocated leftover stock at ≥80% fill).
+function renderBonusAllocations(){
+  const wrap  = document.getElementById('bonusList');
+  const empty = document.getElementById('bonusEmpty');
+  if (!wrap) return;
+  if (!BONUS_ALLOCATIONS.length){
+    wrap.innerHTML = '';
+    if (empty) empty.classList.toggle('hidden', ALLOC_TAB !== 'bonus');
+    updateAllocCounts();
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+  wrap.innerHTML = BONUS_ALLOCATIONS.map(a => {
+    const pct = Math.round(a.ratio * 100);
+    let cls = 'partial', label = 'ناقص';
+    if (a.ratio >= 1){ cls = 'full'; label = 'كامل'; }
+    const decCls = a.decision === 'confirm' ? 'confirmed' : (a.decision === 'skip' ? 'skipped' : '');
+    const missing = a.lines - a.linesOk;
+    let summary;
+    if (a.linesOk === a.lines){
+      summary = '<span class="ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span><b>'+a.lines+' من '+a.lines+'</b> منتوجات متوفرة</span>';
+    } else {
+      summary = '<span class="ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="17" r=".5"/><path d="M10.29 3.86l-8.4 14.55a2 2 0 0 0 1.7 3.04h16.82a2 2 0 0 0 1.7-3.04L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></span><span><b>'+a.linesOk+' من '+a.lines+'</b> متوفرة <span class="dot"></span> <span class="miss">'+missing+' ناقصة</span></span>';
+    }
+    return `
+      <div class="alloc-card bonus-card ${cls} ${decCls}" style="position:relative">
+        <span class="bonus-tag">إضافية</span>
+        <div class="top">
+          <div>
+            <div class="name">${a.clientName}</div>
+            <div class="meta">+ زيادة · ${a.orderId}</div>
+            <a class="phone-call" href="tel:${a.phone}" aria-label="عيط للكليان" style="margin-top:6px">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              ${a.phone}
+            </a>
+          </div>
+          <span class="badge ${cls}">${label}</span>
+        </div>
+        <div class="alloc-ring">
+          ${renderRing(pct, cls)}
+          <div class="prod-summary">${summary}</div>
+        </div>
+        <div class="alloc-actions">
+          <button class="big-btn skip ${a.decision === 'skip' ? 'is-on' : ''}" data-id="${a.orderId}" data-act="skip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            تخطى
+          </button>
+          <button class="big-btn confirm ${a.decision === 'confirm' ? '' : 'is-off'}" data-id="${a.orderId}" data-act="confirm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            أكد
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+  // Reuse the same click handler installed by renderAllocations: bind here too.
+  wrap.querySelectorAll('.big-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.id;
+      const a = BONUS_ALLOCATIONS.find(x => x.orderId === id);
+      if (!a) return;
+      const act = b.dataset.act;
+      if (act === 'skip' && a.decision !== 'skip' && a.ratio >= SKIP_REASON_THRESHOLD){
+        openSkipReasonModal(a, function(reason){
+          a.decision = 'skip';
+          a.skip_reason = reason;
+          a.skip_reason_at = new Date().toISOString();
+          postSkipReason(a);
+          redistributeStockOnSkip(a);
+          renderAllocations();
+          renderBonusAllocations();
+          setBottomBar('confirming');
+        });
+        return;
+      }
+      const becomingSkip = (act === 'skip' && a.decision !== 'skip');
+      a.decision = a.decision === act ? null : act;
+      if (becomingSkip) redistributeStockOnSkip(a);
+      renderAllocations();
+      renderBonusAllocations();
+      setBottomBar('confirming');
+    });
+  });
+  updateAllocCounts();
+}
+
+function updateAllocCounts(){
+  var mc = document.getElementById('allocMainCnt');
+  var bc = document.getElementById('allocBonusCnt');
+  if (mc) mc.textContent = String(ALLOCATIONS.length);
+  if (bc) bc.textContent = String(BONUS_ALLOCATIONS.length);
+}
+
+function setAllocTab(name){
+  ALLOC_TAB = name;
+  document.querySelectorAll('#allocTabs .m-alloc-tab').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-alloc-tab') === name);
+  });
+  var main = document.getElementById('allocList');
+  var bonus = document.getElementById('bonusList');
+  var empty = document.getElementById('bonusEmpty');
+  if (name === 'main'){
+    if (main) main.classList.remove('hidden');
+    if (bonus) bonus.classList.add('hidden');
+    if (empty) empty.classList.add('hidden');
+  } else {
+    if (main) main.classList.add('hidden');
+    if (bonus) bonus.classList.remove('hidden');
+    if (empty) empty.classList.toggle('hidden', BONUS_ALLOCATIONS.length > 0);
+  }
+}
+
+// Tab clicks (delegated once).
+document.addEventListener('click', function(e){
+  var t = e.target.closest && e.target.closest('#allocTabs .m-alloc-tab');
+  if (!t) return;
+  setAllocTab(t.getAttribute('data-alloc-tab'));
+});
+
+/* ============================== REDISTRIBUTION ============================== */
+// [patch: stock_waterfall] When an order is skipped, free its allocated
+// units and walk the four-pass waterfall:
+//   A — top up this seller's own ALLOCATIONS (selected list, by rank)
+//   B — promote this seller's unselected orders into BONUS_ALLOCATIONS
+//       (only orders that can be filled at ≥80%)
+//   C — emit `co:freeStock` to parent → top up OTHER sellers' selected lists
+//   D — parent then promotes other sellers' unselected orders
+function redistributeStockOnSkip(skippedAlloc){
+  if (!skippedAlloc) return;
+  // Freed units = how much stock this skipped order was holding.
+  var freed = Math.max(0, (skippedAlloc.linesOk|0));
+  if (!freed) {
+    // Even with no freed units we still want the bonus tab to reflect that
+    // a skipped order may have changed availability further downstream.
+    notifyParentFreedStock(skippedAlloc, 0);
+    return;
+  }
+  var remaining = freed;
+
+  // ── Pass A: top up this seller's selected list ───────────────────────────
+  // Walk ALLOCATIONS in rank order (priority asc). Skip the one we just
+  // skipped, skip already-skipped ones. Top each up to ratio = 1.
+  var sorted = ALLOCATIONS.slice().sort(function(x,y){ return (x.priority||99) - (y.priority||99); });
+  for (var i = 0; i < sorted.length && remaining > 0; i++){
+    var a = sorted[i];
+    if (!a || a === skippedAlloc) continue;
+    if (a.decision === 'skip') continue;
+    var need = Math.max(0, a.lines - a.linesOk);
+    if (!need) continue;
+    var give = Math.min(need, remaining);
+    a.linesOk += give;
+    a.ratio = a.lines ? (a.linesOk / a.lines) : 0;
+    remaining -= give;
+  }
+
+  // ── Pass B: promote unselected orders to bonus tab ───────────────────────
+  // Build a candidate pool from CLIENTS (mockup) or CO.orders (embed mode):
+  // any order that is NOT already in SELECTED, not already in BONUS, ≥80%
+  // fillable from the remaining freed pool. Score by VIP, then MAD, then id.
+  if (remaining > 0){
+    var picked = {};
+    SELECTED.forEach(function(s){ picked[s.orderId] = true; });
+    BONUS_ALLOCATIONS.forEach(function(b){ picked[b.orderId] = true; });
+
+    var candidates = [];
+    // Mockup CLIENTS path
+    if (Array.isArray(CLIENTS)){
+      CLIENTS.forEach(function(c){
+        (c.orders || []).forEach(function(o){
+          if (picked[o.id]) return;
+          var lines = (o.products && o.products.length) || 5;
+          if (!lines) return;
+          var maxFill = Math.min(1, remaining / lines);
+          if (maxFill + 1e-9 < SKIP_REASON_THRESHOLD) return;
+          candidates.push({
+            order: o, client: c, lines: lines, maxFill: maxFill,
+            vip: !!c.vip, mad: o.total || 0
+          });
+        });
+      });
+    }
+    // Embed CO.orders path (real data, when iframe wired)
+    try {
+      if (typeof CO !== 'undefined' && CO && Array.isArray(CO.orders)){
+        var byCode = {};
+        CO.orders.forEach(function(row){
+          if (!row || !row.orderCode) return;
+          if (row.status === 'CANCELED' || row.status === 'RETURNED') return;
+          if (picked[row.orderCode]) return;
+          if (!byCode[row.orderCode]){
+            byCode[row.orderCode] = {
+              id: row.orderCode, phone: row.phone,
+              clientName: (CO.clients[row.phone]||{}).name || row.phone,
+              vip: !!CO.vipClients[row.phone], lines: 0, mad: 0
+            };
+          }
+          byCode[row.orderCode].lines++;
+          byCode[row.orderCode].mad += (row.amount || 0);
+        });
+        Object.keys(byCode).forEach(function(code){
+          var ob = byCode[code];
+          var maxFill = Math.min(1, remaining / Math.max(1, ob.lines));
+          if (maxFill + 1e-9 < SKIP_REASON_THRESHOLD) return;
+          candidates.push({
+            order: { id: ob.id, products: new Array(ob.lines), total: ob.mad },
+            client: { id: ob.phone, name: ob.clientName, phone: ob.phone, vip: ob.vip, color: '#10b981' },
+            lines: ob.lines, maxFill: maxFill, vip: ob.vip, mad: ob.mad
+          });
+        });
+      }
+    } catch(_){}
+
+    // Score: VIP first, then largest MAD, then closest-to-full fill.
+    candidates.sort(function(a,b){
+      if (a.vip !== b.vip) return a.vip ? -1 : 1;
+      if (b.mad !== a.mad) return b.mad - a.mad;
+      return b.maxFill - a.maxFill;
+    });
+
+    for (var k = 0; k < candidates.length && remaining > 0; k++){
+      var cd = candidates[k];
+      var units = Math.min(cd.lines, remaining);
+      var ratio = units / cd.lines;
+      if (ratio + 1e-9 < SKIP_REASON_THRESHOLD) continue;
+      BONUS_ALLOCATIONS.push({
+        orderId: cd.order.id, clientId: cd.client.id,
+        clientName: cd.client.name, phone: cd.client.phone,
+        total: cd.order.total || 0, color: cd.client.color || '#10b981',
+        priority: 99 + BONUS_ALLOCATIONS.length,
+        ratio: ratio, lines: cd.lines,
+        linesOk: units,
+        decision: null, bonus: true,
+      });
+      remaining -= units;
+      // Flash the bonus tab counter
+      var bc = document.getElementById('allocBonusCnt');
+      if (bc){ bc.setAttribute('data-hot','1'); setTimeout(function(){ bc.removeAttribute('data-hot'); }, 400); }
+    }
+  }
+
+  // ── Pass C & D: hand any remaining stock off to the parent for cross-seller
+  // redistribution. Parent app holds the global picture (all sellers' lists
+  // + all orders) so it's the only one that can do those passes correctly.
+  notifyParentFreedStock(skippedAlloc, remaining);
+}
+
+function notifyParentFreedStock(skippedAlloc, remaining){
+  try {
+    if (window.parent && window.parent !== window){
+      window.parent.postMessage({
+        type: 'co:freeStock',
+        seller: (typeof CURRENT_SELLER !== 'undefined' ? CURRENT_SELLER : ''),
+        orderId: skippedAlloc.orderId,
+        clientId: skippedAlloc.clientId,
+        remainingUnits: remaining,
+        skipReason: skippedAlloc.skip_reason || null,
+      }, '*');
+    }
+  } catch(_){}
+}
+
+/* ============================== SKIP REASON MODAL ============================== */
+var _skipModalCb = null;
+var _skipModalCtx = null;
+function openSkipReasonModal(alloc, onConfirm){
+  _skipModalCb = onConfirm;
+  _skipModalCtx = alloc;
+  var sh = document.getElementById('skipReasonShroud');
+  if (!sh) { onConfirm && onConfirm(''); return; }
+  document.getElementById('skipReasonRatio').textContent = Math.round((alloc.ratio||0)*100) + '٪';
+  var inp = document.getElementById('skipReasonInput');
+  inp.value = '';
+  updateSkipReasonHint();
+  sh.classList.remove('hidden');
+  sh.setAttribute('aria-hidden', 'false');
+  setTimeout(function(){ try { inp.focus(); } catch(_){} }, 80);
+}
+function closeSkipReasonModal(){
+  _skipModalCb = null;
+  _skipModalCtx = null;
+  var sh = document.getElementById('skipReasonShroud');
+  if (!sh) return;
+  sh.classList.add('hidden');
+  sh.setAttribute('aria-hidden', 'true');
+}
+function updateSkipReasonHint(){
+  var inp = document.getElementById('skipReasonInput');
+  var cnt = document.getElementById('skipReasonCount');
+  var hint = document.getElementById('skipReasonHint');
+  var btn = document.getElementById('skipReasonSubmit');
+  if (!inp || !cnt || !hint || !btn) return;
+  var n = (inp.value || '').trim().length;
+  cnt.textContent = String(n);
+  var ok = n >= 10;
+  hint.textContent = ok ? 'صالح ✓' : ('باقي ' + (10 - n));
+  hint.classList.toggle('ok', ok);
+  btn.disabled = !ok;
+}
+document.addEventListener('input', function(e){
+  if (e.target && e.target.id === 'skipReasonInput') updateSkipReasonHint();
+});
+document.addEventListener('click', function(e){
+  if (!e.target) return;
+  if (e.target.id === 'skipReasonCancel'){ closeSkipReasonModal(); return; }
+  if (e.target.id === 'skipReasonSubmit'){
+    var inp = document.getElementById('skipReasonInput');
+    var reason = (inp && inp.value || '').trim();
+    if (reason.length < 10) return;
+    var cb = _skipModalCb;
+    closeSkipReasonModal();
+    cb && cb(reason);
+  }
+});
+
+function postSkipReason(alloc){
+  try {
+    if (window.parent && window.parent !== window){
+      window.parent.postMessage({
+        type: 'co:skipReason',
+        orderId: alloc.orderId,
+        clientId: alloc.clientId,
+        seller: (typeof CURRENT_SELLER !== 'undefined' ? CURRENT_SELLER : ''),
+        reason: alloc.skip_reason || '',
+        reasonAt: alloc.skip_reason_at || new Date().toISOString(),
+        fillRatio: alloc.ratio || 0,
+        wasBonus: !!alloc.bonus,
+      }, '*');
+    }
+  } catch(_){}
 }
 
 document.getElementById('bottomBtn').addEventListener('click', () => {
@@ -2711,8 +3325,11 @@ document.getElementById('bottomBtn').addEventListener('click', () => {
     const target = CURRENT_TAB === 'find' ? 'mylist' : 'find';
     document.querySelector(`#tabsWrap .m-tab[data-tab="${target}"]`).click();
   } else if (CURRENT_PHASE === 'p3'){
-    ALLOCATIONS.forEach(a => { if (a.ratio > 0) a.decision = 'confirm'; });
-    renderAllocations(); setBottomBar('confirming');
+    // [patch: bonus_tab] Bulk-confirm applies to BOTH lists since the bonus
+    // tab is a real promotion of stock the seller is expected to act on.
+    ALLOCATIONS.forEach(a => { if (a.ratio > 0 && a.decision !== 'skip') a.decision = 'confirm'; });
+    BONUS_ALLOCATIONS.forEach(a => { if (a.ratio > 0 && a.decision !== 'skip') a.decision = 'confirm'; });
+    renderAllocations(); renderBonusAllocations(); setBottomBar('confirming');
   }
 });
 
@@ -2956,15 +3573,74 @@ window.addEventListener('resize', updateTabIndicator);
     });
     post({ type: 'co:ready', role: role });
 
+    // [patch: morocco_tz_sunday_skip] All phase math runs on Africa/Casablanca
+    // wall-clock time so the seller's device timezone doesn't shift the cycle.
+    // On Saturday, phase 1 stretches until Sunday 20:00 because Sunday has no
+    // delivery — sellers keep selecting for Monday delivery throughout the
+    // whole Saturday afternoon AND all of Sunday.
+    function _moHM() {
+      try {
+        var fmt = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Africa/Casablanca',
+          weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
+        });
+        var parts = {};
+        fmt.formatToParts(new Date()).forEach(function(p){ parts[p.type] = p.value; });
+        var dowMap = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+        var hh = parseInt(parts.hour, 10); if (hh === 24) hh = 0;
+        var mm = parseInt(parts.minute, 10);
+        return { dow: dowMap[parts.weekday], t: hh*60 + mm };
+      } catch (_) {
+        var d = new Date();
+        return { dow: d.getDay(), t: d.getHours()*60 + d.getMinutes() };
+      }
+    }
     function computePhase() {
-      var d = new Date();
-      var t = d.getHours() * 60 + d.getMinutes();
-      if (t >= (12*60+1) && t < (20*60)) return 'p1';
-      if (t >= (20*60)   && t < (21*60)) return 'p2';
-      if (t >= (21*60)   || t < (10*60+59)) return 'p3';
+      var n = _moHM(), dow = n.dow, t = n.t;
+      // Friday: 12:01+ starts an EXTENDED P1 that runs all the way to
+      // Saturday 20:00 — Friday's normal cycle would deliver Sunday (no
+      // Sun delivery), so we stretch it so the cycle finishes Monday.
+      if (dow === 5 && t >= (12*60+1))   return 'p1';
+      // Saturday: continuation of Friday's extended cycle.
+      //   00:00–20:00 → P1 (still extended)
+      //   20:00–21:00 → P2
+      //   21:00+      → P3 (carries through Sunday)
+      if (dow === 6) {
+        if (t < (20*60))                return 'p1';
+        if (t < (21*60))                return 'p2';
+        return 'p3';
+      }
+      // Sunday: full day in P3. No P4 today — no Sun dispatch, no Sun delivery.
+      if (dow === 0)                    return 'p3';
+      // Monday morning still inside Friday's extended cycle (P3 → P4 → done).
+      if (dow === 1 && t < (11*60+59)) {
+        if (t < (10*60+59))             return 'p3';
+        return 'p4';
+      }
+      // Standard Mon-Fri schedule from 12:01 onward.
+      if (t >= (12*60+1) && t < (20*60))     return 'p1';
+      if (t >= (20*60)   && t < (21*60))     return 'p2';
+      if (t >= (21*60)   || t < (10*60+59))  return 'p3';
       if (t >= (10*60+59) && t < (11*60+59)) return 'p4';
       return 'p1';
     }
+    // [patch: morocco_tz_sunday_skip] Delivery offset (days from today) for
+    // UI labels. P1, P2 and early P3 (before midnight) → J+2; late P3 and
+    // P4 (after midnight, on dispatch day) → J+1. Sat/Sun extended cycle
+    // resolves to Monday delivery.
+    function computeDeliveryOffset() {
+      var n = _moHM(), dow = n.dow, t = n.t;
+      // Friday extended cycle (Fri 12:01 → Mon 11:59) all delivers Monday.
+      if (dow === 5 && t >= (12*60+1)) return 3;   // Fri afternoon → Mon (J+3)
+      if (dow === 6)                   return 2;   // Sat → Mon (J+2)
+      if (dow === 0)                   return 1;   // Sun → Mon (J+1)
+      if (dow === 1 && t < (11*60+59)) return 0;   // Mon morning P3/P4 → Mon today
+      // Standard cycle (Mon 12:01 → Fri 11:59): delivery 2 days out for P1/P2/early P3
+      if (t >= (12*60+1) && t < (21*60)) return 2; // P1, P2 → J+2
+      if (t >= (21*60))                  return 2; // P3 early (before midnight) → J+2
+      return 1;                                    // P3 late / P4 → J+1
+    }
+    try { window.computePhase = computePhase; window.computeDeliveryOffset = computeDeliveryOffset; } catch(_){}
     // [patch: creator_phase_override] When the creator picks a phase manually
     // (for testing), we stop following the real clock and stick to their pick.
     var _phaseLocked = false;
