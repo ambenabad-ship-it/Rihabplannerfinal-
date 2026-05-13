@@ -24187,9 +24187,16 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
             ? '<div style="font-size:10.5px;color:#64748b;margin-top:2px">' + esc2(chipLabels.target) + ': <b>' + fmtMad(delivered) + ' / ' + fmtMad(minMad) + ' MAD</b></div>'
             : '';
           // [patch: per_sku_in_family] Build per-SKU breakdown for this family.
-          // Clicking the card header reveals each productCode with its
-          // delivered + pending split.
+          // [patch: family_expand_master_skus] Seed perSku from the master
+          // SKU list (FOCUS_FAMILY_SKUS, derived from Products family.xlsx)
+          // so every product in the family shows up — even when the client
+          // never ordered it. Order data overlays on top with delivered /
+          // pending / etc amounts; SKUs without activity render as 0.
           var perSku = {};
+          var _famMasterSkus = (typeof FOCUS_FAMILY_SKUS !== 'undefined' && FOCUS_FAMILY_SKUS[fam]) || [];
+          _famMasterSkus.forEach(function(s){
+            perSku[s.code] = { name: s.name || s.code, d:0, p:0, t:0, i:0, c:0, r:0 };
+          });
           fulfill.orders.forEach(function(o){
             if (!o || !o.productCode || o.phone !== phone) return;
             if (gmvFamilyForSku(o.productCode) !== fam) return;
