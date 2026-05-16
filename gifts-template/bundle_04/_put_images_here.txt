@@ -1,0 +1,7 @@
+Drop the photos for PALIER 4 here.
+Threshold: 400000 MAD
+  Prize 1: Samsung 50" 4K UHD Crystal
+  Prize 2: Samsung 65" Crystal UHD 4K 65U8075F
+  Prize 3: Samsung 85" Crystal UHD 4K 85U8075
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

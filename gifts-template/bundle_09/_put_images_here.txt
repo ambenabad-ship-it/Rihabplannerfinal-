@@ -1,0 +1,7 @@
+Drop the photos for PALIER 9 here.
+Threshold: 1000000 MAD
+  Prize 1: Samsung 75" Crystal UHD 4K 75U8075
+  Prize 2: Triporteur (hors Jumia)
+  Prize 3: Triporteur + Samsung Galaxy Tab S9 Ultra
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

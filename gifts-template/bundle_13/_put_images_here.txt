@@ -1,0 +1,7 @@
+Drop the photos for PALIER 13 here.
+Threshold: 2000000 MAD
+  Prize 1: Triporteur (hors Jumia)
+  Prize 2: Triporteur + Samsung Galaxy Tab S9 Ultra
+  Prize 3: 2x Triporteur + Samsung Galaxy S26 Ultra + Samsung 85" + Samsung 50"
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

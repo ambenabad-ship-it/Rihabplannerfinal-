@@ -1,0 +1,7 @@
+Drop the photos for PALIER 8 here.
+Threshold: 900000 MAD
+  Prize 1: Samsung 75" 4K UHD Crystal 75U8000F
+  Prize 2: Samsung Galaxy S26 Ultra 16GB+1TB
+  Prize 3: Triporteur + Samsung 85" Crystal UHD 4K
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

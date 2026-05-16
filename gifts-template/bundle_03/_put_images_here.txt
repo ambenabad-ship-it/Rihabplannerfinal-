@@ -1,0 +1,7 @@
+Drop the photos for PALIER 3 here.
+Threshold: 300000 MAD
+  Prize 1: Sharp Machine à laver 7kg 1200 tr/min
+  Prize 2: Thomson Google TV 55" QLED Pro
+  Prize 3: Infiniton Réfrigérateur Américain SBS-668 559L
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

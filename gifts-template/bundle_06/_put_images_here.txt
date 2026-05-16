@@ -1,0 +1,7 @@
+Drop the photos for PALIER 6 here.
+Threshold: 600000 MAD
+  Prize 1: Thomson Google TV 55" QLED Pro
+  Prize 2: Infiniton Réfrigérateur Américain SBS-668 559L
+  Prize 3: Triporteur + Samsung 50" 4K UHD Crystal
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

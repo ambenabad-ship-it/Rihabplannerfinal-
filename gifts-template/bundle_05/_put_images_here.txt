@@ -1,0 +1,7 @@
+Drop the photos for PALIER 5 here.
+Threshold: 500000 MAD
+  Prize 1: Hisense Smart TV QLED 4K 55"
+  Prize 2: Samsung 75" Crystal UHD 4K 75U8075
+  Prize 3: Triporteur (hors Jumia)
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

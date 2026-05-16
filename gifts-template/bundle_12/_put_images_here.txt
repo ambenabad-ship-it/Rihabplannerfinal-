@@ -1,0 +1,7 @@
+Drop the photos for PALIER 12 here.
+Threshold: 1600000 MAD
+  Prize 1: Samsung 85" Crystal UHD 4K 85U8075
+  Prize 2: Triporteur + Infiniton Réfrigérateur SBS-668
+  Prize 3: 2x Triporteur + Samsung Galaxy S26 Ultra + Revolution 75" 4K UHD
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

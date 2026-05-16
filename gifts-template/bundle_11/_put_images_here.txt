@@ -1,0 +1,7 @@
+Drop the photos for PALIER 11 here.
+Threshold: 1300000 MAD
+  Prize 1: Samsung Tab S10 Ultra 14.6" 12GB+256GB
+  Prize 2: Triporteur + Thomson Google TV 55" QLED Pro
+  Prize 3: 2x Triporteur + Samsung Tab S10 Ultra 14.6" 12GB+256GB
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

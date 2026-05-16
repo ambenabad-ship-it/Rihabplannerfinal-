@@ -1,0 +1,7 @@
+Drop the photos for PALIER 7 here.
+Threshold: 700000 MAD
+  Prize 1: Samsung 65" Crystal UHD 4K 65U8075F
+  Prize 2: Samsung Tab S10 Ultra 14.6" 12GB+512GB
+  Prize 3: Triporteur + Samsung 65" Crystal UHD 4K
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

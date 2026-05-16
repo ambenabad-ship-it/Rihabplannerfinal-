@@ -1,0 +1,7 @@
+Drop the photos for PALIER 2 here.
+Threshold: 200000 MAD
+  Prize 1: Samsung Galaxy A05
+  Prize 2: Samsung 50" 4K UHD Crystal
+  Prize 3: Samsung 65" Crystal UHD 4K 65U8075F
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

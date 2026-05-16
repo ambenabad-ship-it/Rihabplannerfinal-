@@ -851,12 +851,425 @@
      sticky descendants attach to this container instead of the viewport
      and disappear on scroll. `clip` keeps the clip without breaking sticky. */
   #featureGmvMaker,
-  #featureFulfillV2 {
+  #featureFulfillV2,
+  #featureDataSources,
+  #featureMyDay {
     overflow-x: hidden !important;        /* fallback for old browsers */
     overflow-x: clip !important;          /* modern: doesn't kill sticky */
     max-width: 100vw !important;
     width: 100% !important;
     overscroll-behavior-x: none !important;
+  }
+
+  /* ---------- My Day (creator todo + time tracking) ---------- */
+  #featureMyDay {
+    min-height: 100vh;
+    background:
+      radial-gradient(900px circle at 0% 0%, rgba(99,102,241,0.16) 0%, transparent 55%),
+      radial-gradient(700px circle at 100% 0%, rgba(236,72,153,0.10) 0%, transparent 55%),
+      linear-gradient(180deg, #0b1020 0%, #0f172a 100%);
+    color: #e2e8f0;
+    font-feature-settings: 'cv11','ss01';
+  }
+  .md-shell {
+    max-width: 980px; margin: 0 auto;
+    padding: 28px 22px 60px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  .md-hero {
+    background: rgba(15,23,42,0.55);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(148,163,184,0.16);
+    border-radius: 22px;
+    padding: 24px 26px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 24px; flex-wrap: wrap;
+    box-shadow: 0 18px 50px rgba(2,6,23,.35);
+  }
+  .md-hero-eyebrow {
+    font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: #a5b4fc; font-weight: 700;
+  }
+  .md-hero-title {
+    font-size: 32px; font-weight: 800; margin: 4px 0 2px;
+    background: linear-gradient(135deg, #fff 0%, #c7d2fe 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    letter-spacing: -0.02em;
+  }
+  .md-hero-sub { font-size: 13px; color: #94a3b8; }
+  .md-hero-right { display: flex; gap: 18px; }
+  .md-stat {
+    background: rgba(30,41,59,0.55);
+    border: 1px solid rgba(148,163,184,0.14);
+    border-radius: 14px; padding: 12px 18px; min-width: 140px;
+  }
+  .md-stat-label {
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: #64748b; font-weight: 700;
+  }
+  .md-stat-value {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 22px; font-weight: 700; color: #f8fafc;
+    margin-top: 4px; font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .md-tabs {
+    display: flex; gap: 4px;
+    background: rgba(15,23,42,0.55);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(148,163,184,0.14);
+    border-radius: 12px; padding: 4px;
+    align-self: flex-start;
+  }
+  .md-tab {
+    appearance: none; background: transparent; border: 0;
+    color: #94a3b8; padding: 8px 18px; border-radius: 9px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .md-tab:hover { color: #e2e8f0; }
+  .md-tab.is-active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff; box-shadow: 0 4px 14px rgba(99,102,241,.4);
+  }
+  .md-panel { display: none; }
+  .md-panel.is-active { display: block; animation: mdFade .35s ease; }
+  @keyframes mdFade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .md-add {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(15,23,42,0.55);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(148,163,184,0.16);
+    border-radius: 14px; padding: 8px 8px 8px 18px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .md-add:focus-within {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 4px rgba(99,102,241,.15);
+  }
+  .md-add-icon {
+    color: #a5b4fc; font-size: 22px; font-weight: 300; line-height: 1;
+  }
+  .md-add-input {
+    flex: 1; appearance: none; border: 0; background: transparent;
+    color: #f1f5f9; font-size: 15px; padding: 12px 0; outline: 0;
+    font-family: inherit;
+  }
+  .md-add-input::placeholder { color: #64748b; }
+  .md-add-btn {
+    appearance: none; border: 0; cursor: pointer;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff; padding: 10px 22px; border-radius: 10px;
+    font-size: 13px; font-weight: 700; letter-spacing: .02em;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .md-add-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(99,102,241,.45); }
+  .md-section { margin-top: 22px; }
+  .md-section-head {
+    font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: #64748b; font-weight: 700; padding: 0 6px 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .md-section-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .md-section-dot.running { background: #fbbf24; box-shadow: 0 0 0 4px rgba(251,191,36,.18); animation: mdPulse 1.4s infinite; }
+  .md-section-dot.pending { background: #64748b; }
+  .md-section-dot.done    { background: #34d399; }
+  @keyframes mdPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(251,191,36,.18); }
+    50%      { box-shadow: 0 0 0 9px rgba(251,191,36,.05); }
+  }
+  .md-task {
+    display: grid; grid-template-columns: auto 1fr auto auto;
+    align-items: center; gap: 14px;
+    background: rgba(15,23,42,0.55);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(148,163,184,0.14);
+    border-radius: 14px; padding: 14px 16px;
+    margin-bottom: 8px;
+    transition: border-color .15s, transform .15s, box-shadow .15s;
+  }
+  .md-task:hover { border-color: rgba(148,163,184,0.30); }
+  .md-task.running {
+    border-color: rgba(251,191,36,.45);
+    background: linear-gradient(135deg, rgba(251,191,36,.10), rgba(251,191,36,.02)), rgba(15,23,42,0.55);
+    box-shadow: 0 8px 28px rgba(251,191,36,.18);
+  }
+  .md-task.done { opacity: .72; }
+  .md-task-bullet {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 1.5px solid #475569;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .md-task.running .md-task-bullet { border-color: #fbbf24; background: rgba(251,191,36,.15); }
+  .md-task.done .md-task-bullet { border-color: #34d399; background: #34d399; color: #052e1c; }
+  .md-task-text {
+    font-size: 14.5px; color: #f1f5f9; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .md-task.done .md-task-text { text-decoration: line-through; color: #94a3b8; }
+  .md-task-timer {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 16px; font-weight: 600; color: #fbbf24;
+    letter-spacing: -0.01em; min-width: 88px; text-align: right;
+  }
+  .md-task.done .md-task-timer { color: #6ee7b7; }
+  .md-task.pending .md-task-timer { color: #475569; font-size: 13px; }
+  .md-task-actions { display: flex; gap: 6px; }
+  .md-btn {
+    appearance: none; border: 0; cursor: pointer;
+    padding: 8px 14px; border-radius: 9px;
+    font-size: 12px; font-weight: 700; letter-spacing: .02em;
+    transition: transform .12s, box-shadow .12s, background .12s;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .md-btn-start {
+    background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+  }
+  .md-btn-start:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(16,185,129,.4); }
+  .md-btn-finish {
+    background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;
+  }
+  .md-btn-finish:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(245,158,11,.4); }
+  .md-btn-del {
+    background: transparent; color: #64748b; padding: 8px 10px;
+    border: 1px solid rgba(148,163,184,.18);
+  }
+  .md-btn-del:hover { background: rgba(239,68,68,.15); color: #fca5a5; border-color: rgba(239,68,68,.4); }
+  .md-empty {
+    text-align: center; padding: 30px 20px;
+    color: #64748b; font-size: 13px;
+  }
+  .md-history-day {
+    background: rgba(15,23,42,0.55);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(148,163,184,0.14);
+    border-radius: 16px; padding: 18px 22px;
+    margin-bottom: 12px;
+  }
+  .md-history-day-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 14px; padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(148,163,184,0.16);
+  }
+  .md-history-day-name {
+    font-size: 15px; font-weight: 700; color: #f1f5f9;
+  }
+  .md-history-day-stats {
+    font-size: 12px; color: #94a3b8;
+    font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
+  }
+  .md-history-day-stats b { color: #c7d2fe; }
+  .md-history-task {
+    display: grid; grid-template-columns: 18px 1fr auto auto;
+    align-items: center; gap: 12px;
+    padding: 9px 4px; border-bottom: 1px dashed rgba(148,163,184,0.08);
+    font-size: 13px;
+  }
+  .md-history-task:last-child { border-bottom: 0; }
+  .md-history-status { width: 9px; height: 9px; border-radius: 50%; }
+  .md-history-status.done { background: #34d399; }
+  .md-history-status.partial { background: #fbbf24; }
+  .md-history-text { color: #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .md-history-time {
+    font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
+    color: #94a3b8; font-size: 12.5px;
+  }
+  .md-history-duration {
+    font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
+    color: #fbbf24; font-weight: 600; min-width: 70px; text-align: right;
+  }
+  .md-pomo-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(148,163,184,.25);
+    transition: background .2s, box-shadow .2s;
+  }
+  .md-pomo-dot.is-on {
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239,68,68,.55);
+  }
+  .md-task.running .md-task-bullet {
+    animation: mdPulse 1.6s infinite;
+  }
+  /* Priority button + card emphasis */
+  .md-btn-star {
+    background: transparent; color: #64748b;
+    border: 1px solid rgba(148,163,184,.18);
+    padding: 8px 11px; font-size: 14px; line-height: 1;
+  }
+  .md-btn-star:hover { background: rgba(250,204,21,.10); color: #facc15; border-color: rgba(250,204,21,.4); }
+  .md-btn-star.on {
+    background: linear-gradient(135deg, rgba(250,204,21,.18), rgba(245,158,11,.10));
+    color: #facc15; border-color: rgba(250,204,21,.55);
+    box-shadow: 0 0 12px rgba(250,204,21,.18);
+  }
+  .md-task.is-priority {
+    border-color: rgba(250,204,21,.45);
+    background: linear-gradient(135deg, rgba(250,204,21,.08), rgba(245,158,11,.02)), rgba(15,23,42,0.55);
+  }
+  .md-task.is-priority.running {
+    background: linear-gradient(135deg, rgba(251,191,36,.16), rgba(250,204,21,.06)), rgba(15,23,42,0.55);
+    box-shadow: 0 8px 28px rgba(250,204,21,.22);
+  }
+  .md-priority-chip {
+    display: inline-block; margin-inline-end: 8px;
+    padding: 1px 8px; border-radius: 99px;
+    background: rgba(250,204,21,.18); color: #facc15;
+    font-size: 10px; font-weight: 800; letter-spacing: .08em;
+    text-transform: uppercase; vertical-align: 1px;
+  }
+  /* History day priority/other breakdown */
+  .md-history-breakdown {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 10px 0 6px; padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(148,163,184,0.10);
+    font-size: 12px;
+  }
+  .md-hb-chip {
+    padding: 4px 10px; border-radius: 99px;
+    font-weight: 600;
+  }
+  .md-hb-chip b { font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .md-hb-chip.priority {
+    background: rgba(250,204,21,.15); color: #fde68a;
+    border: 1px solid rgba(250,204,21,.3);
+  }
+  .md-hb-chip.other {
+    background: rgba(148,163,184,.10); color: #cbd5e1;
+    border: 1px solid rgba(148,163,184,.18);
+  }
+  .md-hb-bar {
+    flex: 1; min-width: 120px; height: 6px;
+    background: rgba(148,163,184,.12);
+    border-radius: 99px; overflow: hidden;
+    display: inline-block;
+  }
+  .md-hb-fill {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, #facc15, #f59e0b);
+    border-radius: 99px;
+    transition: width .4s;
+  }
+  .md-hb-pct {
+    font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums;
+    color: #fde68a; font-weight: 700; font-size: 11.5px; min-width: 86px; text-align: right;
+  }
+  @media (max-width: 640px) {
+    .md-shell { padding: 18px 14px 50px; }
+    .md-hero { padding: 18px; }
+    .md-hero-title { font-size: 26px; }
+    .md-stat { min-width: 0; flex: 1; padding: 10px 12px; }
+    .md-task { grid-template-columns: auto 1fr; row-gap: 8px; }
+    .md-task-timer { grid-column: 2; text-align: left; }
+    .md-task-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  }
+
+  /* ---------- Data Sources page ---------- */
+  /* [patch: unified_data_sources] Hide the legacy upload tiles in GMV Tracker
+     and Order Fulfillment. The Data Sources sidebar entry is now the single
+     upload location for both features (and Confirm Orders, which reads parent
+     data via postMessage). */
+  #gmvDsStrip,
+  #featureFulfill .ff-uploads { display: none !important; }
+  #featureDataSources { background: #f7f8fb; min-height: 100vh; }
+  .ds-cmdbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 14px 22px;
+    background: #fff; border-bottom: 1px solid var(--border, #e5e7eb);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .ds-brand { display: flex; align-items: center; gap: 10px; }
+  .ds-brand-logo {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .ds-cmd-title { font-weight: 700; font-size: 15px; color: #0f172a; }
+  .ds-cmd-sub { font-size: 12px; color: #64748b; max-width: 60%; text-align: right; }
+  .ds-page { padding: 22px; max-width: 1200px; margin: 0 auto; }
+  .ds-tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+  }
+  .ds-tile {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
+    padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    display: flex; flex-direction: column; gap: 12px;
+    transition: box-shadow .15s, transform .15s;
+  }
+  .ds-tile:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+  .ds-tile.is-locked { opacity: .55; }
+  .ds-tile-head { display: flex; align-items: center; gap: 10px; }
+  .ds-tile-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: #eef2ff; color: #4f46e5;
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .ds-tile-title { font-weight: 700; font-size: 14px; color: #0f172a; line-height: 1.2; }
+  .ds-tile-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .ds-tile-meta {
+    font-size: 11px; color: #64748b;
+    display: flex; flex-direction: column; gap: 3px;
+    border-top: 1px dashed #e5e7eb; padding-top: 10px;
+  }
+  .ds-tile-meta b { color: #0f172a; font-weight: 600; }
+  .ds-drop {
+    position: relative;
+    border: 2px dashed #cbd5e1; border-radius: 10px;
+    padding: 14px 12px; text-align: center;
+    background: #f9fafb; cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .ds-drop:hover { background: #f1f5f9; border-color: #94a3b8; }
+  .ds-drop.has-file { border-color: #10b981; background: #ecfdf5; }
+  .ds-drop input[type="file"] {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer;
+  }
+  .ds-drop-title { font-size: 13px; font-weight: 600; color: #0f172a; }
+  .ds-drop-hint { font-size: 11px; color: #64748b; margin-top: 4px; }
+  .ds-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ds-btn {
+    appearance: none; border: 1px solid #d1d5db;
+    background: #fff; color: #0f172a;
+    border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .ds-btn:hover { background: #f9fafb; }
+  .ds-btn-primary { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+  .ds-btn-primary:hover { background: #4338ca; }
+  .ds-status { font-size: 12px; min-height: 18px; }
+  .ds-status.is-success { color: #047857; font-weight: 600; }
+  .ds-status.is-error   { color: #b91c1c; font-weight: 600; }
+  .ds-status.is-info    { color: #1e3a8a; }
+  .ds-help { margin-top: 22px; }
+  .ds-help summary {
+    font-size: 13px; font-weight: 600; color: #4f46e5;
+    cursor: pointer; padding: 6px 0;
+  }
+  .ds-help-body {
+    font-size: 13px; color: #334155; line-height: 1.55;
+    padding: 6px 0 0; max-width: 720px;
+  }
+  .ds-help-body code {
+    background: #eef2ff; color: #4f46e5; padding: 1px 5px;
+    border-radius: 4px; font-size: 12px;
+  }
+  .ds-help-body ul { margin: 8px 0 0; padding-left: 18px; }
+  .ds-help-body li { margin-bottom: 4px; }
+  @media (max-width: 480px) {
+    .ds-cmdbar { flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 14px; }
+    .ds-cmd-sub { max-width: 100%; text-align: left; font-size: 11px; }
+    .ds-page { padding: 14px; }
+    .ds-tiles-grid { grid-template-columns: 1fr; }
   }
 
   /* [patch: mobile_audit] Phone (≤480px) overrides. Fixes hard-coded widths
@@ -5201,6 +5614,14 @@
       <svg class="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       <span>Confirm Orders</span>
     </button>
+    <button type="button" class="as-feature" data-feature="myday" id="asFeatureMyDay" style="display:none;" title="My day — todo list with time tracking (creator only)">
+      <svg class="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>My Day</span>
+    </button>
+    <button type="button" class="as-feature" data-feature="data_sources" id="asFeatureDataSources" style="display:none;" title="Unified data uploads (Clients, Orders, Stock, Focus, Articles)">
+      <svg class="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+      <span>Data Sources</span>
+    </button>
     <button type="button" class="as-feature as-feature-bottom" data-feature="settings" id="asFeatureSettings" style="display:none; margin-top:auto; border-top:1px solid var(--border-soft); border-radius:0; padding-top:14px; padding-bottom:14px;" title="Manage team and account settings">
       <svg class="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       <span>Settings</span>
@@ -7320,10 +7741,25 @@ function doProcess() {
     if (!code) return;
     const rawQ = parseFloat(s[sQty]);
     let q = isFinite(rawQ) ? rawQ : 0;
-    // Convert atomic stock to packing units when the product is sold per package.
-    const art = (typeof awalArticlesLookup !== 'undefined' && awalArticlesLookup) ? awalArticlesLookup.get(code) : null;
-    if (art && art.sellUnit === 'PACKING' && art.pkgQty && art.pkgQty > 0) {
-      q = Math.floor(q / art.pkgQty);
+    // [patch: dp_use_ds_articles] Convert atomic stock to packing when the
+    // SKU's article entry says PACKING. Look first at the legacy Articles
+    // Matjar catalog (awalArticlesLookup); fall back to the unified Data
+    // Sources articles upload (dsArticlesLookup) so users who only set up
+    // Articles via the new flow still get correct packing conversion.
+    let sellUnit = null, pkgQty = 0;
+    if (typeof awalArticlesLookup !== 'undefined' && awalArticlesLookup) {
+      const art = awalArticlesLookup.get(code);
+      if (art) { sellUnit = art.sellUnit; pkgQty = art.pkgQty; }
+    }
+    if ((!sellUnit || !pkgQty) && window.dsArticlesLookup) {
+      const dsArt = window.dsArticlesLookup.get(String(code).trim().toUpperCase());
+      if (dsArt) {
+        sellUnit = sellUnit || dsArt.sellUnit;
+        pkgQty   = pkgQty   || dsArt.packageQty;
+      }
+    }
+    if (sellUnit === 'PACKING' && pkgQty > 0) {
+      q = Math.floor(q / pkgQty);
       stockConvertedToPacking++;
     }
     if (q < 0) {
@@ -16493,7 +16929,7 @@ try {
         // Creator passes via userHasPermission short-circuit. Everyone
         // else needs the explicit <feature>.access perm. Settings is
         // creator-only — hard block for everyone else.
-        const _need = { planner: 'delivery.access', gmv: 'gmv.access', fulfill: 'fulfill.access', fulfill_v2: 'confirm_orders.access' };
+        const _need = { planner: 'delivery.access', gmv: 'gmv.access', fulfill: 'fulfill.access', fulfill_v2: 'confirm_orders.access', data_sources: 'data.access', myday: '__creator_only__' };
         const _featKey = btn.dataset.feature || '';
         if (_featKey === 'settings' && !((typeof gmvIsCreator === 'function') && gmvIsCreator())) {
           if (typeof settingsToast === 'function') settingsToast('Settings is creator-only', 'error');
@@ -16532,6 +16968,22 @@ try {
         if (planner) planner.style.display = feat === 'planner' ? '' : 'none';
         if (gmv)     gmv.style.display     = feat === 'gmv'     ? '' : 'none';
         if (fulfillEl) fulfillEl.style.display = feat === 'fulfill' ? '' : 'none';
+        const dataSrc = document.getElementById('featureDataSources');
+        if (dataSrc) {
+          dataSrc.style.display = feat === 'data_sources' ? '' : 'none';
+          if (feat === 'data_sources' && typeof dsRenderPage === 'function') {
+            try { dsRenderPage(); } catch (e) { console.error('dsRenderPage', e); }
+          }
+        }
+        const mdEl = document.getElementById('featureMyDay');
+        if (mdEl) {
+          // Creator-only hard gate — only Ahmed sees this even via direct hash.
+          const _isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
+          mdEl.style.display = (feat === 'myday' && _isCreator) ? '' : 'none';
+          if (feat === 'myday' && _isCreator && typeof mdInit === 'function') {
+            try { mdInit(); } catch (e) { console.error('mdInit', e); }
+          }
+        }
         if (fulfillV2) {
           fulfillV2.style.display = feat === 'fulfill_v2' ? '' : 'none';
           // [patch: confirm_orders_embed_postmsg] Mount iframe + wire bridge
@@ -17052,6 +17504,19 @@ async function sbReadKeyAs(userId, key) {
   return p;
 }
 
+// Write a user_data row under a SPECIFIC user_id (rather than the current
+// signed-in user). Used by the unified Data Sources so that delegated
+// uploaders write into the creator's row — every reader pulls from one
+// canonical location. Requires an RLS policy that lets authenticated users
+// upsert the relevant keys into the target user_id.
+async function sbWriteKeyAs(userId, key, value) {
+  if (!sb || !userId) return false;
+  const row = { user_id: userId, key, value };
+  const { error } = await sb.from('user_data').upsert(row, { onConflict: 'user_id,key' });
+  if (error) { console.error('sbWriteKeyAs', error); return false; }
+  return true;
+}
+
 // For shared keys, viewers read from creator; creator reads from self.
 function gmvDataSourceUserId() {
   if (!sbUser) return null;
@@ -17200,6 +17665,15 @@ const APP_PERMISSIONS = [
   { id: 'confirm_orders.access',       group: 'Confirm Orders',    label: 'Open Confirm Orders',       desc: 'Access the Confirm Orders workflow (select, rank, confirm).' },
   { id: 'confirm_orders.confirm',      group: 'Confirm Orders',    label: 'Confirm allocations',       desc: 'Confirm or skip an order during phase 3 (21:00 → 10:59).' },
   { id: 'confirm_orders.dispatch',     group: 'Confirm Orders',    label: 'Trigger dispatch',          desc: 'Run dispatch + send final lists to delivery agents (creator-side).' },
+  // ---- Data Sources (unified uploads) ----
+  { id: 'data.access',                 group: 'Data Sources',     label: 'Open Data Sources page',    desc: 'Access the unified Data Sources page (creator + delegated uploaders).' },
+  { id: 'data.upload_clients',         group: 'Data Sources',     label: 'Upload Clients file',       desc: 'Upload the canonical clients file (single source for GMV / Fulfillment / Confirm Orders).' },
+  { id: 'data.upload_orders',          group: 'Data Sources',     label: 'Upload Orders file',        desc: 'Upload the canonical orders file (single source for all three features).' },
+  { id: 'data.upload_stock',           group: 'Data Sources',     label: 'Upload Stock file',         desc: 'Upload the canonical stock file (atomic units; auto-converted to sell-units).' },
+  { id: 'data.upload_focus',           group: 'Data Sources',     label: 'Upload Focus Products',     desc: 'Upload the focus-products taxonomy (Code → Sub Product → Focus product).' },
+  { id: 'data.upload_articles',        group: 'Data Sources',     label: 'Upload Articles / catalog', desc: 'Upload the article master (Code · Description · Package quantity · Sell unit). Drives stock conversion.' },
+  { id: 'data.upload_paliers',         group: 'Data Sources',     label: 'Upload Paliers',            desc: 'Upload the gift-tier table (Palier · Threshold · Prize 1/2/3).' },
+  { id: 'data.upload_gifts',           group: 'Data Sources',     label: 'Upload Gift Images',        desc: 'Upload the folder of gift photos (bundle_01 … bundle_NN). Stored in your account.' },
   // ---- App-wide ----
   { id: 'app.impersonate_sellers',     group: 'App',              label: 'Impersonate sellers',       desc: 'Use the seller-impersonation panel to view the app as another seller.' },
   { id: 'app.manage_permissions',      group: 'App',              label: 'Manage user permissions',   desc: 'See and edit this permissions panel (use with care).' },
@@ -17471,6 +17945,33 @@ function gmvIsSeller() { return !!gmvSellerName(); }
 function gmvApplyRoleUI() {
   const isCreator = gmvIsCreator();
   // Permissions UI lives in Settings now; settingsRenderTeam() re-renders from there.
+  // [patch: unified_data_sources] Reveal the Data Sources sidebar entry for
+  // the creator and any user holding a data.upload_* permission. Hydrate the
+  // unified store in the background so legacy in-memory shapes (gmv.clients,
+  // gmv.orders, fulfill.*) get backfilled before any feature renders.
+  try { if (typeof dsApplyRoleUI === 'function') dsApplyRoleUI(); } catch (_) {}
+  try { if (typeof mdApplyRoleUI === 'function') mdApplyRoleUI(); } catch (_) {}
+  // [patch: ds_retry_until_data] The first call can race with Supabase auth
+  // (sbUser not yet set, RLS reads return null). Retry on every role-UI
+  // refresh until at least one key comes back populated — otherwise sellers
+  // get stuck with an empty dsStore and "buying from list" stays at 0.
+  if (typeof dsHydrateAll === 'function') {
+    const _ds = window.dsStore || {};
+    const _hasAny = !!(_ds.clients || _ds.orders || _ds.stock || _ds.focus || _ds.articles);
+    if (!_hasAny || !window.__dsHydrated) {
+      window.__dsHydrated = true;
+      Promise.resolve(dsHydrateAll())
+        .then(() => {
+          const _now = window.dsStore || {};
+          if (!(_now.clients || _now.orders || _now.stock || _now.focus || _now.articles)) {
+            // Hydrate completed but produced nothing (likely auth not ready).
+            // Allow next role-UI cycle to retry.
+            window.__dsHydrated = false;
+          }
+        })
+        .catch(e => { console.warn('dsHydrateAll', e); window.__dsHydrated = false; });
+    }
+  }
   const strip = document.getElementById('gmvDsStrip');
   const canUploadAny = isCreator || userHasPermission('gmv.upload_clients') || userHasPermission('gmv.upload_orders') || userHasPermission('gmv.upload_categories');
   if (strip) strip.style.display = canUploadAny ? '' : 'none';
@@ -18287,6 +18788,1464 @@ function gmvSetSummary(id, html) {
   if (html) { el.innerHTML = html; el.style.display = 'block'; }
   else      { el.innerHTML = '';   el.style.display = 'none'; }
 }
+
+// ============================================================================
+// [patch: unified_data_sources] Single source of truth for the 5 canonical
+// files (Clients, Orders, Stock, Focus Products, Articles). Replaces the
+// duplicate upload tiles that lived inside GMV Tracker and Order Fulfillment.
+// Storage lives on the creator's Supabase account; viewers read via
+// sbReadKeyAs. Upload rights gated by data.upload_<kind> permissions; only
+// the creator (or a delegated user) can write.
+// ============================================================================
+const DS_KEYS = {
+  clients:  'data.clients.v1',
+  orders:   'data.orders.v1',
+  stock:    'data.stock.v1',
+  focus:    'data.focus.v1',
+  articles: 'data.articles.v1',
+  paliers:  'data.paliers.v1',
+  gifts:    'data.gift_images.v1'
+};
+const DS_PERMS = {
+  clients:  'data.upload_clients',
+  orders:   'data.upload_orders',
+  stock:    'data.upload_stock',
+  focus:    'data.upload_focus',
+  articles: 'data.upload_articles',
+  paliers:  'data.upload_paliers',
+  gifts:    'data.upload_gifts'
+};
+const DS_TILE_META = [
+  { id: 'clients',  title: 'Clients',          sub: 'Phones, sellers, geography' },
+  { id: 'orders',   title: 'Orders',           sub: 'Status, amounts, products' },
+  { id: 'stock',    title: 'Stock',            sub: 'Atomic units — auto-converted' },
+  { id: 'focus',    title: 'Focus Products',   sub: 'Family taxonomy + min MAD' },
+  { id: 'articles', title: 'Articles catalog', sub: 'Code · Desc · Packing · Sell unit' },
+  { id: 'paliers',  title: 'Paliers',          sub: 'Tier thresholds + prize text' },
+  { id: 'gifts',    title: 'Gift Images',      sub: 'Folder of bundle_NN/Cx_*.jpg', kind: 'folder' }
+];
+const DS_TEMPLATES = {
+  clients: ['retailerId','full_name','phoneNumber','longitude','latitude','typeOfCustomer','commune_name','region_name','province_name','sector','agentName'],
+  orders:  ['Code','Order date','Delivery Date','Client Id','Client name','Phone number','Latitude','Longitude','Product code','Category','Product name','Package quantity','Price','Discount','Price after discount','Quantity','Price total','Seller name','Status','Matjar','Delivery agent name','Delivery agent code','Tour ID','Region','Warehouse ID','Warehouse Name','Channel'],
+  stock:   ['Code','Product name','Category','Warehouse','Warehouse name','Quantity','Store Quantity','Location','Damaged','Lost','Expired'],
+  focus:   ['Code','Sub Product','Focus product','Family min MAD'],
+  articles:['Code','Description','Package quantity','Sell unit'],
+  paliers: ['Palier','Threshold','Prize 1','Prize 2','Prize 3']
+};
+window.dsStore = window.dsStore || { clients: null, orders: null, stock: null, focus: null, articles: null };
+window.dsArticlesLookup = window.dsArticlesLookup || new Map();
+
+function dsCanUpload(kind) {
+  if (typeof gmvIsCreator === 'function' && gmvIsCreator()) return true;
+  if (typeof userHasPermission !== 'function') return false;
+  return userHasPermission(DS_PERMS[kind] || '');
+}
+function dsReaderUserId() {
+  if (!sbUser) return null;
+  if (typeof gmvIsCreator === 'function' && gmvIsCreator()) return sbUser.id;
+  return (typeof GMV_CREATOR_USER_ID === 'string' && GMV_CREATOR_USER_ID) ? GMV_CREATOR_USER_ID : sbUser.id;
+}
+async function dsRead(kind) {
+  const key = DS_KEYS[kind]; const uid = dsReaderUserId();
+  if (!key || !uid || typeof sbReadKeyAs !== 'function') return null;
+  try { return await sbReadKeyAs(uid, key); }
+  catch (e) { console.warn('dsRead', kind, e); return null; }
+}
+async function dsWrite(kind, payload) {
+  const key = DS_KEYS[kind];
+  if (!key) throw new Error('Unknown DS kind: ' + kind);
+  // Always target the creator's user_data row so delegated uploaders all
+  // write into the same canonical location. Requires the RLS policy
+  // "delegated insert creator data" / "delegated update creator data".
+  const uid = dsReaderUserId();
+  if (!uid) throw new Error('Not signed in.');
+  const writer = (typeof sbWriteKeyAs === 'function') ? sbWriteKeyAs : null;
+  if (!writer) throw new Error('Supabase write helper missing.');
+  const ok = await writer(uid, key, payload);
+  if (!ok) throw new Error('Save failed. Likely the Supabase RLS policy for "data.*" writes to the creator’s row is missing — see the SQL block in the unified-data setup.');
+  return true;
+}
+async function dsHydrateAll() {
+  const out = {};
+  await Promise.all(Object.keys(DS_KEYS).map(async k => { out[k] = await dsRead(k); }));
+  window.dsStore = out;
+  try { dsRepublishToLegacy(); } catch (e) { console.warn('dsRepublishToLegacy', e); }
+  try { if (typeof dsRefreshTileMetas === 'function') dsRefreshTileMetas(); } catch (_) {}
+  return out;
+}
+function dsRepublishToLegacy() {
+  // Mirror unified data into the legacy in-memory shapes the rest of the app
+  // expects. Also persist to localStorage AND the legacy Supabase keys
+  // (gmv_clients / gmv_orders / gmv_names) so that the older code paths
+  // (gmvPullClientsFromSupabaseIfNeeded etc.) read back the same data on
+  // refresh — preventing a race where the old keys overwrite the unified
+  // store on next load.
+  const ds = window.dsStore || {};
+  let publishedClients = false, publishedOrders = false;
+  if (ds.clients && Array.isArray(ds.clients.rows) && typeof gmv === 'object') {
+    const m = {};
+    let sellersFound = 0;
+    ds.clients.rows.forEach(c => {
+      if (!c.phone) return;
+      m[c.phone] = {
+        name: c.name || '', seller: c.agent || '(no seller)',
+        retailerId: c.retailerId || '', commune: c.commune || '',
+        region: c.region || '', province: c.province || '',
+        sector: c.sector || '', type: c.type || '',
+        lat: c.lat, lng: c.lng
+      };
+      if (c.agent) sellersFound++;
+    });
+    if (Object.keys(m).length) {
+      gmv.clients = m;
+      publishedClients = true;
+      if (typeof gmvRebuildClientsByName === 'function') gmvRebuildClientsByName();
+      try { if (typeof saveJSON === 'function' && typeof GMV_LS_CLIENTS === 'string') saveJSON(GMV_LS_CLIENTS, gmv.clients); } catch (_) {}
+      console.log('[ds] republished clients:', Object.keys(m).length, '· with seller:', sellersFound, '· distinct sellers:', new Set(Object.values(m).map(c => c.seller).filter(s => s && s !== '(no seller)')).size);
+    }
+    if (typeof fulfill === 'object') {
+      const fm = {};
+      ds.clients.rows.forEach(c => {
+        if (!c.phone) return;
+        fm[c.phone] = { name: c.name || '', seller: c.agent || '', commune: c.commune || '', region: c.region || '', lat: c.lat, lng: c.lng };
+      });
+      if (Object.keys(fm).length) fulfill.clients = fm;
+    }
+  }
+  if (ds.orders && Array.isArray(ds.orders.rows) && typeof gmv === 'object') {
+    const out = ds.orders.rows.map(o => ({
+      phone: o.phone,
+      date: o.orderDate ? new Date(o.orderDate) : null,
+      amount: Number(o.priceTotal) || 0,
+      status: o.status || 'PENDING',
+      store: o.matjar || '',
+      productCode: o.productCode || '',
+      productName: o.productName || '',
+      qty: Number(o.qty) || 0,
+      orderCode: o.orderCode || '',
+      name: o.clientName || '',
+      seller: o.seller || ''
+    })).filter(o => o.date);
+    if (out.length) {
+      gmv.orders = out;
+      if (typeof fulfill === 'object') fulfill.orders = out;
+      publishedOrders = true;
+      try {
+        const ordersForStore = out.map(o => ({ phone: o.phone, date: o.date.toISOString(), amount: o.amount, status: o.status, store: o.store || '', productCode: o.productCode || '' }));
+        if (typeof saveJSON === 'function' && typeof GMV_LS_ORDERS === 'string') saveJSON(GMV_LS_ORDERS, ordersForStore);
+      } catch (_) {}
+    }
+  }
+  // [patch: republish_safer] Only the creator pushes back to the legacy
+  // Supabase keys — sellers don't have write permission on the creator's
+  // row, and writing to their own row pollutes it with stale data. And we
+  // only trigger a UI re-render when the GMV feature is actually mounted
+  // (otherwise gmvRenderAll() runs against a half-built DOM on cold load,
+  // which can blow up before the rest of the page paints).
+  try {
+    const _isCreator = (typeof gmvIsCreator === 'function') && gmvIsCreator();
+    if (_isCreator) {
+      if (publishedClients && typeof gmvPushClientsToSupabase === 'function') {
+        Promise.resolve(gmvPushClientsToSupabase()).catch(() => {});
+      }
+      if (publishedOrders && typeof gmvPushOrdersToSupabase === 'function') {
+        Promise.resolve(gmvPushOrdersToSupabase()).catch(() => {});
+      }
+    }
+  } catch (_) {}
+  try {
+    const _gmvEl = document.getElementById('featureGmvMaker');
+    if (_gmvEl && _gmvEl.style.display !== 'none' && typeof gmvRenderAll === 'function') {
+      gmvRenderAll();
+    }
+  } catch (e) { console.warn('post-republish render', e); }
+  if (ds.articles && Array.isArray(ds.articles.rows)) {
+    const lk = new Map();
+    ds.articles.rows.forEach(a => {
+      if (!a.code) return;
+      lk.set(String(a.code).trim().toUpperCase(), {
+        description: a.description || '',
+        packageQty: Number(a.packageQty) || 1,
+        sellUnit: String(a.sellUnit || '').trim().toUpperCase()
+      });
+    });
+    window.dsArticlesLookup = lk;
+  }
+  // [patch: fulfill_stock_in_sell_units] Republish stock into fulfill.stock /
+  // fulfill.remainingStock IN SELL UNITS (= atomic ÷ packageQty for PACKING
+  // SKUs). The allocator and the Order Fulfillment report compare these
+  // numbers against order quantities — which already come in as packings.
+  // Without this conversion the report showed Stock initial in atomic units
+  // and Ordered qty in packings, so a 40-packing order against 145 atomic
+  // diapers looked deliverable when actually only ~12 packings fit.
+  if (ds.stock && Array.isArray(ds.stock.rows) && typeof fulfill === 'object') {
+    const realRows = (typeof dsRealStock === 'function') ? dsRealStock().rows : [];
+    if (realRows.length) {
+      const stockMap = {};
+      realRows.forEach(r => {
+        const code = String(r.code || '').trim();
+        if (!code) return;
+        stockMap[code] = Math.max(0, Number(r.realAvailable) || 0);
+      });
+      fulfill.stock          = stockMap;
+      fulfill.remainingStock = Object.assign({}, stockMap);
+      const converted = realRows.filter(r => r.sellUnit === 'PACKING').length;
+      console.log('[ds] fulfill.stock republished — SKUs:', Object.keys(stockMap).length, '· in sell units:', converted, 'PACKING /', realRows.length - converted, 'ATOMIC');
+    }
+  }
+  // [patch: unified_focus_overrides] Build a runtime SKU→family map from
+  // the Focus Products file. This becomes the source of truth for
+  // gmvFamilyForSku() and seeds every uploaded family into
+  // gmvEngagement.focusProducts so the breakdown helpers actually find
+  // them (without this, "Buying from list" stays 0 because the family
+  // lookup misses entries that aren't in the hardcoded Excel embed).
+  if (ds.focus && Array.isArray(ds.focus.rows)) {
+    const map = {};
+    const skuNames = {};
+    const familySkus = {};
+    const familyMin = {};      // family → MAX min seen across that family's rows
+    const familySet = new Set();
+    ds.focus.rows.forEach(r => {
+      if (!r.code || !r.focusProduct) return;
+      const code = String(r.code).trim().toUpperCase();
+      const fam  = String(r.focusProduct).trim();
+      if (!code || !fam) return;
+      map[code] = fam;
+      familySet.add(fam);
+      if (r.subProduct) skuNames[code] = r.subProduct;
+      if (!familySkus[fam]) familySkus[fam] = [];
+      familySkus[fam].push({ code: code, name: r.subProduct || code });
+      // Family min MAD — take the max across all SKU rows in that family
+      // (rows for the same family should hold the same value, but max is
+      // safe if the spreadsheet has an inconsistency).
+      const mv = Number(r.familyMinMad) || 0;
+      if (mv > 0 && (!familyMin[fam] || mv > familyMin[fam])) familyMin[fam] = mv;
+    });
+    window.dsFocusMap      = map;
+    window.dsFocusSkuNames = skuNames;
+    window.dsFocusFamilies = Array.from(familySet).sort((a, b) => a.localeCompare(b));
+    window.dsFocusFamilySkus = familySkus;
+    window.dsFocusFamilyMin  = familyMin;
+    // Seed every family into gmvEngagement.focusProducts so the
+    // breakdown/cumulative helpers can find them. Use the file's min when
+    // present — it overrides the hardcoded FAMILY_MIN_MAD constant so the
+    // operator can edit one Excel cell instead of touching code.
+    if (typeof gmvEngagement === 'object' && gmvEngagement) {
+      gmvEngagement.focusProducts = gmvEngagement.focusProducts || {};
+      window.dsFocusFamilies.forEach(fam => {
+        if (!gmvEngagement.focusProducts[fam]) {
+          gmvEngagement.focusProducts[fam] = { family: fam, min: 0, name: fam };
+        }
+        const fileMin = familyMin[fam] || 0;
+        if (fileMin > 0) gmvEngagement.focusProducts[fam].min = fileMin;
+      });
+    }
+    const withMinCount = Object.keys(familyMin).length;
+    console.log('[ds] focus map built — SKUs:', Object.keys(map).length, '· families:', window.dsFocusFamilies.length, '· min targets:', withMinCount);
+  }
+  // [patch: unified_paliers_and_gifts] Replace the Supabase-seeded paliers
+  // with the uploaded ones (when present), and overlay any gift-image
+  // dataURLs from data.gift_images.v1 onto each palier card so the carousel
+  // renders the photos that travel with the data (no more file:// not-
+  // found errors on other machines).
+  if (ds.paliers && Array.isArray(ds.paliers.rows) && ds.paliers.rows.length && typeof gmvEngagement === 'object') {
+    gmvEngagement.paliers = ds.paliers.rows.map(r => ({
+      palier:    Number(r.palier) || 0,
+      threshold: Number(r.threshold) || 0,
+      prize1:    r.prize1 || '',
+      prize2:    r.prize2 || '',
+      prize3:    r.prize3 || '',
+      images1: [], images2: [], images3: [],
+      image1: '', image2: '', image3: ''
+    }));
+  }
+  if (ds.gifts && ds.gifts.images && typeof gmvEngagement === 'object' && Array.isArray(gmvEngagement.paliers)) {
+    const imgs = ds.gifts.images;
+    gmvEngagement.paliers.forEach(p => {
+      const bundlePrefix = 'bundle_' + String(p.palier).padStart(2, '0') + '/';
+      const c1 = [], c2 = [], c3 = [];
+      Object.keys(imgs).forEach(key => {
+        if (key.indexOf(bundlePrefix) !== 0) return;
+        const fn = key.slice(bundlePrefix.length).toUpperCase();
+        const url = imgs[key];
+        if      (fn.indexOf('C1') === 0) c1.push(url);
+        else if (fn.indexOf('C2') === 0) c2.push(url);
+        else if (fn.indexOf('C3') === 0) c3.push(url);
+      });
+      if (c1.length) { p.images1 = c1; p.image1 = c1[0]; }
+      if (c2.length) { p.images2 = c2; p.image2 = c2[0]; }
+      if (c3.length) { p.images3 = c3; p.image3 = c3[0]; }
+    });
+    const matched = gmvEngagement.paliers.filter(p => p.images1.length || p.images2.length || p.images3.length).length;
+    console.log('[ds] gift images overlaid — paliers with photos:', matched, '/', gmvEngagement.paliers.length, '· stored files:', Object.keys(imgs).length);
+  }
+}
+// Real (sell-unit) stock: atomic → sell-unit using the Articles catalog.
+function dsRealStock() {
+  const ds = window.dsStore || {};
+  if (!ds.stock || !Array.isArray(ds.stock.rows)) return { rows: [], converted: 0 };
+  const lk = window.dsArticlesLookup;
+  let converted = 0;
+  const rows = ds.stock.rows.map(r => {
+    const code = String(r.code || '').trim().toUpperCase();
+    const art = lk && lk.get(code);
+    const atomicQty   = Number(r.qty) || 0;
+    const atomicDmg   = Number(r.damaged) || 0;
+    const atomicLost  = Number(r.lost) || 0;
+    const atomicExp   = Number(r.expired) || 0;
+    const atomicStore = Number(r.storeQty) || 0;
+    const atomicAvail = Math.max(0, atomicQty - atomicDmg - atomicLost - atomicExp);
+    let realQty, realAvail, realStore, packing = 1, sellUnit = 'ATOMIC';
+    if (art && art.sellUnit === 'PACKING' && art.packageQty > 0) {
+      packing = art.packageQty; sellUnit = 'PACKING';
+      realQty   = Math.floor(atomicQty / packing);
+      realAvail = Math.floor(atomicAvail / packing);
+      realStore = Math.floor(atomicStore / packing);
+      converted++;
+    } else {
+      realQty = atomicQty; realAvail = atomicAvail; realStore = atomicStore;
+    }
+    return Object.assign({}, r, {
+      atomicQty, atomicAvailable: atomicAvail, atomicStore,
+      realQty, realAvailable: realAvail, realStore,
+      sellUnit, packing
+    });
+  });
+  return { rows, converted };
+}
+
+// ----- Parsers (one per file kind, exact canonical headers) -----
+function dsNormCode(v) { return String(v == null ? '' : v).trim().toUpperCase(); }
+function dsNormText(v) { return String(v == null ? '' : v).trim(); }
+function dsNum(v)      { const n = parsePrice(v); return isFinite(n) ? n : 0; }
+function dsParseDate(v){ const d = parseDate(v); return d ? d.toISOString() : ''; }
+
+async function dsParseClients(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty file.');
+  const h = rows[0];
+  const cRid   = findCol(h, ['retailerId','RetailerId','Retailer Id']);
+  const cName  = findCol(h, ['full_name','Full name','Customer_Name','Client name','Name']);
+  const cPhone = findCol(h, ['phoneNumber','Phone number','Customer_PhoneNumber','Phone']);
+  const cLng   = findCol(h, ['longitude','Longitude','lng']);
+  const cLat   = findCol(h, ['latitude','Latitude','lat']);
+  const cType  = findCol(h, ['typeOfCustomer','TypeOfCustomer','Type of customer']);
+  const cCom   = findCol(h, ['commune_name','Commune name','Commune']);
+  const cReg   = findCol(h, ['region_name','Region name','Region']);
+  const cProv  = findCol(h, ['province_name','Province name','Province']);
+  const cSec   = findCol(h, ['sector','Sector']);
+  const cAgt   = findCol(h, [
+    'agentName','AgentName','Agent name','Agent_Name','agent_name',
+    'SalesRep_Name','SalesRep','Sales rep','Sales Rep','SalesRepName','sales_rep',
+    'Seller Name','SellerName','Seller_Name','seller_name','Seller','seller',
+    'Vendeur','vendeur'
+  ]);
+  if (!cPhone) throw new Error('Missing phoneNumber column.');
+  const out = []; let skipped = 0, withAgent = 0;
+  rows.forEach(r => {
+    const phone = normalizePhone(r[cPhone]);
+    if (!phone) { skipped++; return; }
+    const agt = cAgt ? dsNormText(r[cAgt]) : '';
+    if (agt) withAgent++;
+    out.push({
+      retailerId: cRid ? dsNormText(r[cRid]) : '',
+      name:    cName ? dsNormText(r[cName]) : '',
+      phone:   phone,
+      lng:     cLng ? (Number(r[cLng]) || null) : null,
+      lat:     cLat ? (Number(r[cLat]) || null) : null,
+      type:    cType ? dsNormText(r[cType]) : '',
+      commune: cCom ? dsNormText(r[cCom]) : '',
+      region:  cReg ? dsNormText(r[cReg]) : '',
+      province:cProv ? dsNormText(r[cProv]) : '',
+      sector:  cSec ? dsNormText(r[cSec]) : '',
+      agent:   agt
+    });
+  });
+  return { rows: out, skipped, count: out.length, withAgent, agentColumn: cAgt || null };
+}
+
+async function dsParseOrders(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty file.');
+  const h = rows[0];
+  const cCode = findCol(h, ['Code','Order code','OrderCode']);
+  const cOrd  = findCol(h, ['Order date','OrderDate']);
+  const cDel  = findCol(h, ['Delivery Date','Delivery date','DeliveryDate']);
+  const cCid  = findCol(h, ['Client Id','ClientId','retailerId']);
+  const cCnm  = findCol(h, ['Client name','ClientName','Customer_Name']);
+  const cPh   = findCol(h, ['Phone number','phoneNumber','Customer_PhoneNumber','Phone']);
+  const cLat  = findCol(h, ['Latitude','latitude']);
+  const cLng  = findCol(h, ['Longitude','longitude']);
+  const cPc   = findCol(h, ['Product code','ProductCode','productCode']);
+  const cCat  = findCol(h, ['Category','category']);
+  const cPn   = findCol(h, ['Product name','ProductName']);
+  const cPak  = findCol(h, ['Package quantity','PackageQuantity']);
+  const cPr   = findCol(h, ['Price','price']);
+  const cDis  = findCol(h, ['Discount','discount']);
+  const cPad  = findCol(h, ['Price after discount','PriceAfterDiscount']);
+  const cQty  = findCol(h, ['Quantity','quantity']);
+  const cPt   = findCol(h, ['Price total','PriceTotal','Total price','Total']);
+  const cSel  = findCol(h, ['Seller name','SellerName','SalesRep_Name']);
+  const cSt   = findCol(h, ['Status','status']);
+  const cMat  = findCol(h, ['Matjar','matjar','Store']);
+  const cAg   = findCol(h, ['Delivery agent name','DeliveryAgentName']);
+  const cAgC  = findCol(h, ['Delivery agent code','DeliveryAgentCode']);
+  const cTr   = findCol(h, ['Tour ID','TourId','TourID']);
+  const cRg   = findCol(h, ['Region','region_name']);
+  const cWid  = findCol(h, ['Warehouse ID','WarehouseId','WarehouseID']);
+  const cWn   = findCol(h, ['Warehouse Name','WarehouseName','Warehouse']);
+  const cCh   = findCol(h, ['Channel','channel']);
+  if (!cPh) throw new Error('Missing Phone number column.');
+  if (!cOrd) throw new Error('Missing Order date column.');
+  if (!cSt) throw new Error('Missing Status column.');
+  const WHOLESALER = (typeof WHOLESALER_CHANNEL === 'string') ? WHOLESALER_CHANNEL : 'Z_WHOLESALER';
+  const out = []; let skipped = 0, skippedChannel = 0;
+  rows.forEach(r => {
+    if (cCh) {
+      const ch = String(r[cCh] || '').trim().toUpperCase();
+      if (ch && ch !== WHOLESALER) { skippedChannel++; return; }
+    }
+    const phone = normalizePhone(r[cPh]);
+    if (!phone) { skipped++; return; }
+    const ordDate = dsParseDate(r[cOrd]);
+    if (!ordDate) { skipped++; return; }
+    const stRaw = String(r[cSt] || '').trim();
+    const st = (typeof gmvNormStatus === 'function') ? gmvNormStatus(stRaw) : stRaw.toUpperCase();
+    out.push({
+      orderCode: cCode ? dsNormText(r[cCode]) : '',
+      orderDate: ordDate,
+      deliveryDate: cDel ? dsParseDate(r[cDel]) : '',
+      clientId: cCid ? dsNormText(r[cCid]) : '',
+      clientName: cCnm ? dsNormText(r[cCnm]) : '',
+      phone: phone,
+      lat: cLat ? (Number(r[cLat]) || null) : null,
+      lng: cLng ? (Number(r[cLng]) || null) : null,
+      productCode: cPc ? dsNormCode(r[cPc]) : '',
+      category: cCat ? dsNormText(r[cCat]) : '',
+      productName: cPn ? dsNormText(r[cPn]) : '',
+      packageQty: cPak ? dsNum(r[cPak]) : 0,
+      price: cPr ? dsNum(r[cPr]) : 0,
+      discount: cDis ? dsNum(r[cDis]) : 0,
+      priceAfterDiscount: cPad ? dsNum(r[cPad]) : 0,
+      qty: cQty ? dsNum(r[cQty]) : 0,
+      priceTotal: cPt ? dsNum(r[cPt]) : 0,
+      seller: cSel ? dsNormText(r[cSel]) : '',
+      status: st,
+      matjar: cMat ? dsNormText(r[cMat]) : '',
+      agentName: cAg ? dsNormText(r[cAg]) : '',
+      agentCode: cAgC ? dsNormText(r[cAgC]) : '',
+      tourId: cTr ? dsNormText(r[cTr]) : '',
+      region: cRg ? dsNormText(r[cRg]) : '',
+      warehouseId: cWid ? dsNormText(r[cWid]) : '',
+      warehouseName: cWn ? dsNormText(r[cWn]) : '',
+      channel: cCh ? dsNormText(r[cCh]) : ''
+    });
+  });
+  return { rows: out, skipped, skippedChannel, count: out.length };
+}
+
+async function dsParseStock(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty file.');
+  const h = rows[0];
+  const cCode = findCol(h, ['Code','code']);
+  const cName = findCol(h, ['Product name','ProductName','Description']);
+  const cCat  = findCol(h, ['Category','category']);
+  const cWid  = findCol(h, ['Warehouse','WarehouseId']);
+  const cWn   = findCol(h, ['Warehouse name','WarehouseName']);
+  const cQty  = findCol(h, ['Quantity','quantity']);
+  const cSt   = findCol(h, ['Store Quantity','StoreQuantity']);
+  const cLoc  = findCol(h, ['Location','location']);
+  const cDmg  = findCol(h, ['Damaged','damaged']);
+  const cLost = findCol(h, ['Lost','lost']);
+  const cExp  = findCol(h, ['Expired','expired']);
+  if (!cCode) throw new Error('Missing Code column.');
+  if (!cQty)  throw new Error('Missing Quantity column.');
+  const out = []; let skipped = 0;
+  rows.forEach(r => {
+    const code = dsNormCode(r[cCode]);
+    if (!code) { skipped++; return; }
+    out.push({
+      code: code,
+      productName: cName ? dsNormText(r[cName]) : '',
+      category: cCat ? dsNormText(r[cCat]) : '',
+      warehouse: cWid ? dsNormText(r[cWid]) : '',
+      warehouseName: cWn ? dsNormText(r[cWn]) : '',
+      qty: dsNum(r[cQty]),
+      storeQty: cSt ? dsNum(r[cSt]) : 0,
+      location: cLoc ? dsNormText(r[cLoc]) : '',
+      damaged: cDmg ? dsNum(r[cDmg]) : 0,
+      lost: cLost ? dsNum(r[cLost]) : 0,
+      expired: cExp ? dsNum(r[cExp]) : 0
+    });
+  });
+  return { rows: out, skipped, count: out.length };
+}
+
+async function dsParseFocus(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty file.');
+  const h = rows[0];
+  const cCode = findCol(h, ['Code','code']);
+  const cSub  = findCol(h, ['Sub Product','SubProduct','Description']);
+  const cFoc  = findCol(h, ['Focus product','FocusProduct','Family']);
+  const cMin  = findCol(h, [
+    'Family min MAD','Family Min MAD','family_min_mad',
+    'Min MAD','MinMAD','min_mad','Min','min',
+    'Family minimum','FamilyMinimum','Minimum',
+    'Min MAD/Family','Min target','MinTarget'
+  ]);
+  if (!cCode) throw new Error('Missing Code column.');
+  if (!cFoc)  throw new Error('Missing Focus product column.');
+  const out = []; let skipped = 0, withMin = 0;
+  rows.forEach(r => {
+    const code = dsNormCode(r[cCode]);
+    if (!code) { skipped++; return; }
+    const minVal = cMin ? dsNum(r[cMin]) : 0;
+    if (minVal > 0) withMin++;
+    out.push({
+      code: code,
+      subProduct: cSub ? dsNormText(r[cSub]) : '',
+      focusProduct: dsNormText(r[cFoc]),
+      familyMinMad: minVal
+    });
+  });
+  return { rows: out, skipped, count: out.length, withMin, minColumn: cMin || null };
+}
+
+async function dsParseArticles(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty file.');
+  const h = rows[0];
+  const cCode = findCol(h, ['Code','code']);
+  const cDesc = findCol(h, ['Description','description','Product name']);
+  const cPak  = findCol(h, ['Package quantity','PackageQuantity','Packing']);
+  const cUn   = findCol(h, ['Sell unit','SellUnit','sell_unit','Unit']);
+  if (!cCode) throw new Error('Missing Code column.');
+  if (!cPak)  throw new Error('Missing Package quantity column.');
+  if (!cUn)   throw new Error('Missing Sell unit column.');
+  const out = []; let skipped = 0;
+  rows.forEach(r => {
+    const code = dsNormCode(r[cCode]);
+    if (!code) { skipped++; return; }
+    out.push({
+      code: code,
+      description: cDesc ? dsNormText(r[cDesc]) : '',
+      packageQty: dsNum(r[cPak]) || 1,
+      sellUnit: dsNormText(r[cUn]).toUpperCase()
+    });
+  });
+  return { rows: out, skipped, count: out.length };
+}
+
+function dsDownloadTemplate(kind) {
+  if (kind === 'gifts') return dsDownloadGiftsTemplate();
+  const headers = DS_TEMPLATES[kind];
+  if (!headers) return;
+  const csv = headers.join(',') + '\r\n';
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'template-' + kind + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+// ----- Paliers parser (text data only — no images here) -----
+async function dsParsePaliers(file) {
+  const rows = await readXlsx(file);
+  if (!rows.length) throw new Error('Empty file.');
+  const h = rows[0];
+  const cP  = findCol(h, ['Palier','palier','Tier','tier','Level']);
+  const cT  = findCol(h, ['Threshold','threshold','CA','ca','Seuil']);
+  const c1  = findCol(h, ['Prize 1','prize 1','prize1','Cadeau 1','cadeau1']);
+  const c2  = findCol(h, ['Prize 2','prize 2','prize2','Cadeau 2','cadeau2']);
+  const c3  = findCol(h, ['Prize 3','prize 3','prize3','Cadeau 3','cadeau3']);
+  if (!cP || !cT) throw new Error('Need Palier + Threshold columns.');
+  const out = []; let skipped = 0;
+  rows.forEach(r => {
+    const p = parseInt(r[cP]) || 0;
+    if (!p) { skipped++; return; }
+    out.push({
+      palier:    p,
+      threshold: dsNum(r[cT]),
+      prize1:    c1 ? dsNormText(r[c1]) : '',
+      prize2:    c2 ? dsNormText(r[c2]) : '',
+      prize3:    c3 ? dsNormText(r[c3]) : ''
+    });
+  });
+  out.sort((a, b) => a.palier - b.palier);
+  return { rows: out, count: out.length, skipped };
+}
+
+// ----- Gift Images parser (folder upload) -----
+// Accepts a FileList where each File may have a `webkitRelativePath` like
+// "Pictures of gifts/bundle_03/C2_foo.jpg". The app keeps only the last two
+// segments ("bundle_03/C2_foo.jpg") as the key. The whole map is stored as
+// base64 dataURLs under data.gift_images.v1.
+async function dsParseGifts(fileList) {
+  if (!fileList || !fileList.length) throw new Error('Pick a folder of images first.');
+  const images = {};
+  let total = 0, skipped = 0, bytes = 0;
+  for (let i = 0; i < fileList.length; i++) {
+    const f = fileList[i];
+    // Accept anything image-shaped; some browsers don't fill .type so fall
+    // back to extension sniff for jpg/jpeg/png/webp.
+    const isImage = (f.type && f.type.indexOf('image/') === 0)
+      || /\.(jpe?g|png|webp)$/i.test(f.name || '');
+    if (!isImage) { skipped++; continue; }
+    const rel = (f.webkitRelativePath || f.name || '').replace(/\\/g, '/');
+    const parts = rel.split('/').filter(Boolean);
+    // Keep last two segments when we have them — "bundle_NN/filename".
+    // When the user picked individual files (no folder), the key is just the
+    // filename — the bundle prefix has to come from a sub-string in the
+    // filename (e.g. "bundle_01_C1_foo.jpg") if needed.
+    const key = parts.length >= 2 ? parts.slice(-2).join('/') : parts[parts.length - 1];
+    const dataUrl = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload  = () => resolve(fr.result);
+      fr.onerror = reject;
+      fr.readAsDataURL(f);
+    });
+    images[key] = dataUrl;
+    total++;
+    bytes += (dataUrl && dataUrl.length) || 0;
+  }
+  return { images, count: total, skipped, bytes };
+}
+
+// ----- Gift Images template ZIP -----
+// Reads the currently-loaded paliers (uploaded Paliers tile OR seeded
+// engage_paliers row) and bundles one empty folder per palier + a README
+// with the naming convention.
+async function dsDownloadGiftsTemplate() {
+  if (typeof JSZip === 'undefined') {
+    alert('Zip helper not loaded.');
+    return;
+  }
+  // Source of paliers: prefer the uploaded Paliers tile, fall back to
+  // gmvEngagement.paliers (Supabase-seeded set).
+  let paliers = [];
+  const ds = window.dsStore || {};
+  if (ds.paliers && Array.isArray(ds.paliers.rows) && ds.paliers.rows.length) {
+    paliers = ds.paliers.rows.slice();
+  } else if (typeof gmvEngagement === 'object' && Array.isArray(gmvEngagement.paliers) && gmvEngagement.paliers.length) {
+    paliers = gmvEngagement.paliers.slice();
+  }
+  if (!paliers.length) {
+    alert('Upload the Paliers file first so the template knows how many bundle folders to generate.');
+    return;
+  }
+  const zip = new JSZip();
+  const readme =
+    'GIFT IMAGES — naming convention\n' +
+    '================================\n\n' +
+    'Folder structure:\n' +
+    '  bundle_01/   ← palier 1\n' +
+    '  bundle_02/   ← palier 2\n' +
+    '  ...\n' +
+    '  bundle_' + String(paliers[paliers.length - 1].palier || paliers.length).padStart(2, '0') + '/  ← palier ' + (paliers[paliers.length - 1].palier || paliers.length) + '\n\n' +
+    'Filenames inside each folder MUST start with the tier number:\n' +
+    '  C1_*.jpg / .png / .webp   → photo for Prize 1\n' +
+    '  C2_*...                   → photo for Prize 2\n' +
+    '  C3_*...                   → photo for Prize 3\n\n' +
+    'For multi-photo prizes (e.g. "Triporteur + TV"), add a suffix letter:\n' +
+    '  C3a_Triporteur.jpg\n' +
+    '  C3b_Samsung_50_4K.jpg\n' +
+    '  → both will appear in the Prize 3 carousel for that palier.\n\n' +
+    'Anything after the tier prefix is free text. Rename, reorder, replace — the\n' +
+    'app only looks at the C1 / C2 / C3 prefix.\n\n' +
+    'Once filled, upload the WHOLE folder via Data Sources → Gift Images.\n';
+  zip.file('README.txt', readme);
+  paliers.forEach((p, idx) => {
+    const n = p.palier || (idx + 1);
+    const folder = 'bundle_' + String(n).padStart(2, '0');
+    const hint =
+      'Drop the photos for PALIER ' + n + ' here.\n' +
+      'Threshold: ' + (p.threshold || '?') + ' MAD\n' +
+      '  Prize 1: ' + (p.prize1 || '—') + '\n' +
+      '  Prize 2: ' + (p.prize2 || '—') + '\n' +
+      '  Prize 3: ' + (p.prize3 || '—') + '\n\n' +
+      'Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg\n';
+    zip.folder(folder).file('_put_images_here.txt', hint);
+  });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'gifts-template.zip';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+function dsTileIcon(kind) {
+  const icons = {
+    clients:  '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    orders:   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+    stock:    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+    focus:    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+    articles: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>'
+  };
+  return icons[kind] || icons.articles;
+}
+function dsTimeAgo(iso) {
+  if (!iso) return 'never';
+  const t = new Date(iso).getTime();
+  if (!isFinite(t)) return 'unknown';
+  const diff = Date.now() - t;
+  if (diff < 60000) return 'just now';
+  const m = Math.round(diff / 60000); if (m < 60) return m + ' min ago';
+  const h = Math.round(diff / 3600000); if (h < 24) return h + ' h ago';
+  const d = Math.round(diff / 86400000); return d + ' d ago';
+}
+
+async function dsRenderPage() {
+  const host = document.getElementById('dsTilesGrid');
+  if (!host) return;
+  // [patch: ds_hydrate_before_render] On refresh, window.dsStore is reset
+  // until dsHydrateAll() pulls the rows from Supabase. If we paint the
+  // tiles before that finishes, every tile renders as "never uploaded".
+  // Fetch first if the store is empty, then paint.
+  const empty = !window.dsStore || Object.values(window.dsStore).every(v => !v);
+  if (empty && sbUser && typeof dsHydrateAll === 'function') {
+    host.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:36px; color:#64748b; font-size:13px;">Loading data sources…</div>';
+    try { await dsHydrateAll(); } catch (e) { console.warn('dsHydrateAll on render', e); }
+  }
+  host.innerHTML = '';
+  DS_TILE_META.forEach(meta => {
+    const can = dsCanUpload(meta.id);
+    const tile = document.createElement('div');
+    tile.className = 'ds-tile' + (can ? '' : ' is-locked');
+    tile.dataset.kind = meta.id;
+    const headers = (DS_TEMPLATES[meta.id] || []).join(' · ');
+    tile.innerHTML =
+      '<div class="ds-tile-head">' +
+        '<div class="ds-tile-icon">' + dsTileIcon(meta.id) + '</div>' +
+        '<div style="flex:1; min-width:0;">' +
+          '<div class="ds-tile-title">' + escapeHtml(meta.title) + '</div>' +
+          '<div class="ds-tile-sub">' + escapeHtml(meta.sub) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<label class="ds-drop" data-ds-drop="' + meta.id + '" title="' + escapeHtml(headers) + '">' +
+        '<div class="ds-drop-title">' + (can
+            ? (meta.kind === 'folder' ? 'Pick a folder of images' : 'Drop file or click to upload')
+            : 'Upload locked') + '</div>' +
+        '<div class="ds-drop-hint">' + (can
+            ? (meta.kind === 'folder' ? 'Whole folder · bundle_NN/Cx_*.jpg' : '.xlsx · .xls · .csv')
+            : 'Ask the creator to grant ' + escapeHtml(DS_PERMS[meta.id])) + '</div>' +
+        (can
+          ? (meta.kind === 'folder'
+              ? '<input type="file" accept="image/*" multiple webkitdirectory directory data-ds-input="' + meta.id + '">'
+              : '<input type="file" accept=".xlsx,.xls,.csv" data-ds-input="' + meta.id + '">')
+          : '') +
+      '</label>' +
+      '<div class="ds-status" data-ds-status="' + meta.id + '"></div>' +
+      '<div class="ds-actions">' +
+        '<button type="button" class="ds-btn" data-ds-template="' + meta.id + '">' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
+          'Download template' +
+        '</button>' +
+      '</div>' +
+      '<div class="ds-tile-meta" data-ds-meta="' + meta.id + '">' +
+        '<span>Last upload: <b>—</b></span>' +
+        '<span>By: <b>—</b></span>' +
+        '<span>Rows: <b>—</b></span>' +
+      '</div>';
+    host.appendChild(tile);
+  });
+  host.querySelectorAll('[data-ds-input]').forEach(inp => inp.addEventListener('change', dsOnUpload));
+  host.querySelectorAll('[data-ds-template]').forEach(btn => {
+    btn.addEventListener('click', () => dsDownloadTemplate(btn.dataset.dsTemplate));
+  });
+  dsRefreshTileMetas();
+}
+
+function dsRefreshTileMetas() {
+  const ds = window.dsStore || {};
+  DS_TILE_META.forEach(meta => {
+    const wrap = document.querySelector('[data-ds-meta="' + meta.id + '"]');
+    if (!wrap) return;
+    const payload = ds[meta.id];
+    if (payload) {
+      const by = (payload.uploadedBy && payload.uploadedBy.email) || '—';
+      wrap.innerHTML =
+        '<span>Last upload: <b>' + escapeHtml(dsTimeAgo(payload.uploadedAt)) + '</b></span>' +
+        '<span>By: <b>' + escapeHtml(by) + '</b></span>' +
+        '<span>Rows: <b>' + (payload.count || 0) + '</b></span>';
+      const drop = document.querySelector('[data-ds-drop="' + meta.id + '"]');
+      if (drop) drop.classList.add('has-file');
+    }
+  });
+}
+
+async function dsOnUpload(e) {
+  const inp = e.currentTarget;
+  const kind = inp.dataset.dsInput;
+  const files = inp.files;
+  const status = document.querySelector('[data-ds-status="' + kind + '"]');
+  if (!files || !files.length || !kind || !status) return;
+  if (!dsCanUpload(kind)) {
+    status.className = 'ds-status is-error';
+    status.textContent = '✗ You don’t have permission to upload this file.';
+    try { inp.value = ''; } catch (_) {}
+    return;
+  }
+  if (!sbUser) {
+    status.className = 'ds-status is-error';
+    status.textContent = '✗ Sign in first — uploads sync to your account.';
+    try { inp.value = ''; } catch (_) {}
+    return;
+  }
+  const isFolder = (kind === 'gifts');
+  status.className = 'ds-status is-info';
+  status.textContent = isFolder
+    ? 'Reading ' + files.length + ' file(s) …'
+    : 'Reading ' + files[0].name + ' …';
+  try {
+    let payload;
+    let msg = '';
+    if (kind === 'gifts') {
+      const parsed = await dsParseGifts(files);
+      payload = {
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: { id: sbUser.id, email: sbUser.email || '' },
+        count: parsed.count,
+        images: parsed.images
+      };
+      const mb = (parsed.bytes / (1024 * 1024)).toFixed(1);
+      msg = '✓ Uploaded ' + parsed.count + ' image(s) · ' + mb + ' MB';
+      if (parsed.skipped) msg += ' · skipped ' + parsed.skipped + ' non-image';
+    } else {
+      const parsers = {
+        clients: dsParseClients, orders: dsParseOrders, stock: dsParseStock,
+        focus: dsParseFocus, articles: dsParseArticles, paliers: dsParsePaliers
+      };
+      const parser = parsers[kind];
+      if (!parser) throw new Error('Unknown upload kind: ' + kind);
+      const parsed = await parser(files[0]);
+      payload = {
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: { id: sbUser.id, email: sbUser.email || '' },
+        count: parsed.count,
+        rows: parsed.rows
+      };
+      msg = '✓ Uploaded ' + parsed.count + ' rows';
+      if (parsed.skipped)        msg += ' · skipped ' + parsed.skipped;
+      if (parsed.skippedChannel) msg += ' · ' + parsed.skippedChannel + ' non-wholesale';
+      if (kind === 'clients') {
+        if (parsed.agentColumn) {
+          msg += ' · sellers from "' + parsed.agentColumn + '" (' + (parsed.withAgent || 0) + ' clients with seller)';
+        } else {
+          msg += ' · ⚠ no seller column found — expected "agentName"';
+        }
+      }
+      if (kind === 'focus') {
+        if (parsed.minColumn) {
+          msg += ' · min MAD from "' + parsed.minColumn + '" (' + (parsed.withMin || 0) + ' rows with target)';
+        } else {
+          msg += ' · ⚠ no min column — add "Family min MAD" to drive progress bars';
+        }
+      }
+    }
+    await dsWrite(kind, payload);
+    window.dsStore = window.dsStore || {};
+    window.dsStore[kind] = payload;
+    dsRepublishToLegacy();
+    if (kind === 'stock' || kind === 'articles') {
+      const rs = dsRealStock();
+      if (rs.rows && rs.rows.length) msg += ' · ' + rs.converted + ' SKU(s) converted to sell-unit';
+    }
+    if (kind === 'gifts' || kind === 'paliers') {
+      const pCount = (window.dsStore.paliers && window.dsStore.paliers.count) || 0;
+      const iCount = window.dsStore.gifts && window.dsStore.gifts.images
+                   ? Object.keys(window.dsStore.gifts.images).length : 0;
+      if (pCount && iCount) msg += ' · ' + pCount + ' paliers × ' + iCount + ' images mapped';
+    }
+    status.className = 'ds-status is-success';
+    status.textContent = msg;
+    dsRefreshTileMetas();
+    try { if (typeof gmvRenderAll === 'function') gmvRenderAll(); } catch (_) {}
+  } catch (err) {
+    console.error('dsOnUpload', err);
+    status.className = 'ds-status is-error';
+    status.textContent = '✗ ' + (err && err.message ? err.message : String(err));
+  } finally {
+    try { inp.value = ''; } catch (_) {}
+  }
+}
+
+function dsApplyRoleUI() {
+  const btn = document.getElementById('asFeatureDataSources');
+  if (!btn) return;
+  const canSee = (typeof gmvIsCreator === 'function' && gmvIsCreator())
+    || (typeof userHasPermission === 'function' && (
+         userHasPermission('data.access') ||
+         userHasPermission('data.upload_clients') ||
+         userHasPermission('data.upload_orders') ||
+         userHasPermission('data.upload_stock') ||
+         userHasPermission('data.upload_focus') ||
+         userHasPermission('data.upload_articles')));
+  btn.style.display = canSee ? '' : 'none';
+}
+window.dsApplyRoleUI = dsApplyRoleUI;
+window.dsHydrateAll = dsHydrateAll;
+window.dsRenderPage = dsRenderPage;
+window.dsRealStock  = dsRealStock;
+// ============================================================================
+
+// ============================================================================
+// [patch: my_day] Creator-only daily to-do + time-tracker. Tasks live under
+// the Supabase key "creator_todos_v1". Each task records createdAt / startedAt
+// / finishedAt / durationMs. The Today panel shows running + pending + done
+// for the current calendar day; the History panel groups everything else by
+// day with totals.
+// ============================================================================
+const MYDAY_KEY = 'creator_todos_v1';
+const myDay = {
+  todos: [],
+  loaded: false,
+  view: 'today',
+  ticker: null,
+  // [patch: pomodoro] 25-min focus blocks, 5-min short breaks, 15-min long
+  // break every 4 pomodoros. Phase + phaseStartedAt live on the running task
+  // (saved to Supabase) so a reload picks up exactly where you left off.
+  pomo: {
+    workMs:        25 * 60 * 1000,
+    shortBreakMs:   5 * 60 * 1000,
+    longBreakMs:   15 * 60 * 1000,
+    longBreakAfter: 4
+  }
+};
+
+function mdTodayKey(d) {
+  const dt = d || new Date();
+  return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+}
+function mdFormatDate(d) {
+  return new Date(d).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+}
+function mdFormatTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function mdFormatDuration(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+function mdFormatDurationShort(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return h + 'h ' + String(m).padStart(2,'0') + 'm';
+  return m + 'm';
+}
+function mdLiveMs(t) {
+  let ms = t.durationMs || 0;
+  if (t.startedAt && !t.finishedAt) ms += Date.now() - new Date(t.startedAt).getTime();
+  return ms;
+}
+
+// ---------- Pomodoro helpers ----------
+// Phases written on the running task itself:
+//   pomoPhase: 'work' | 'short' | 'long'
+//   pomoPhaseStartedAt: ISO timestamp
+//   pomoCount: how many work blocks completed for this task today
+function mdPomoDurationFor(phase) {
+  if (phase === 'short') return myDay.pomo.shortBreakMs;
+  if (phase === 'long')  return myDay.pomo.longBreakMs;
+  return myDay.pomo.workMs;
+}
+function mdPomoRemainingMs(t) {
+  if (!t || !t.pomoPhase || !t.pomoPhaseStartedAt) return null;
+  const elapsed = Date.now() - new Date(t.pomoPhaseStartedAt).getTime();
+  return Math.max(0, mdPomoDurationFor(t.pomoPhase) - elapsed);
+}
+function mdPomoStartPhase(task, phase) {
+  task.pomoPhase = phase;
+  task.pomoPhaseStartedAt = new Date().toISOString();
+  task.pomoLastNotified = '';
+}
+function mdPomoAdvance(task) {
+  // Called when the current phase elapsed to 0. Cycle: work → short (or long
+  // every 4th) → work …
+  const beep = () => {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const t0 = ctx.currentTime;
+      [880, 660].forEach((freq, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine'; o.frequency.value = freq;
+        const start = t0 + i * 0.22, dur = 0.18;
+        g.gain.setValueAtTime(0, start);
+        g.gain.linearRampToValueAtTime(0.18, start + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+        o.start(start); o.stop(start + dur);
+      });
+      setTimeout(() => { try { ctx.close(); } catch(_){} }, 800);
+    } catch (_) {}
+  };
+  const notify = (title, body) => {
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body });
+      }
+    } catch (_) {}
+    // In-app toast (re-uses the ds toast pattern but in a Pomodoro flavor).
+    let t = document.getElementById('mdPomoToast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'mdPomoToast';
+      t.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:14px 22px;border-radius:14px;font-size:14px;font-weight:600;z-index:10000;box-shadow:0 18px 40px rgba(99,102,241,.45);text-align:center;line-height:1.45;opacity:0;transition:opacity .25s;';
+      document.body.appendChild(t);
+    }
+    t.innerHTML = '<div style="font-size:18px;margin-bottom:4px;">' + title + '</div><div style="font-size:12.5px;font-weight:500;opacity:.92;">' + body + '</div>';
+    t.style.opacity = '1';
+    clearTimeout(window.__mdPomoToastT);
+    window.__mdPomoToastT = setTimeout(() => { t.style.opacity = '0'; }, 6000);
+  };
+
+  if (task.pomoPhase === 'work') {
+    // Just finished a work block.
+    task.pomoCount = (task.pomoCount || 0) + 1;
+    const useLong = (task.pomoCount % myDay.pomo.longBreakAfter) === 0;
+    mdPomoStartPhase(task, useLong ? 'long' : 'short');
+    beep();
+    notify(useLong ? '🎉 Long break — you earned it' : '☕ 5-minute break',
+           useLong
+             ? 'Step away. ' + Math.round(myDay.pomo.longBreakMs / 60000) + ' min long break after ' + task.pomoCount + ' pomodoros.'
+             : 'Stretch, water, look out the window. We resume in ' + Math.round(myDay.pomo.shortBreakMs / 60000) + ' min.');
+    return;
+  }
+  // Break finished.
+  beep();
+  notify('🍅 Back to work', 'Next pomodoro is queued. Click ▶ Start to begin or it will start when you continue working.');
+  mdPomoStartPhase(task, 'work');
+}
+function mdPomoTick(task) {
+  // Returns true if a phase advance happened (so the caller re-saves).
+  if (!task || !task.startedAt || task.finishedAt || !task.pomoPhase) return false;
+  const remaining = mdPomoRemainingMs(task);
+  if (remaining === 0) {
+    mdPomoAdvance(task);
+    return true;
+  }
+  return false;
+}
+function mdPomoFormat(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return String(Math.floor(s / 60)).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0');
+}
+function mdPomoLabel(phase) {
+  return phase === 'long'  ? 'Long break'
+       : phase === 'short' ? 'Short break'
+       : 'Focus';
+}
+function mdRequestNotificationPermission() {
+  try {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  } catch (_) {}
+}
+
+async function mdLoad() {
+  if (!sbUser || typeof sbReadKey !== 'function') return;
+  try {
+    const data = await sbReadKey(MYDAY_KEY);
+    if (Array.isArray(data)) myDay.todos = data;
+  } catch (e) { console.warn('mdLoad', e); }
+  myDay.loaded = true;
+}
+async function mdSave() {
+  if (!sbUser || typeof sbWriteKey !== 'function') return false;
+  if (typeof gmvIsCreator === 'function' && !gmvIsCreator()) return false;
+  try { return await sbWriteKey(MYDAY_KEY, myDay.todos); }
+  catch (e) { console.warn('mdSave', e); return false; }
+}
+
+function mdAddTask(text) {
+  const t = String(text || '').trim();
+  if (!t) return;
+  myDay.todos.push({
+    id: Date.now() + '-' + Math.random().toString(36).slice(2,8),
+    text: t,
+    day: mdTodayKey(),
+    createdAt: new Date().toISOString(),
+    startedAt: null,
+    finishedAt: null,
+    durationMs: 0,
+    completed: false,
+    priority: false   // [patch: priority] Toggle via the ★ button on the card.
+  });
+  mdSave();
+  mdRender();
+}
+// [patch: priority] Flip the priority flag. Priority tasks sort to the top
+// of each section and contribute to the daily priority focus breakdown in
+// History.
+function mdTogglePriority(id) {
+  const t = myDay.todos.find(t => t.id === id);
+  if (!t) return;
+  t.priority = !t.priority;
+  mdSave();
+  mdRender();
+}
+function mdStart(id) {
+  // Pause whatever's currently running first.
+  myDay.todos.forEach(t => {
+    if (t.startedAt && !t.finishedAt) {
+      t.durationMs = (t.durationMs || 0) + (Date.now() - new Date(t.startedAt).getTime());
+      t.startedAt = null;
+      // Also pause that task's pomodoro (we'll resume cleanly on the new task).
+      t.pomoPhase = null;
+      t.pomoPhaseStartedAt = null;
+    }
+  });
+  const task = myDay.todos.find(t => t.id === id);
+  if (!task) return;
+  task.startedAt = new Date().toISOString();
+  // [patch: time_range] Remember the very first start so the "from → to"
+  // line on the cards shows when the work actually began (not the last
+  // resume). Already-set value is preserved for resumed tasks.
+  if (!task.firstStartedAt) task.firstStartedAt = task.startedAt;
+  task.finishedAt = null;
+  task.completed = false;
+  // [patch: pomodoro] Start a Focus phase if there isn't one already (a
+  // resumed task carries over its remaining time).
+  if (!task.pomoPhase) {
+    mdPomoStartPhase(task, 'work');
+  } else {
+    // Resuming: restart the phase clock from now so paused minutes don't tick.
+    task.pomoPhaseStartedAt = new Date().toISOString();
+  }
+  // First-start of the day — ask for notification permission once.
+  mdRequestNotificationPermission();
+  mdSave();
+  mdRender();
+  mdStartTicker();
+}
+function mdFinish(id) {
+  const task = myDay.todos.find(t => t.id === id);
+  if (!task) return;
+  if (task.startedAt && !task.finishedAt) {
+    task.durationMs = (task.durationMs || 0) + (Date.now() - new Date(task.startedAt).getTime());
+  }
+  task.finishedAt = new Date().toISOString();
+  task.completed = true;
+  task.startedAt = null;
+  // Pomodoro ends with the task.
+  task.pomoPhase = null;
+  task.pomoPhaseStartedAt = null;
+  mdSave();
+  mdRender();
+  mdMaybeStopTicker();
+}
+// [patch: pomodoro] User-controllable jump between phases. "Skip" advances
+// without waiting for the timer to elapse.
+function mdPomoSkip(id) {
+  const task = myDay.todos.find(t => t.id === id);
+  if (!task || !task.pomoPhase) return;
+  mdPomoAdvance(task);
+  mdSave();
+  mdRender();
+}
+function mdDelete(id) {
+  const task = myDay.todos.find(t => t.id === id);
+  if (!task) return;
+  if (!confirm('Delete this task?\n\n"' + task.text + '"')) return;
+  myDay.todos = myDay.todos.filter(t => t.id !== id);
+  mdSave();
+  mdRender();
+  mdMaybeStopTicker();
+}
+function mdStartTicker() {
+  if (myDay.ticker) return;
+  myDay.ticker = setInterval(() => {
+    const running = myDay.todos.filter(t => t.startedAt && !t.finishedAt);
+    if (!running.length) { mdMaybeStopTicker(); return; }
+    let pomoAdvanced = false;
+    running.forEach(t => {
+      const el = document.querySelector('[data-md-timer="' + t.id + '"]');
+      if (el) el.textContent = mdFormatDuration(mdLiveMs(t));
+      // [patch: pomodoro] Update countdown + auto-advance at 0.
+      const advanced = mdPomoTick(t);
+      if (advanced) pomoAdvanced = true;
+      const pEl = document.querySelector('[data-md-pomo="' + t.id + '"]');
+      if (pEl && t.pomoPhase) pEl.textContent = mdPomoFormat(mdPomoRemainingMs(t));
+    });
+    // Live update the hero stat too.
+    const stat = document.getElementById('mdStatTime');
+    if (stat) stat.textContent = mdFormatDuration(mdTodayTotalMs());
+    if (pomoAdvanced) {
+      // Save the new phase + re-render so the label flips work ↔ break.
+      mdSave();
+      mdRender();
+    }
+  }, 1000);
+}
+function mdMaybeStopTicker() {
+  const stillRunning = myDay.todos.some(t => t.startedAt && !t.finishedAt);
+  if (!stillRunning && myDay.ticker) {
+    clearInterval(myDay.ticker);
+    myDay.ticker = null;
+  } else if (stillRunning) {
+    mdStartTicker();
+  }
+}
+function mdTodayTodos() {
+  const today = mdTodayKey();
+  return myDay.todos.filter(t => t.day === today);
+}
+function mdTodayTotalMs() {
+  return mdTodayTodos().reduce((s, t) => s + mdLiveMs(t), 0);
+}
+
+function mdRenderTaskCard(t, statusClass) {
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  const running = t.startedAt && !t.finishedAt;
+  const done = t.completed;
+  const ms = mdLiveMs(t);
+  const timer = done
+    ? mdFormatDuration(ms)
+    : running
+      ? mdFormatDuration(ms)
+      : (ms > 0 ? mdFormatDuration(ms) : '—');
+  // [patch: priority] Star button — toggles priority flag. Renders before
+  // the main action buttons so it's always visible.
+  const starBtn = '<button type="button" class="md-btn md-btn-star' + (t.priority ? ' on' : '') + '" data-mdact="priority" data-mdid="' + esc(t.id) + '" title="' + (t.priority ? 'Remove priority' : 'Mark as priority') + '">' + (t.priority ? '★' : '☆') + '</button>';
+  const actions = done
+    ? starBtn + '<button type="button" class="md-btn md-btn-del" data-mdact="delete" data-mdid="' + esc(t.id) + '" title="Delete">✕</button>'
+    : running
+      ? starBtn + '<button type="button" class="md-btn md-btn-finish" data-mdact="finish" data-mdid="' + esc(t.id) + '">✓ Finish</button>' +
+        '<button type="button" class="md-btn md-btn-del" data-mdact="delete" data-mdid="' + esc(t.id) + '" title="Delete">✕</button>'
+      : starBtn + '<button type="button" class="md-btn md-btn-start" data-mdact="start" data-mdid="' + esc(t.id) + '">▶ Start</button>' +
+        '<button type="button" class="md-btn md-btn-del" data-mdact="delete" data-mdid="' + esc(t.id) + '" title="Delete">✕</button>';
+  // [patch: pomodoro] Pomodoro strip — only when this task is running.
+  let pomoStrip = '';
+  if (running && t.pomoPhase) {
+    const isWork = t.pomoPhase === 'work';
+    const phaseLabel = mdPomoLabel(t.pomoPhase);
+    const remaining = mdPomoFormat(mdPomoRemainingMs(t));
+    const pomoCount = t.pomoCount || 0;
+    const longBreakAfter = myDay.pomo.longBreakAfter;
+    let dots = '';
+    for (let i = 0; i < longBreakAfter; i++) {
+      const filled = (pomoCount % longBreakAfter) > i || (pomoCount % longBreakAfter === 0 && pomoCount > 0 && i < longBreakAfter);
+      dots += '<span class="md-pomo-dot' + (filled ? ' is-on' : '') + '" title="Pomodoro ' + (i + 1) + '"></span>';
+    }
+    const phaseColor = isWork ? '#ef4444' : (t.pomoPhase === 'long' ? '#8b5cf6' : '#10b981');
+    const phaseIcon = isWork ? '🍅' : (t.pomoPhase === 'long' ? '🌙' : '☕');
+    pomoStrip =
+      '<div class="md-pomo" style="grid-column:1/-1;border-top:1px dashed rgba(148,163,184,.16);margin-top:10px;padding-top:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<span style="font-size:16px;">' + phaseIcon + '</span>' +
+          '<span style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#94a3b8;font-weight:700;">' + phaseLabel + '</span>' +
+        '</div>' +
+        '<div class="md-pomo-time" data-md-pomo="' + esc(t.id) + '" style="font-family:ui-monospace,Menlo,monospace;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;color:' + phaseColor + ';letter-spacing:-.01em;">' + remaining + '</div>' +
+        '<div class="md-pomo-dots" style="display:flex;gap:5px;align-items:center;flex:1;">' + dots +
+          '<span style="font-size:11px;color:#64748b;margin-inline-start:6px;">' + pomoCount + ' pomodoro' + (pomoCount === 1 ? '' : 's') + ' today</span>' +
+        '</div>' +
+        '<button type="button" class="md-btn md-btn-del" data-mdact="pomoskip" data-mdid="' + esc(t.id) + '" title="Skip this phase">' + (isWork ? 'Skip ▶' : 'End break ▶') + '</button>' +
+      '</div>';
+  }
+  // [patch: time_range] Compact "from → to" line under the task text.
+  const fromAt = t.firstStartedAt || t.startedAt || '';
+  const toAt   = t.finishedAt || '';
+  let rangeLine = '';
+  if (fromAt) {
+    const fromTxt = mdFormatTime(fromAt);
+    const toTxt   = toAt ? mdFormatTime(toAt) : (running ? '<span style="color:#fbbf24;">live</span>' : '—');
+    rangeLine = '<div class="md-task-range" style="grid-column:2;font-size:11.5px;color:#94a3b8;margin-top:2px;font-variant-numeric:tabular-nums;">' +
+                  fromTxt + ' → ' + toTxt +
+                '</div>';
+  }
+  const priorityCls = t.priority ? ' is-priority' : '';
+  const priorityChip = t.priority ? '<span class="md-priority-chip" title="High priority">★ priority</span>' : '';
+  return '<div class="md-task ' + statusClass + priorityCls + '">' +
+           '<span class="md-task-bullet">' + (done ? '✓' : '') + '</span>' +
+           '<span class="md-task-text" title="' + esc(t.text) + '">' + priorityChip + esc(t.text) + '</span>' +
+           '<span class="md-task-timer" data-md-timer="' + esc(t.id) + '">' + timer + '</span>' +
+           '<span class="md-task-actions">' + actions + '</span>' +
+           rangeLine +
+           pomoStrip +
+         '</div>';
+}
+function mdSectionHtml(title, dotClass, html) {
+  if (!html) return '';
+  return '<div class="md-section-head"><span class="md-section-dot ' + dotClass + '"></span>' + title + '</div>' + html;
+}
+function mdRenderToday() {
+  const todays = mdTodayTodos();
+  // [patch: priority] Sort priority tasks first within each section. Inside
+  // a priority group, newer tasks come first (most recently added/started).
+  const byPriority = (a, b) => {
+    if (!!a.priority !== !!b.priority) return a.priority ? -1 : 1;
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  };
+  const running = todays.filter(t => t.startedAt && !t.finishedAt).sort(byPriority);
+  const pending = todays.filter(t => !t.startedAt && !t.completed && !t.finishedAt).sort(byPriority);
+  const done = todays.filter(t => t.completed).sort(byPriority);
+  const runHost = document.getElementById('mdTodayRunning');
+  const penHost = document.getElementById('mdTodayPending');
+  const donHost = document.getElementById('mdTodayDone');
+  if (runHost) runHost.innerHTML = running.length ? mdSectionHtml('Running', 'running', running.map(t => mdRenderTaskCard(t, 'running')).join('')) : '';
+  if (penHost) penHost.innerHTML = pending.length ? mdSectionHtml('Up next', 'pending', pending.map(t => mdRenderTaskCard(t, 'pending')).join('')) : '';
+  if (donHost) donHost.innerHTML = done.length ? mdSectionHtml('Completed', 'done', done.map(t => mdRenderTaskCard(t, 'done')).join('')) : '';
+  if (!todays.length && runHost) {
+    runHost.innerHTML = '<div class="md-empty">Add your first task above — Enter starts the day.</div>';
+  }
+}
+function mdRenderHistory() {
+  const host = document.getElementById('mdHistory');
+  if (!host) return;
+  const today = mdTodayKey();
+  // [patch: history_include_today] Include today's tasks too — the user
+  // wants a full workflow log, not just past days. Today appears at the
+  // top with a "Today" label.
+  const byDay = {};
+  myDay.todos.forEach(t => {
+    if (!t.day) return;
+    (byDay[t.day] = byDay[t.day] || []).push(t);
+  });
+  const days = Object.keys(byDay).sort().reverse();
+  if (!days.length) {
+    host.innerHTML = '<div class="md-empty">No history yet. Add a task in Today and finish it — it lands here.</div>';
+    return;
+  }
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  host.innerHTML = days.map(day => {
+    const items = byDay[day].slice().sort((a,b) => {
+      const ta = a.startedAt ? new Date(a.startedAt).getTime() : new Date(a.createdAt).getTime();
+      const tb = b.startedAt ? new Date(b.startedAt).getTime() : new Date(b.createdAt).getTime();
+      return ta - tb;
+    });
+    const totalMs = items.reduce((s,t) => s + (t.durationMs || 0), 0);
+    const priorityMs = items.filter(t => t.priority).reduce((s,t) => s + (t.durationMs || 0), 0);
+    const otherMs = Math.max(0, totalMs - priorityMs);
+    const priorityCount = items.filter(t => t.priority).length;
+    const completed = items.filter(t => t.completed).length;
+    const dayLabel = (day === today) ? 'Today · ' + mdFormatDate(day) : mdFormatDate(day);
+    const priorityPct = totalMs > 0 ? Math.round((priorityMs / totalMs) * 100) : 0;
+    return '<div class="md-history-day">' +
+      '<div class="md-history-day-head">' +
+        '<div class="md-history-day-name">' + esc(dayLabel) + '</div>' +
+        '<div class="md-history-day-stats">' +
+          '<b>' + items.length + '</b> task' + (items.length === 1 ? '' : 's') + ' · ' +
+          '<b>' + completed + '</b> done · ' +
+          '<b>' + mdFormatDurationShort(totalMs) + '</b> focused' +
+        '</div>' +
+      '</div>' +
+      '<div class="md-history-breakdown">' +
+        '<span class="md-hb-chip priority" title="Time spent on tasks flagged ★ priority">★ <b>' + mdFormatDurationShort(priorityMs) + '</b> priority' + (priorityCount ? ' · ' + priorityCount + ' task' + (priorityCount === 1 ? '' : 's') : '') + '</span>' +
+        '<span class="md-hb-chip other" title="Time spent on non-priority tasks"><b>' + mdFormatDurationShort(otherMs) + '</b> other</span>' +
+        (totalMs > 0 ? '<span class="md-hb-bar"><span class="md-hb-fill" style="width:' + priorityPct + '%"></span></span><span class="md-hb-pct">' + priorityPct + '% priority</span>' : '') +
+      '</div>' +
+      items.map(t => {
+        // [patch: time_range] Prefer firstStartedAt — that's when the task
+        // actually began, not the last resume.
+        const startedSrc = t.firstStartedAt || t.startedAt;
+        const startTxt = startedSrc ? mdFormatTime(startedSrc) : '—';
+        const endTxt   = t.finishedAt
+                          ? mdFormatTime(t.finishedAt)
+                          : (t.startedAt ? '<span style="color:#fbbf24;">live</span>' : '—');
+        const statusClass = t.completed ? 'done' : 'partial';
+        return '<div class="md-history-task">' +
+          '<span class="md-history-status ' + statusClass + '"></span>' +
+          '<span class="md-history-text">' + esc(t.text) + '</span>' +
+          '<span class="md-history-time">' + startTxt + ' → ' + endTxt + '</span>' +
+          '<span class="md-history-duration">' + mdFormatDurationShort(t.durationMs || 0) + '</span>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }).join('');
+}
+function mdRender() {
+  // Hero
+  const today = mdTodayKey();
+  const heroDate = document.getElementById('mdHeroDate');
+  const heroSub  = document.getElementById('mdHeroSub');
+  const statTime = document.getElementById('mdStatTime');
+  const statCnt  = document.getElementById('mdStatCount');
+  if (heroDate) heroDate.textContent = mdFormatDate(today);
+  if (heroSub) {
+    const running = myDay.todos.find(t => t.day === today && t.startedAt && !t.finishedAt);
+    heroSub.textContent = running ? 'Working on: ' + running.text : 'Focus. Track. Reflect.';
+  }
+  if (statTime) statTime.textContent = mdFormatDuration(mdTodayTotalMs());
+  if (statCnt) {
+    const t = mdTodayTodos();
+    statCnt.textContent = t.filter(x => x.completed).length + ' / ' + t.length;
+  }
+  if (myDay.view === 'today') mdRenderToday(); else mdRenderHistory();
+  mdMaybeStopTicker();
+}
+function mdSetView(v) {
+  myDay.view = v;
+  document.querySelectorAll('[data-mdtab]').forEach(b => b.classList.toggle('is-active', b.dataset.mdtab === v));
+  document.querySelectorAll('[data-mdpanel]').forEach(p => p.classList.toggle('is-active', p.dataset.mdpanel === v));
+  mdRender();
+}
+async function mdInit() {
+  if (myDay._wired) {
+    mdRender();
+    return;
+  }
+  await mdLoad();
+  mdRender();
+  // Wire form
+  const form = document.getElementById('mdAddForm');
+  const input = document.getElementById('mdAddInput');
+  if (form && !form.dataset.mdwired) {
+    form.dataset.mdwired = '1';
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      mdAddTask(input.value);
+      input.value = '';
+      input.focus();
+    });
+  }
+  // Wire tab buttons
+  document.querySelectorAll('[data-mdtab]').forEach(b => {
+    if (b.dataset.mdwired) return;
+    b.dataset.mdwired = '1';
+    b.addEventListener('click', () => mdSetView(b.dataset.mdtab));
+  });
+  // Wire task action delegation
+  const root = document.getElementById('featureMyDay');
+  if (root && !root.dataset.mdwired) {
+    root.dataset.mdwired = '1';
+    root.addEventListener('click', (e) => {
+      const btn = e.target.closest && e.target.closest('[data-mdact]');
+      if (!btn) return;
+      const id = btn.dataset.mdid;
+      const act = btn.dataset.mdact;
+      if (act === 'start') mdStart(id);
+      else if (act === 'finish') mdFinish(id);
+      else if (act === 'delete') mdDelete(id);
+      else if (act === 'pomoskip') mdPomoSkip(id);
+      else if (act === 'priority') mdTogglePriority(id);
+    });
+  }
+  myDay._wired = true;
+}
+function mdApplyRoleUI() {
+  // Visible only for the real creator (Ahmed) — never for sellers or
+  // delegated permission holders.
+  const btn = document.getElementById('asFeatureMyDay');
+  if (!btn) return;
+  const show = (typeof gmvIsCreator === 'function') && gmvIsCreator();
+  btn.style.display = show ? '' : 'none';
+}
+window.mdInit = mdInit;
+window.mdApplyRoleUI = mdApplyRoleUI;
+// ============================================================================
 
 async function gmvOnUploadClients(e) {
   const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -21069,14 +23028,18 @@ const ENG_CLIENT_MILESTONE_BOTH = 10;
 // Per-(seller, phone, period) qty/gmv for each focus product.
 function gmvComputeSoldForSellerClient(seller, phone, period) {
   // [patch: engagement_delivered_only] Only DELIVERED rows count toward
-  // focus-product achievement.
-  // [patch: family_rollup] Each order line's productCode is mapped to its
-  // family via FOCUS_FAMILY_MAP, then aggregated under the family bucket if
-  // that family is tracked in gmvEngagement.focusProducts. Falls back to
-  // per-SKU behavior for backward compatibility with the old data shape.
+  // focus-product achievement. Period MUST be ENG_PERIOD_M1 (2026-05) or
+  // ENG_PERIOD_M2 (2026-06) — any order outside that window is dropped.
+  // [patch: seller_match_tolerant] Seller comparison is case + whitespace-
+  // insensitive AND falls back to the order's own seller field (from the
+  // orders file's "Seller name" column). This lets the filter still hit
+  // even if the clients file's agentName has a slightly different spelling.
   const out = {};
-  const useFulfillOrders = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders) && fulfill.orders.length);
-  const sourceLines = useFulfillOrders ? fulfill.orders : (gmv.orders || []);
+  const sourceLines = (typeof gmv !== 'undefined' && Array.isArray(gmv.orders) && gmv.orders.length)
+                    ? gmv.orders
+                    : ((typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders)) ? fulfill.orders : []);
+  const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
+  const wantSeller = norm(seller);
   sourceLines.forEach(o => {
     if (!o || !o.productCode || o.phone !== phone) return;
     if (o.status !== 'DELIVERED') return;
@@ -21089,9 +23052,13 @@ function gmvComputeSoldForSellerClient(seller, phone, period) {
     if (!d || isNaN(d.getTime())) return;
     const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     if (key !== period) return;
-    const cl = (gmv.clients || {})[o.phone] || {};
-    const assigned = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '';
-    if (assigned !== seller) return;
+    if (wantSeller) {
+      const cl = (gmv.clients || {})[o.phone] || {};
+      const assignedRaw = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '';
+      const orderSellerRaw = o.seller || '';
+      const matches = norm(assignedRaw) === wantSeller || norm(orderSellerRaw) === wantSeller;
+      if (!matches) return;
+    }
     if (!out[bucketKey]) out[bucketKey] = { qty: 0, gmv: 0 };
     out[bucketKey].qty += (typeof o.qty === 'number' ? o.qty : 1);
     out[bucketKey].gmv += (o.amount || 0);
@@ -21105,9 +23072,14 @@ function gmvComputeSoldForSellerClient(seller, phone, period) {
 // Returns: out[productCode] = { delivered:{qty,gmv}, pending:{qty,gmv}, canceled:{qty,gmv},
 //                               returned:{qty,gmv}, todeliver:{qty,gmv}, inprogress:{qty,gmv} }
 function gmvComputeStatusBreakdownForSellerClient(seller, phone, period) {
+  // [patch: seller_match_tolerant] Same matching rules as the delivered-only
+  // helper: case-insensitive, whitespace-trimmed, with the order's own
+  // seller field as a third fallback.
+  // Period is hard-gated to ENG_PERIOD_M1 / ENG_PERIOD_M2.
   const out = {};
-  const useFulfillOrders = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders) && fulfill.orders.length);
-  const sourceLines = useFulfillOrders ? fulfill.orders : (gmv.orders || []);
+  const sourceLines = (typeof gmv !== 'undefined' && Array.isArray(gmv.orders) && gmv.orders.length)
+                    ? gmv.orders
+                    : ((typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders)) ? fulfill.orders : []);
   const bucket = (s) => {
     if (s === 'DELIVERED') return 'delivered';
     if (s === 'PENDING' || s === 'REPLANED' || s === 'RESCHEDULED') return 'pending';
@@ -21118,10 +23090,10 @@ function gmvComputeStatusBreakdownForSellerClient(seller, phone, period) {
     return null;
   };
   const empty = () => ({ delivered:{qty:0,gmv:0}, pending:{qty:0,gmv:0}, canceled:{qty:0,gmv:0}, returned:{qty:0,gmv:0}, todeliver:{qty:0,gmv:0}, inprogress:{qty:0,gmv:0} });
+  const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
+  const wantSeller = norm(seller);
   sourceLines.forEach(o => {
     if (!o || !o.productCode || o.phone !== phone) return;
-    // [patch: family_rollup] Same family-first rollup as the delivered-only
-    // helper. Tracks family-level pipeline when the family is in focusProducts.
     const fam = (typeof gmvFamilyForSku === 'function') ? gmvFamilyForSku(o.productCode) : null;
     let bucketKey = null;
     if (fam && gmvEngagement.focusProducts[fam]) bucketKey = fam;
@@ -21131,9 +23103,13 @@ function gmvComputeStatusBreakdownForSellerClient(seller, phone, period) {
     if (!d || isNaN(d.getTime())) return;
     const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     if (key !== period) return;
-    const cl = (gmv.clients || {})[o.phone] || {};
-    const assigned = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '';
-    if (assigned !== seller) return;
+    if (wantSeller) {
+      const cl = (gmv.clients || {})[o.phone] || {};
+      const assignedRaw = (gmvClientAssignments && gmvClientAssignments.byPhone && gmvClientAssignments.byPhone[o.phone] && gmvClientAssignments.byPhone[o.phone].seller) || cl.seller || '';
+      const orderSellerRaw = o.seller || '';
+      const matches = norm(assignedRaw) === wantSeller || norm(orderSellerRaw) === wantSeller;
+      if (!matches) return;
+    }
     const b = bucket(o.status);
     if (!b) return;
     if (!out[bucketKey]) out[bucketKey] = empty();
@@ -22294,9 +24270,22 @@ const FOCUS_FAMILY_SKUS = (function(){
 // Returns null when the SKU isn't part of any tracked family.
 function gmvFamilyForSku(code) {
   if (!code) return null;
-  return FOCUS_FAMILY_MAP[String(code).trim().toUpperCase()] || null;
+  const k = String(code).trim().toUpperCase();
+  // [patch: unified_focus_overrides] Prefer the Data Sources Focus file
+  // when it's loaded (window.dsFocusMap is built by dsRepublishToLegacy).
+  // Fall back to the embedded Excel-derived FOCUS_FAMILY_MAP for SKUs that
+  // the uploaded file doesn't cover.
+  if (window.dsFocusMap && window.dsFocusMap[k]) return window.dsFocusMap[k];
+  return FOCUS_FAMILY_MAP[k] || null;
 }
-function gmvAllFocusFamilies() { return FOCUS_FAMILIES.slice(); }
+function gmvAllFocusFamilies() {
+  // Union of hardcoded families + any families introduced via the unified
+  // Focus file. Stable order: hardcoded first, then new ones alphabetical.
+  if (!window.dsFocusFamilies || !window.dsFocusFamilies.length) return FOCUS_FAMILIES.slice();
+  const seen = new Set(FOCUS_FAMILIES);
+  const extras = window.dsFocusFamilies.filter(f => !seen.has(f)).sort((a, b) => a.localeCompare(b));
+  return FOCUS_FAMILIES.concat(extras);
+}
 
 // [patch: family_rollup] Make sure every family has an entry in
 // gmvEngagement.focusProducts. Called after gmvLoadEngagement so the data is
@@ -22326,8 +24315,13 @@ function gmvComputeSoldForSeller(seller, period) {
   // family if tracked, else the SKU. Mirrors gmvComputeSoldForSellerClient
   // for portfolio-level aggregation.
   const out = {};
-  const useFulfillOrders = (typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders) && fulfill.orders.length);
-  const sourceLines = useFulfillOrders ? fulfill.orders : (gmv.orders || []);
+  // [patch: orders_unified] Prefer gmv.orders — same source the cumulative
+  // GMV uses. The old fulfill-first preference caused "Buying from list"
+  // and per-product achievement to miss clients whose orders sit only in
+  // gmv.orders (not yet mirrored into fulfill.orders).
+  const sourceLines = (typeof gmv !== 'undefined' && Array.isArray(gmv.orders) && gmv.orders.length)
+                    ? gmv.orders
+                    : ((typeof fulfill !== 'undefined' && fulfill && Array.isArray(fulfill.orders)) ? fulfill.orders : []);
   sourceLines.forEach(o => {
     if (!o || !o.productCode) return;
     const fam = (typeof gmvFamilyForSku === 'function') ? gmvFamilyForSku(o.productCode) : null;
@@ -24117,14 +26111,13 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
         ? gmvComputeStatusBreakdownForSellerClient(mySeller, phone, ENG_PERIOD_M1) : {};
       var brkM2 = (typeof gmvComputeStatusBreakdownForSellerClient === 'function')
         ? gmvComputeStatusBreakdownForSellerClient(mySeller, phone, ENG_PERIOD_M2) : {};
-      // [patch: all_families_split] Show ALL families (not just ones with
-      // activity). Committed/selected families come first; rest follow.
-      // [patch: dedupe_legacy_sku_focus] Only family-level names — any SKU
-      // codes living in focusProducts or in brk keys are dropped so the
-      // seller doesn't see the same product twice.
+      // [patch: client_perf_three_groups] Three groups, in display order:
+      //   1. ACTIVE  — families this client has ordered (any status, qty > 0)
+      //   2. SELECTED — families picked via the + toggle (focus commitments)
+      //                 that don't have orders yet
+      //   3. OTHERS  — every other family from the focus taxonomy
+      // Inside each group: ACTIVE sorts by MAD desc, others by name.
       var unique = (typeof FOCUS_FAMILIES !== 'undefined') ? FOCUS_FAMILIES.slice() : [];
-      // [patch: family_pipeline_amount] Rank + pill values use MAD amount
-      // (rec.*.gmv) instead of unit counts (rec.*.qty).
       function activity(rec){
         if (!rec) return 0;
         return (rec.delivered.gmv + rec.pending.gmv + rec.todeliver.gmv +
@@ -24133,17 +26126,20 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
       var focus = (gmvEngagement.commitments && gmvEngagement.commitments[mySeller]
                    && gmvEngagement.commitments[mySeller].clientFocus
                    && gmvEngagement.commitments[mySeller].clientFocus[phone]) || {};
-      // [patch: all_families_split] Committed first, then non-committed.
-      // Inside each group, sort by total MAD activity descending.
-      var committedFams = unique.filter(function(f){ return !!(focus[f] && focus[f].selected); });
-      var otherFams     = unique.filter(function(f){ return !(focus[f] && focus[f].selected); });
       function actSum(f){ return activity(brkM1[f]) + activity(brkM2[f]); }
-      committedFams.sort(function(a, b){ return actSum(b) - actSum(a); });
-      otherFams.sort(function(a, b){
-        var d = actSum(b) - actSum(a);
-        return d !== 0 ? d : a.localeCompare(b);
-      });
-      unique = committedFams.concat(otherFams);
+      function isSelected(f){ return !!(focus[f] && focus[f].selected); }
+      var activeFams   = unique.filter(function(f){ return actSum(f) > 0; });
+      var selectedFams = unique.filter(function(f){ return actSum(f) === 0 && isSelected(f); });
+      var otherFams    = unique.filter(function(f){ return actSum(f) === 0 && !isSelected(f); });
+      activeFams.sort(function(a, b){ return actSum(b) - actSum(a); });
+      selectedFams.sort(function(a, b){ return a.localeCompare(b); });
+      otherFams.sort(function(a, b){ return a.localeCompare(b); });
+      // Tag each family with its group so the wrap below can split correctly.
+      var groupByFam = {};
+      activeFams.forEach(function(f){ groupByFam[f] = 'active'; });
+      selectedFams.forEach(function(f){ groupByFam[f] = 'selected'; });
+      otherFams.forEach(function(f){ groupByFam[f] = 'other'; });
+      unique = activeFams.concat(selectedFams).concat(otherFams);
       var chipLabels = ({
         en: { d:'Delivered', p:'Pending', t:'To deliver', i:'In progress', c:'Canceled', r:'Returned', target:'min' },
         fr: { d:'Livré',     p:'En attente', t:'À livrer', i:'En cours',  c:'Annulé',   r:'Retour', target:'min' },
@@ -24260,24 +26256,47 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
             '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="opacity:' + (hasSkus ? '.55' : '.3') + ';transition:transform .15s"><polyline points="9 18 15 12 9 6"></polyline></svg>';
           var searchBlob = (fam + ' ' + skuCodes.join(' ') + ' ' +
                             skuCodes.map(function(c){return perSku[c].name;}).join(' ')).toLowerCase();
-          // [patch: family_progress_bar] Per-family progress: delivered MAD
-          // vs family-level min target. Family min comes from
-          // gmvEngagement.focusProducts[fam].min (creator-set) OR fall back
-          // to the seller's per-client target in focus[fam].minMad/minQty.
+          // [patch: family_progress_loading_bar] Per-family progress shown as
+          // a loading bar — reached (filled) + a striped "pipeline" segment
+          // that previews how close the seller would be to the minimum if
+          // every pending / to-deliver / in-progress order also got
+          // delivered. Three numeric labels: reached / left / minimum
+          // (target). When the minimum is met, the bar locks at 100 % and
+          // the "left" label flips to "✓ minimum reached".
           var _famMeta = (gmvEngagement.focusProducts || {})[fam] || {};
-          var _famMin = _famMeta.min || (focus[fam] && (focus[fam].minMad || focus[fam].minQty)) || 0;
-          var _famPct = _famMin > 0 ? Math.min(100, Math.round((delivered / _famMin) * 100)) : 0;
-          var _famTier = _famPct < 30 ? 'low' : (_famPct < 70 ? 'med' : 'high');
-          var _famBarColor = _famPct >= 100 ? '#16a34a' : (_famPct >= 70 ? '#16a34a' : (_famPct >= 30 ? '#f59e0b' : '#ef4444'));
+          var _famMin  = _famMeta.min || (focus[fam] && (focus[fam].minMad || focus[fam].minQty)) || 0;
+          var _famReached  = Math.max(0, Math.round(delivered));
+          var _famPipeline = Math.max(0, Math.round(pending + todeliver + inprog));
+          var _famLeft     = Math.max(0, Math.round(_famMin - _famReached));
+          var _famDelivPct = _famMin > 0 ? Math.min(100, Math.round((_famReached / _famMin) * 100)) : 0;
+          var _famPipePct  = _famMin > 0 ? Math.min(100 - _famDelivPct, Math.round((_famPipeline / _famMin) * 100)) : 0;
+          var _famBarColor  = _famDelivPct >= 100 ? '#16a34a' : (_famDelivPct >= 70 ? '#16a34a' : (_famDelivPct >= 30 ? '#f59e0b' : '#ef4444'));
+          var _famPipeColor = _famDelivPct >= 100 ? '#16a34a' : '#fbbf24';
+          var _lblReached = (engLang() === 'ar' ? 'تم تحقيقه'
+                            : (engLang() === 'fr' ? 'atteint' : 'reached'));
+          var _lblLeft    = (engLang() === 'ar' ? 'المتبقي'
+                            : (engLang() === 'fr' ? 'restant' : 'left'));
+          var _lblMin     = (engLang() === 'ar' ? 'الحد الأدنى'
+                            : (engLang() === 'fr' ? 'Min.' : 'Min'));
+          var _lblDone    = (engLang() === 'ar' ? '✓ تم تحقيق الحد الأدنى'
+                            : (engLang() === 'fr' ? '✓ Minimum atteint' : '✓ Minimum reached'));
+          var _leftHtml = _famLeft > 0
+            ? '<span style="color:#475569"><b style="color:#0f172a;font-variant-numeric:tabular-nums">' + fmtMad(_famLeft) + '</b> MAD ' + esc2(_lblLeft) + '</span>'
+            : '<span style="color:#16a34a;font-weight:700">' + esc2(_lblDone) + '</span>';
           var _famProgressHtml = _famMin > 0
-            ? '<div style="display:flex;align-items:center;gap:6px;margin-top:6px">' +
-                '<div style="flex:1;height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden">' +
-                  '<div style="width:' + _famPct + '%;height:100%;background:' + _famBarColor + ';border-radius:99px;transition:width .4s"></div>' +
+            ? '<div class="fam-progress" style="margin-top:8px">' +
+                '<div style="position:relative;height:10px;background:#eef2f7;border-radius:99px;overflow:hidden;display:flex">' +
+                  '<div style="width:' + _famDelivPct + '%;height:100%;background:' + _famBarColor + ';transition:width .4s"></div>' +
+                  (_famPipePct > 0
+                    ? '<div title="' + esc2(_lblLeft) + '" style="width:' + _famPipePct + '%;height:100%;background:repeating-linear-gradient(135deg,' + _famPipeColor + ' 0 4px,#fde68a 4px 8px);transition:width .4s"></div>'
+                    : '') +
+                  '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;letter-spacing:.02em;color:' + (_famDelivPct >= 45 ? '#fff' : '#0f172a') + '">' + _famDelivPct + '%</span>' +
                 '</div>' +
-                '<span style="font-size:11px;font-weight:700;color:' + _famBarColor + ';min-width:34px;text-align:end;font-variant-numeric:tabular-nums">' + _famPct + '%</span>' +
-              '</div>' +
-              '<div style="font-size:10.5px;color:#64748b;margin-top:2px;direction:ltr;text-align:end">' +
-                fmtMad(delivered) + ' / ' + fmtMad(_famMin) + ' MAD' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;font-size:10.5px;direction:ltr;flex-wrap:wrap">' +
+                  '<span style="color:#0f172a"><b style="font-variant-numeric:tabular-nums">' + fmtMad(_famReached) + '</b> MAD ' + esc2(_lblReached) + '</span>' +
+                  _leftHtml +
+                  '<span style="color:#64748b">' + esc2(_lblMin) + ' <b style="color:#0f172a;font-variant-numeric:tabular-nums">' + fmtMad(_famMin) + '</b> MAD</span>' +
+                '</div>' +
               '</div>'
             : '';
           // [patch: family_select_toggle] Toggle button to select THIS family
@@ -24296,6 +26315,7 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
           var _bodyContent = hasSkus ? skuRows : _emptyHint;
           return '<div class="cp-fam-card" data-fam-key="' + esc2(fam) + '"' +
                  ' data-cp-committed="' + (committed ? '1' : '0') + '"' +
+                 ' data-cp-group="' + esc2(groupByFam[fam] || 'other') + '"' +
                  ' data-search-text="' + esc2(searchBlob) + '"' +
                  ' style="padding:8px 0;border-bottom:1px solid #f1f5f9">' +
                    '<div class="cp-fam-head" data-fam-toggle="' + esc2(fam) + '" style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
@@ -24308,43 +26328,41 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
                    '<div class="cp-fam-skus" data-fam-body="' + esc2(fam) + '" style="display:none;margin-top:6px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">' + _bodyContent + '</div>' +
                  '</div>';
         }).join('');
-        // [patch: all_families_split] Wrap with search input + group headers.
-        // The headers + the search bar live OUTSIDE the cards so they don't
-        // get hidden when a filter narrows to one group.
+        // [patch: client_perf_three_groups] Wrap with search input + 3 group
+        // headers in display order: ACTIVE (on top, real performance), then
+        // SELECTED (focus commitments without activity yet), then OTHERS.
         var searchPh = (engLang() === 'ar' ? 'البحث عن منتج…'
                        : (engLang() === 'fr' ? 'Rechercher un produit…' : 'Search a product…'));
-        var hdrCommitted = (engLang() === 'ar' ? 'مختارة'
-                           : (engLang() === 'fr' ? 'Sélectionnées' : 'Selected'));
-        var hdrOthers    = (engLang() === 'ar' ? 'غير مختارة'
-                           : (engLang() === 'fr' ? 'Non sélectionnées' : 'Not selected'));
+        var hdrActive    = (engLang() === 'ar' ? 'نشط — تم الطلب'
+                           : (engLang() === 'fr' ? 'Actifs — déjà commandés' : 'Active — ordered'));
+        var hdrSelected  = (engLang() === 'ar' ? 'مختارة من قائمة التركيز'
+                           : (engLang() === 'fr' ? 'Sélectionnés (focus)' : 'Selected from focus list'));
+        var hdrOthers    = (engLang() === 'ar' ? 'باقي العائلات'
+                           : (engLang() === 'fr' ? 'Autres familles' : 'Other families'));
         var sectionHeaderStyle = 'font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin:10px 0 4px';
-        // Slice prodList into two: committed cards vs the rest.
-        // Cards already have data-cp-committed="0|1" so we can split by
-        // looking for transition. Simpler: rebuild by running the map twice.
         var temp = document.createElement('div');
         temp.innerHTML = prodList;
         var allCards = Array.from(temp.children);
-        var committedHtml = allCards.filter(function(c){ return c.getAttribute('data-cp-committed') === '1'; })
-                                    .map(function(c){ return c.outerHTML; }).join('');
-        var otherHtml     = allCards.filter(function(c){ return c.getAttribute('data-cp-committed') === '0'; })
-                                    .map(function(c){ return c.outerHTML; }).join('');
+        var byGroup = { active: [], selected: [], other: [] };
+        allCards.forEach(function(c){
+          var g = c.getAttribute('data-cp-group') || 'other';
+          (byGroup[g] || byGroup.other).push(c.outerHTML);
+        });
+        var section = function(key, label, html){
+          if (!html) return '';
+          return '<div class="cp-fam-section" data-section="' + key + '">' +
+                   '<div style="' + sectionHeaderStyle + '">' + esc2(label) + '</div>' +
+                   html +
+                 '</div>';
+        };
         prodList =
           '<div class="cp-fam-search-wrap" style="margin-bottom:8px">' +
             '<input type="search" id="cpFamSearch" placeholder="' + esc2(searchPh) + '" autocomplete="off"' +
               ' style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font:inherit;background:#fff" />' +
           '</div>' +
-          (committedHtml
-            ? '<div class="cp-fam-section" data-section="committed">' +
-                '<div style="' + sectionHeaderStyle + '">' + esc2(hdrCommitted) + '</div>' +
-                committedHtml +
-              '</div>'
-            : '') +
-          (otherHtml
-            ? '<div class="cp-fam-section" data-section="others">' +
-                '<div style="' + sectionHeaderStyle + '">' + esc2(hdrOthers) + '</div>' +
-                otherHtml +
-              '</div>'
-            : '');
+          section('active',   hdrActive,   byGroup.active.join('')) +
+          section('selected', hdrSelected, byGroup.selected.join('')) +
+          section('other',    hdrOthers,   byGroup.other.join(''));
       }
     } catch(err) {
       console.error('[family_pipeline_per_client] failed:', err);
@@ -24704,25 +26722,29 @@ function gmvOpenClientPerformance(phone, rowsData, panel, mySeller, isCreator, T
         } catch(err) { console.warn('[fam toggle] failed:', err && err.message); }
       });
     });
-    // [patch: all_families_split] Search bar — filter cards by family name
-    // OR any SKU code/name inside (data-search-text holds the flattened blob).
+    // [patch: client_perf_three_groups] Search filter — hides cards whose
+    // family name / SKU codes / SKU names don't match the query. Tracks
+    // visibility per group (active/selected/other) so empty section
+    // headers are also hidden.
     var searchInput = panel.querySelector('#cpFamSearch');
     if (searchInput) {
       searchInput.addEventListener('input', function(){
         var q = (searchInput.value || '').trim().toLowerCase();
         var cards = panel.querySelectorAll('.cp-fam-card');
-        var visibleByCommitted = { '1': 0, '0': 0 };
+        var visibleByGroup = { active: 0, selected: 0, other: 0 };
         cards.forEach(function(c){
           var blob = c.getAttribute('data-search-text') || '';
           var ok = !q || blob.indexOf(q) >= 0;
           c.style.display = ok ? '' : 'none';
-          if (ok) visibleByCommitted[c.getAttribute('data-cp-committed') || '0']++;
+          if (ok) {
+            var g = c.getAttribute('data-cp-group') || 'other';
+            if (visibleByGroup[g] != null) visibleByGroup[g]++;
+          }
         });
-        // Hide section header if no cards in that section
-        var cSec = panel.querySelector('[data-section="committed"]');
-        var oSec = panel.querySelector('[data-section="others"]');
-        if (cSec) cSec.style.display = visibleByCommitted['1'] ? '' : 'none';
-        if (oSec) oSec.style.display = visibleByCommitted['0'] ? '' : 'none';
+        ['active', 'selected', 'other'].forEach(function(g){
+          var sec = panel.querySelector('[data-section="' + g + '"]');
+          if (sec) sec.style.display = visibleByGroup[g] ? '' : 'none';
+        });
       });
     }
     // [patch: client_perf_outstanding] Tab switcher
@@ -27436,6 +29458,15 @@ const fulfill = {
   expandedOrders: {},  // orderCode -> bool (line-detail toggle)
   allocStrategy: (typeof localStorage !== 'undefined' && localStorage.getItem('rihab_ff_strategy_v1')) || 'dp', // 'dp' | 'max100'
   decisions: {},       // orderCode -> { status, delivery_date, note, decided_by_email, decided_by_seller, decided_at }
+  // [patch: vip_highconf_flags] Allocation flags. VIP = priority (gets stock
+  // before non-VIP). High-Confirmation (HC) = excluded from allocation until
+  // the order is confirmed via the decision panel; its stock stays in the
+  // pool for other orders. Cancel works the same way — canceled orders free
+  // their stock and the allocator re-runs to redistribute.
+  vipOrders:       new Set(), // order codes flagged VIP
+  vipClients:      new Set(), // phones with all-orders VIP
+  highConfOrders:  new Set(), // order codes flagged high-confirmation
+  highConfClients: new Set(), // phones with all-orders high-confirmation
   // Default lang: explicit user choice → otherwise Arabic for sellers, French for everyone else.
   lang: (function () {
     try {
@@ -27896,6 +29927,10 @@ function fulfillRunAllocator() {
   }
   // Split orders: top-client orders are set aside (no allocation),
   // regular orders go through the allocator.
+  // [patch: vip_highconf_flags] Also set aside:
+  //   - CANCELED orders (decision.status === 'canceled') → stock freed
+  //   - HIGH-CONFIRMATION orders → stock freed until the order is confirmed
+  //   Both keep deliverable=0 so the freed units redistribute to others.
   const topOrderObjs = [];
   const regularObjs = [];
   orderObjs.forEach(o => {
@@ -27905,13 +29940,31 @@ function fulfillRunAllocator() {
       o._excluded = true;
       o.lines.forEach(l => { l.deliverable = 0; });
       topOrderObjs.push(o);
-    } else {
-      regularObjs.push(o);
+      return;
     }
+    if (fulfillIsCanceled(o.code) || fulfillIsHighConf(o.code, o.phone)) {
+      o.fulfillPct = 0;
+      o.deliverableTotal = 0;
+      o.lines.forEach(l => { l.deliverable = 0; });
+      // Mark which one so the renderer can show the right badge.
+      if (fulfillIsCanceled(o.code))                  o._heldCanceled = true;
+      else if (fulfillIsHighConf(o.code, o.phone))    o._heldHighConf = true;
+      // These orders are NOT allocated stock. They flow into the waitingList
+      // below so they still appear in the table (with their badge), but the
+      // allocator never assigns deliverable units to them.
+      return;
+    }
+    regularObjs.push(o);
   });
-  // From here on, the allocator only sees regular orders.
+  // Collect held-back orders for later append into waitingList.
+  const heldObjs = orderObjs.filter(o => o._heldCanceled || o._heldHighConf);
+  // From here on, the allocator only sees regular (active) orders.
   orderObjs.length = 0;
   regularObjs.forEach(o => orderObjs.push(o));
+  // [patch: vip_highconf_flags] VIP priority — within the active pool, VIP
+  // orders are allocated first regardless of strategy. We mark them here so
+  // both strategy branches (max100 and DP) can honor it.
+  const isVipObj = (o) => fulfillIsVip(o.code, o.phone);
   // Sanitize the source stock object once: any negative value (usually an
   // accounting placeholder for reserved / in-transit units) becomes 0,
   // and any non-numeric becomes 0. This makes downstream tests and the
@@ -27934,7 +29987,12 @@ function fulfillRunAllocator() {
     // leftovers are filled greedily by potential% DESC.
     const _firstSeen = {};
     fulfill.orders.forEach((l, i) => { if (!(l.orderCode in _firstSeen)) _firstSeen[l.orderCode] = i; });
-    orderObjs.sort((a, b) => (_firstSeen[a.code] || 0) - (_firstSeen[b.code] || 0));
+    // [patch: vip_highconf_flags] VIP first, then file order.
+    orderObjs.sort((a, b) => {
+      const av = isVipObj(a) ? 1 : 0, bv = isVipObj(b) ? 1 : 0;
+      if (av !== bv) return bv - av;
+      return (_firstSeen[a.code] || 0) - (_firstSeen[b.code] || 0);
+    });
     const remaining = [];
     orderObjs.forEach(ord => {
       const canFull = Object.entries(ord.needPer).every(([code, q]) => (stock[code] || 0) >= q);
@@ -27974,17 +30032,29 @@ function fulfillRunAllocator() {
       if (ord.fulfillPct >= 80) partialList.push(ord);
       else waitingList.push(ord);
     });
+    // [patch: vip_highconf_flags] max100 also appends held-back orders.
+    heldObjs.forEach(o => waitingList.push(o));
   } else {
     // Strategy: DP-style — line-by-line, file order. Skip lines whose
     // order belongs to a top client (they're excluded from allocation).
+    // [patch: vip_highconf_flags] VIP first pass: process VIP orders'
+    // lines before any non-VIP line so they always get stock first.
     const regularCodes = new Set(orderObjs.map(o => o.code));
+    const vipCodes = new Set(orderObjs.filter(isVipObj).map(o => o.code));
+    const vipLines    = [];
+    const otherLines  = [];
     fulfill.orders.forEach(l => {
-      if (!regularCodes.has(l.orderCode)) return; // top-client order — skip
+      if (!regularCodes.has(l.orderCode)) return;
+      (vipCodes.has(l.orderCode) ? vipLines : otherLines).push(l);
+    });
+    const allocateLine = (l) => {
       const have = Math.max(0, stock[l.productCode] || 0);
       const give = Math.min(l.qty, have);
       l.deliverable = give;
       stock[l.productCode] = have - give;
-    });
+    };
+    vipLines.forEach(allocateLine);
+    otherLines.forEach(allocateLine);
     orderObjs.forEach(ord => {
       const deliv = ord.lines.reduce((s, l) => s + (l.deliverable || 0), 0);
       ord.deliverableTotal = deliv;
@@ -27993,6 +30063,10 @@ function fulfillRunAllocator() {
       else if (ord.fulfillPct >= 80) partialList.push(ord);
       else waitingList.push(ord);
     });
+    // [patch: vip_highconf_flags] Append held-back orders (canceled + HC)
+    // into the waiting bucket so they still appear in the table — they
+    // never claimed stock, so the totals stay correct.
+    heldObjs.forEach(o => waitingList.push(o));
   }
 
   // Sort each list for display.
@@ -28006,9 +30080,15 @@ function fulfillRunAllocator() {
   // Diagnostic — surfaces totals so we can compare against Delivery Planner.
   try {
     const sum = list => list.reduce((s,o)=>s+(o.totalAmt||0),0);
-    const sumDeliv = list => list.reduce((s,o)=>{
-      const r = o.totalQty ? (o.deliverableTotal||0)/o.totalQty : 0;
-      return s + (o.totalAmt||0) * r;
+    // [patch: deliv_gmv_per_line] Per-line calculation so multi-SKU baskets
+    // at different unit prices report the correct deliverable MAD.
+    const sumDeliv = list => list.reduce((s,o) => {
+      const lines = (o.lines || []);
+      const orderDeliv = lines.reduce((ls, l) => {
+        const r = l.qty ? (Math.min(l.deliverable||0, l.qty) / l.qty) : 0;
+        return ls + (l.amount||0) * r;
+      }, 0);
+      return s + orderDeliv;
     }, 0);
     const totalOrders = orderObjs.length;
     const totalLines = orderObjs.reduce((s,o)=>s+o.lines.length,0);
@@ -28091,10 +30171,18 @@ function fulfillRenderOrdersTable(list, hostId) {
     const dec = fulfill.decisions && fulfill.decisions[ord.code];
     const decCls = dec && dec.status === 'confirmed' ? 'dec-confirmed'
                  : dec && dec.status === 'canceled' ? 'dec-canceled' : '';
+    // [patch: vip_highconf_flags] Row-level badges — visible without expanding.
+    const _isVip = (typeof fulfillIsVip === 'function') && fulfillIsVip(ord.code, ord.phone);
+    const _isHc  = (typeof fulfillIsHighConf === 'function') && fulfillIsHighConf(ord.code, ord.phone);
+    const _isCx  = ord._heldCanceled || (typeof fulfillIsCanceled === 'function' && fulfillIsCanceled(ord.code));
+    const badges =
+      (_isVip ? '<span title="VIP" style="display:inline-block;margin-inline-start:6px;padding:1px 7px;border-radius:99px;background:#fef3c7;color:#713f12;font-size:10px;font-weight:800;letter-spacing:.02em;">★ VIP</span>' : '') +
+      (_isHc  ? '<span title="High-confirmation — no stock allocated until confirmed" style="display:inline-block;margin-inline-start:6px;padding:1px 7px;border-radius:99px;background:#ede9fe;color:#5b21b6;font-size:10px;font-weight:800;letter-spacing:.02em;">HC</span>' : '') +
+      (_isCx  ? '<span title="Canceled — stock released" style="display:inline-block;margin-inline-start:6px;padding:1px 7px;border-radius:99px;background:#fee2e2;color:#991b1b;font-size:10px;font-weight:800;letter-spacing:.02em;">✗ Canceled</span>' : '');
     const main = `
       <tr class="ord-row ${decCls}" data-ffcode="${fulfillEscapeHtml(ord.code)}">
         <td class="ff-chev">${expanded ? '▼' : '▶'}</td>
-        <td class="ff-code"><code>${fulfillEscapeHtml(ord.code)}</code></td>
+        <td class="ff-code"><code>${fulfillEscapeHtml(ord.code)}</code>${badges}</td>
         <td><div class="ff-client-name">${fulfillEscapeHtml(ord.name || '(no name)')}</div><div class="ff-sub">${fulfillEscapeHtml(ord.phone)}</div></td>
         <td>${fulfillEscapeHtml(ord.seller || '—')}</td>
         <td class="ff-num">${ord.totalQty.toLocaleString()}</td>
@@ -28346,6 +30434,135 @@ async function fulfillLoadDecisions() {
   } catch (e) { console.warn('load decisions failed:', e); }
 }
 
+// [patch: vip_highconf_flags] Persistence + helpers + toggles for VIP and
+// High-Confirmation flags. Flags are stored under a single Supabase key
+// "fulfill_flags" so viewers (sellers) pick them up automatically via the
+// existing creator-row RLS policy.
+function fulfillIsVip(orderCode, phone) {
+  return fulfill.vipOrders.has(orderCode) || (phone && fulfill.vipClients.has(phone));
+}
+function fulfillIsHighConf(orderCode, phone) {
+  return fulfill.highConfOrders.has(orderCode) || (phone && fulfill.highConfClients.has(phone));
+}
+function fulfillIsCanceled(orderCode) {
+  const d = (fulfill.decisions || {})[orderCode];
+  return !!(d && d.status === 'canceled');
+}
+function fulfillIsConfirmed(orderCode) {
+  const d = (fulfill.decisions || {})[orderCode];
+  return !!(d && d.status === 'confirmed');
+}
+async function fulfillLoadFlags() {
+  if (typeof gmvReadShared !== 'function') return;
+  try {
+    const data = await gmvReadShared('fulfill_flags');
+    if (data && typeof data === 'object') {
+      fulfill.vipOrders       = new Set(Array.isArray(data.vipOrders)       ? data.vipOrders       : []);
+      fulfill.vipClients      = new Set(Array.isArray(data.vipClients)      ? data.vipClients      : []);
+      fulfill.highConfOrders  = new Set(Array.isArray(data.highConfOrders)  ? data.highConfOrders  : []);
+      fulfill.highConfClients = new Set(Array.isArray(data.highConfClients) ? data.highConfClients : []);
+    }
+  } catch (e) { console.warn('fulfillLoadFlags', e); }
+}
+async function fulfillSaveFlags() {
+  if (typeof sbWriteKey !== 'function' || !sbUser) return false;
+  // Only the creator's row is the source of truth — guard against sellers
+  // accidentally overwriting their own row with stale flags.
+  if (typeof gmvIsCreator === 'function' && !gmvIsCreator()) return false;
+  try {
+    return await sbWriteKey('fulfill_flags', {
+      vipOrders:       Array.from(fulfill.vipOrders),
+      vipClients:      Array.from(fulfill.vipClients),
+      highConfOrders:  Array.from(fulfill.highConfOrders),
+      highConfClients: Array.from(fulfill.highConfClients)
+    });
+  } catch (e) { console.warn('fulfillSaveFlags', e); return false; }
+}
+async function fulfillToggleFlag(kind, key) {
+  // kind: 'vipOrder' | 'vipClient' | 'hcOrder' | 'hcClient'
+  const map = {
+    vipOrder:  fulfill.vipOrders,
+    vipClient: fulfill.vipClients,
+    hcOrder:   fulfill.highConfOrders,
+    hcClient:  fulfill.highConfClients
+  };
+  const set = map[kind];
+  if (!set || !key) return;
+  // [patch: vip_highconf_delta] Capture bucket snapshot BEFORE the toggle so
+  // we can log + toast what changed. Two snapshots: GLOBAL (all orders) and
+  // VIEW (filtered by seller/search). When a filter is active, only VIEW
+  // is shown; otherwise both are identical and we just show one.
+  const _flt = (list) => {
+    const seller = fulfill.sellerFilter;
+    const q = (fulfill.search || '').trim().toLowerCase();
+    return list.filter(ord => {
+      if (seller && ord.seller !== seller) return false;
+      if (q) {
+        const hay = (ord.code + ' ' + (ord.name || '') + ' ' + (ord.phone || '')).toLowerCase();
+        if (hay.indexOf(q) < 0) return false;
+      }
+      return true;
+    });
+  };
+  const _bStats = (list) => ({
+    n: list.length,
+    mad: list.reduce((s, o) => s + (o.totalAmt || 0), 0)
+  });
+  const snap = () => {
+    const a = fulfill.allocations || { full: [], partial: [], waiting: [] };
+    return {
+      g: { full: _bStats(a.full), partial: _bStats(a.partial), waiting: _bStats(a.waiting) },
+      v: { full: _bStats(_flt(a.full)), partial: _bStats(_flt(a.partial)), waiting: _bStats(_flt(a.waiting)) }
+    };
+  };
+  const before = snap();
+  const hasFilter = !!(fulfill.sellerFilter || (fulfill.search || '').trim());
+
+  if (set.has(key)) set.delete(key); else set.add(key);
+  Promise.resolve(fulfillSaveFlags()).catch(() => {});
+  try { fulfillRunAllocator(); } catch (_) {}
+  try { fulfillRenderAll(); } catch (_) {}
+
+  const after = snap();
+  const fmtMad = (n) => Math.round(n).toLocaleString('en-US').replace(/,/g, ' ');
+  const fmtDelta = (b, a) => {
+    const dn = a.n - b.n, dm = a.mad - b.mad;
+    if (!dn && !dm) return '·';
+    const sign = (x) => (x > 0 ? '+' : '');
+    return sign(dn) + dn + ' orders, ' + sign(dm) + fmtMad(dm) + ' MAD';
+  };
+  const sectionHead = hasFilter ? 'in your filtered view' : 'globally';
+  const v = hasFilter ? 'v' : 'g';
+  const lines = [
+    `Flag ${set.has(key) ? 'ON' : 'OFF'} (${kind} ${key}) — buckets moved ${sectionHead}:`,
+    `  100%:    ${fmtDelta(before[v].full,    after[v].full)}`,
+    `  ≥80%:    ${fmtDelta(before[v].partial, after[v].partial)}`,
+    `  waiting: ${fmtDelta(before[v].waiting, after[v].waiting)}`
+  ];
+  if (hasFilter) {
+    lines.push('  ——————');
+    lines.push(`  global 100%:    ${fmtDelta(before.g.full,    after.g.full)}`);
+    lines.push(`  global ≥80%:    ${fmtDelta(before.g.partial, after.g.partial)}`);
+    lines.push(`  global waiting: ${fmtDelta(before.g.waiting, after.g.waiting)}`);
+  }
+  const msg = lines.join('\n');
+  console.log('[OF flag toggle]\n' + msg);
+  try {
+    let t = document.getElementById('ffFlagToast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'ffFlagToast';
+      t.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:10px;font-size:12.5px;line-height:1.55;z-index:9999;box-shadow:0 12px 32px rgba(15,23,42,.25);white-space:pre;font-family:ui-monospace,monospace;opacity:0;transition:opacity .2s;max-width:90vw;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(window.__ffFlagToastT);
+    window.__ffFlagToastT = setTimeout(() => { t.style.opacity = '0'; }, 5500);
+  } catch (_) {}
+}
+window.fulfillToggleFlag = fulfillToggleFlag;
+
 async function fulfillSaveDecision(orderCode, decision) {
   if (typeof sb === 'undefined' || !sb || !sbUser) throw new Error('Not signed in.');
   const sellerName = (typeof gmvSellerName === 'function') ? gmvSellerName() : '';
@@ -28379,6 +30596,32 @@ function fulfillRenderDecision(orderCode, ord) {
   const isOwnSeller = sellerLock && ord && ord.seller === sellerLock;
   const canEdit = isCreator || isOwnSeller;
 
+  // [patch: vip_highconf_flags] Flag chip row — VIP / High-Confirmation
+  // toggles at both ORDER and CLIENT level. Tapping any chip flips the
+  // flag, persists to Supabase, re-runs the allocator and re-renders.
+  const phone = (ord && ord.phone) || '';
+  const isVipOrd  = fulfill.vipOrders.has(orderCode);
+  const isVipCli  = phone ? fulfill.vipClients.has(phone)  : false;
+  const isHcOrd   = fulfill.highConfOrders.has(orderCode);
+  const isHcCli   = phone ? fulfill.highConfClients.has(phone) : false;
+  const chip = (label, on, kind, key, bgOn, bgOff, fgOn, fgOff) => {
+    if (!canEdit) {
+      if (!on) return ''; // hide off-chips for non-editors
+      return `<span style="padding:3px 9px;border-radius:99px;background:${bgOn};color:${fgOn};font-size:11px;font-weight:700;">${label}</span>`;
+    }
+    return `<button type="button" data-ffflag="${kind}" data-ffflagkey="${fulfillEscapeHtml(key)}"
+      style="padding:4px 10px;border-radius:99px;cursor:pointer;font-size:11px;font-weight:700;
+      background:${on?bgOn:bgOff};color:${on?fgOn:fgOff};border:1px solid ${on?bgOn:'#cbd5e1'};">
+      ${on?'✓ ':''}${label}</button>`;
+  };
+  const flagBar = `
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;">
+      ${chip('VIP order',     isVipOrd, 'vipOrder',  orderCode, '#facc15','#fff','#713f12','#475569')}
+      ${chip('VIP client',    isVipCli, 'vipClient', phone,     '#facc15','#fff','#713f12','#475569')}
+      ${chip('High-conf order',  isHcOrd, 'hcOrder',  orderCode, '#a78bfa','#fff','#3b0764','#475569')}
+      ${chip('High-conf client', isHcCli, 'hcClient', phone,     '#a78bfa','#fff','#3b0764','#475569')}
+    </div>`;
+
   let badge = '';
   if (d) {
     const statusCls = d.status === 'confirmed' ? '#166534' : d.status === 'canceled' ? '#7f1d1d' : '#475569';
@@ -28398,12 +30641,12 @@ function fulfillRenderDecision(orderCode, ord) {
   }
 
   if (!canEdit) {
-    return badge || `<div style="margin:8px 0; padding:8px 12px; background:#f8fafc; color:#94a3b8; font-size:11px; border-radius:6px;">${ffT('dec_no')}</div>`;
+    return (flagBar || '') + (badge || `<div style="margin:8px 0; padding:8px 12px; background:#f8fafc; color:#94a3b8; font-size:11px; border-radius:6px;">${ffT('dec_no')}</div>`);
   }
 
   // Two-step editor: initially show two action buttons. Clicking a button
   // reveals the matching input ribbon (date for confirm, reason for cancel).
-  return `${badge}
+  return `${flagBar}${badge}
     <div data-ffdecision-host="${fulfillEscapeHtml(orderCode)}" data-ffmode="idle" style="margin:8px 0; padding:12px; background:#fff; border:1px solid #e2e8f0; border-radius:8px;">
       <div data-ffdec-bar="idle" style="display:flex; gap:8px; flex-wrap:wrap;">
         <button type="button" data-ffdec-open="confirm" data-ffdec-code="${fulfillEscapeHtml(orderCode)}"
@@ -28512,6 +30755,18 @@ function fulfillWireDecisionButtons(host) {
     });
   });
   // Save / clear actions.
+  // [patch: vip_highconf_flags] Flag chip clicks (VIP / High-conf, order
+  // or client level). Each toggle flips the flag, persists, re-allocates.
+  host.querySelectorAll('[data-ffflag]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const kind = btn.dataset.ffflag;
+      const key  = btn.dataset.ffflagkey;
+      if (!kind || !key) return;
+      try { await fulfillToggleFlag(kind, key); }
+      catch (err) { alert('Toggle failed: ' + (err && err.message ? err.message : err)); }
+    });
+  });
   host.querySelectorAll('[data-ffdec-action]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -28535,6 +30790,10 @@ function fulfillWireDecisionButtons(host) {
           if (reasonVal.length < 10) { alert(ffT('dec_reason_min')); return; }
           await fulfillSaveDecision(code, { status: 'canceled', delivery_date: null, note: reasonVal });
         }
+        // [patch: vip_highconf_flags] Re-run the allocator so canceled
+        // orders free their stock and confirmed high-conf orders pick
+        // theirs up. Without this, stock didn't redistribute on decision.
+        try { fulfillRunAllocator(); } catch (_) {}
         fulfillRenderAll();
       } catch (err) {
         alert('Save failed: ' + (err && err.message ? err.message : err));
@@ -28874,6 +31133,7 @@ async function fulfillExportFullReport() {
         'Stock initial': (fulfill.stock && fulfill.stock[l.productCode]) || 0,
         'Stock remaining': (fulfill.remainingStock && fulfill.remainingStock[l.productCode]) || 0,
         'Line amount (MAD)': round2(l.amount || 0),
+        'Line deliverable amount (MAD)': round2((l.amount || 0) * (l.qty ? (Math.min(l.deliverable || 0, l.qty) / l.qty) : 0)),
         'Decision': dec.status || '',
         'Decision delivery date': dec.delivery_date || '',
         'Decision note': dec.note || '',
@@ -29052,7 +31312,15 @@ function fulfillExportTab(tab) {
       'Deliverable units': o.deliverableTotal || 0,
       'Fulfillment %': Math.round((o.fulfillPct || 0) * 100) / 100,
       'Total amount (MAD)': Math.round((o.totalAmt || 0) * 100) / 100,
-      'Deliverable amount (MAD)': Math.round((o.totalAmt || 0) * ((o.deliverableTotal || 0) / (o.totalQty || 1)) * 100) / 100,
+      // [patch: deliv_gmv_per_line] Sum line-by-line so multi-SKU baskets at
+      // different unit prices report the correct deliverable MAD, not the
+      // ratio-based approximation that spread shortages evenly.
+      'Deliverable amount (MAD)': Math.round(
+        ((o.lines || []).reduce((s, l) => {
+          const r = l.qty ? (Math.min(l.deliverable || 0, l.qty) / l.qty) : 0;
+          return s + (l.amount || 0) * r;
+        }, 0)) * 100
+      ) / 100,
     }));
     sheets.push({ name: 'Orders', rows: summaryRows });
     // 2) Line-detail sheet.
@@ -29195,24 +31463,47 @@ function fulfillRenderAll() {
   const fF = fulfillFilterOrders(a.full);
   const fP = fulfillFilterOrders(a.partial);
   const fW = fulfillFilterOrders(a.waiting);
+  // [patch: held_tab] Held = HC orders + canceled orders + orders from a
+  // client flagged HC/canceled. We pull from the full set (full + partial +
+  // waiting) so they show up here even if the user is also viewing them in
+  // their natural bucket.
+  const _allBuckets = (a.full || []).concat(a.partial || [], a.waiting || []);
+  const fH = fulfillFilterOrders(_allBuckets.filter(o => {
+    if (!o) return false;
+    if (typeof fulfillIsHighConf  === 'function' && fulfillIsHighConf(o.code, o.phone))  return true;
+    if (typeof fulfillIsCanceled  === 'function' && fulfillIsCanceled(o.code))           return true;
+    return false;
+  }));
   // Pills.
   const pillFull = document.getElementById('ffPillFull');
   const pillPart = document.getElementById('ffPillPartial');
   const pillWait = document.getElementById('ffPillWaiting');
   const pillTop  = document.getElementById('ffPillTop');
+  const pillHeld = document.getElementById('ffPillHeld');
   if (pillFull) pillFull.textContent = fF.length;
   if (pillPart) pillPart.textContent = fP.length;
   if (pillWait) pillWait.textContent = fW.length;
   if (pillTop)  pillTop.textContent = fulfillTopClients().length;
+  if (pillHeld) pillHeld.textContent = fH.length;
   // Summaries — show count + total GMV of orders currently in view.
   const gmvLine = (n, sumOrd, sumDeliv) =>
     `<span style="font-size:14px;"><b>${n}</b> ${ffT('sum_count')}</span> · ` +
     `${ffT('sum_total_gmv')} <b style="color:var(--text);">${fulfillFmtMad(sumOrd)}</b>` +
     (sumDeliv != null ? ` · ${ffT('sum_deliv_gmv')} <b style="color:#166534;">${fulfillFmtMad(sumDeliv)}</b>` : '');
   const sumOrd = list => list.reduce((s,o) => s + (o.totalAmt || 0), 0);
-  const sumDeliv = list => list.reduce((s,o) => {
-    const ratio = o.totalQty ? (o.deliverableTotal || 0) / o.totalQty : 0;
-    return s + (o.totalAmt || 0) * ratio;
+  // [patch: deliv_gmv_per_line] The old ratio-based approximation
+  //   deliv_GMV = totalAmt * (deliverableTotal / totalQty)
+  // is WRONG for orders that mix SKUs at different unit prices — it spreads
+  // shortages evenly across the basket. Compute per LINE instead:
+  //   for each line: line_amount * (line_deliverable / line_qty)
+  // then sum. This matches the per-row Excel report exactly.
+  const sumDeliv = list => list.reduce((s, o) => {
+    const lines = (o.lines || []);
+    const orderDeliv = lines.reduce((ls, l) => {
+      const r = l.qty ? (Math.min(l.deliverable || 0, l.qty) / l.qty) : 0;
+      return ls + (l.amount || 0) * r;
+    }, 0);
+    return s + orderDeliv;
   }, 0);
   fulfillSetSummary('ffSummaryFull',
     `${ffT('sum_full')} — ${gmvLine(fF.length, sumOrd(fF), sumOrd(fF))}`);
@@ -29222,11 +31513,20 @@ function fulfillRenderAll() {
     `${ffT('sum_waiting')} — ${gmvLine(fW.length, sumOrd(fW), sumDeliv(fW))}`);
   fulfillSetSummary('ffSummaryTop',
     `${ffT('sum_top_threshold')} <b>${fulfillFmtMad(fulfill.topThreshold)}</b>.`);
+  // [patch: held_tab] Summary for held orders — breakdown by reason.
+  const hcCount = fH.filter(o => typeof fulfillIsHighConf === 'function' && fulfillIsHighConf(o.code, o.phone)).length;
+  const cxCount = fH.filter(o => typeof fulfillIsCanceled === 'function' && fulfillIsCanceled(o.code)).length;
+  fulfillSetSummary('ffSummaryHeld',
+    `<b>${fH.length}</b> held order(s) — ` +
+    `<span style="background:#ede9fe;color:#5b21b6;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:700;margin:0 2px;">HC ${hcCount}</span>` +
+    `<span style="background:#fee2e2;color:#991b1b;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:700;margin:0 2px;">Canceled ${cxCount}</span>` +
+    ` · Stock released back to the pool: <b style="color:#166534;">${fulfillFmtMad(sumOrd(fH))}</b> MAD of order value frozen`);
   // Tables.
   fulfillRenderOrdersTable(fF, 'ffTableFull');
   fulfillRenderOrdersTable(fP, 'ffTablePartial');
   fulfillRenderOrdersTable(fW, 'ffTableWaiting');
   fulfillRenderTopClients('ffTableTop');
+  fulfillRenderOrdersTable(fH, 'ffTableHeld');
 }
 
 // ---- Wiring -------------------------------------------------------
@@ -29317,9 +31617,20 @@ async function fulfillPullFromCloud() {
       document.getElementById('ffTileClients')?.classList.add('ok');
     }
     if (stk && typeof stk === 'object') {
-      fulfill.stock = stk;
-      fulfillSetSummary('ffStockSummary', `Synced <b>${Object.keys(stk).length}</b> SKU(s).`);
-      document.getElementById('ffTileStock')?.classList.add('ok');
+      // [patch: fulfill_stock_unified_wins] Only honour the legacy ff_stock
+      // key when the unified Data Sources stock is NOT loaded. Otherwise
+      // it would overwrite the sell-unit-converted stock with raw atomic
+      // numbers from an older upload, breaking the Order Fulfillment report
+      // (40 packings vs 145 atomic looked deliverable when it isn't).
+      const _hasUnifiedStock = !!(window.dsStore && window.dsStore.stock
+        && Array.isArray(window.dsStore.stock.rows) && window.dsStore.stock.rows.length);
+      if (!_hasUnifiedStock) {
+        fulfill.stock = stk;
+        fulfillSetSummary('ffStockSummary', `Synced <b>${Object.keys(stk).length}</b> SKU(s).`);
+        document.getElementById('ffTileStock')?.classList.add('ok');
+      } else {
+        console.log('[ds] legacy ff_stock pull skipped — unified Data Sources stock takes priority');
+      }
     }
     if (Array.isArray(ama) && ama.length) {
       fulfill.amaProducts = new Set(ama);
@@ -29498,6 +31809,9 @@ async function fulfillInit() {
   // creator and viewers — viewers read via gmvReadShared).
   await fulfillPullFromCloud();
   await fulfillLoadDecisions();
+  // [patch: vip_highconf_flags] Load VIP / high-conf flags before the
+  // allocator runs so they're honoured on the very first render.
+  try { if (typeof fulfillLoadFlags === 'function') await fulfillLoadFlags(); } catch (_) {}
   fulfillTryAutoRun();
   fulfillRenderAll();
   // Re-apply role UI now that data is in.
@@ -29511,6 +31825,76 @@ async function fulfillInit() {
      Sellers GMV maker — independent feature, own uploads, own targets.
      Hidden by default; the sidebar feature switcher toggles visibility.
      ==================================================================== -->
+<div class="app md-app" id="featureMyDay" style="display:none;">
+  <div class="md-shell">
+    <header class="md-hero">
+      <div class="md-hero-left">
+        <div class="md-hero-eyebrow" id="mdHeroDate">—</div>
+        <h1 class="md-hero-title">My Day</h1>
+        <div class="md-hero-sub" id="mdHeroSub">Focus. Track. Reflect.</div>
+      </div>
+      <div class="md-hero-right">
+        <div class="md-stat">
+          <div class="md-stat-label">Focused today</div>
+          <div class="md-stat-value" id="mdStatTime">00:00:00</div>
+        </div>
+        <div class="md-stat">
+          <div class="md-stat-label">Tasks</div>
+          <div class="md-stat-value" id="mdStatCount">0 / 0</div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="md-tabs">
+      <button type="button" class="md-tab is-active" data-mdtab="today">Today</button>
+      <button type="button" class="md-tab" data-mdtab="history">History</button>
+    </nav>
+
+    <section class="md-panel is-active" data-mdpanel="today">
+      <form class="md-add" id="mdAddForm" autocomplete="off">
+        <span class="md-add-icon">＋</span>
+        <input type="text" class="md-add-input" id="mdAddInput" placeholder="What's the next thing you'll work on?" maxlength="240">
+        <button type="submit" class="md-add-btn">Add</button>
+      </form>
+      <div class="md-section" id="mdTodayRunning"></div>
+      <div class="md-section" id="mdTodayPending"></div>
+      <div class="md-section" id="mdTodayDone"></div>
+    </section>
+
+    <section class="md-panel" data-mdpanel="history">
+      <div class="md-history" id="mdHistory"></div>
+    </section>
+  </div>
+</div>
+
+<div class="app ds-app" id="featureDataSources" style="display:none;">
+  <div class="ds-cmdbar">
+    <div class="ds-brand">
+      <div class="ds-brand-logo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+      </div>
+      <span class="ds-cmd-title">Data Sources</span>
+    </div>
+    <div class="ds-cmd-sub" id="dsCmdSub">Single source of truth for Clients, Orders, Stock, Focus products and the Article catalog.</div>
+  </div>
+  <div class="ds-page" id="dsPage">
+    <div class="ds-tiles-grid" id="dsTilesGrid"><!-- tiles injected by dsRenderPage() --></div>
+    <div class="ds-help" id="dsHelp">
+      <details>
+        <summary>What gets stored, and who can read it</summary>
+        <div class="ds-help-body">
+          <p>The 5 files below feed every screen in the app — <b>GMV Tracker</b>, <b>Order Fulfillment</b>, and <b>Confirm Orders</b>. By default only the creator can upload. Grant the matching <code>data.upload_*</code> permission in <b>Settings → Permissions</b> to delegate uploads to other users. Everyone with feature access reads the data automatically; uploads are stored on the creator's Supabase account.</p>
+          <ul>
+            <li><b>Stock</b> rows are uploaded in <i>atomic units</i>. The app auto-converts to sell-units using the <b>Articles</b> file (<code>Sell unit = PACKING</code> → atomic ÷ Package quantity).</li>
+            <li><b>Focus products</b> is the taxonomy: <code>Code → Sub Product → Focus product</code>. A SKU missing from this file is invisible in GMV family cards.</li>
+            <li>Every tile has a <b>Download template</b> button that produces a CSV with the exact headers expected.</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+
 <div class="app gmv-app" id="featureGmvMaker" style="display:none;">
 
   <!-- Command bar — sticky, no marketing tagline. -->
@@ -32316,6 +34700,7 @@ async function fulfillInit() {
     <button type="button" class="ff-tab" data-fftab="partial"><span data-fft="tab_partial">Plus de 80%</span> <span class="pill" id="ffPillPartial">0</span></button>
     <button type="button" class="ff-tab" data-fftab="waiting"><span data-fft="tab_waiting">Liste d'attente</span> <span class="pill" id="ffPillWaiting">0</span></button>
     <button type="button" class="ff-tab" data-fftab="top"><span data-fft="tab_top">Clients à fort GMV (AMA)</span> <span class="pill" id="ffPillTop">0</span></button>
+    <button type="button" class="ff-tab" data-fftab="held"><span>En attente / Annulées</span> <span class="pill" id="ffPillHeld">0</span></button>
   </div>
 
   <!-- Panels -->
@@ -32346,6 +34731,12 @@ async function fulfillInit() {
       <button type="button" class="btn" data-ffexport="top" style="font-size:12px;" data-fft="btn_export">⇓ Exporter vers Excel</button>
     </div>
     <div class="ff-table-wrap" id="ffTableTop" style="margin-top:8px;"></div>
+  </div>
+  <div class="ff-panel" data-ffpanel="held">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div class="ff-summary" id="ffSummaryHeld" style="margin-bottom:0;"></div>
+    </div>
+    <div class="ff-table-wrap" id="ffTableHeld" style="margin-top:8px;"></div>
   </div>
 </div>
 

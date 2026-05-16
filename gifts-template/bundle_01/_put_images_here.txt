@@ -1,0 +1,7 @@
+Drop the photos for PALIER 1 here.
+Threshold: 100000 MAD
+  Prize 1: vivo Y04 6.7" 64Go ROM + 4GB
+  Prize 2: Samsung Galaxy A05
+  Prize 3: Samsung 50" 4K UHD Crystal
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

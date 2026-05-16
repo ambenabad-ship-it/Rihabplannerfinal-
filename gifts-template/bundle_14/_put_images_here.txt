@@ -1,0 +1,7 @@
+Drop the photos for PALIER 14 here.
+Threshold: 2500000 MAD
+  Prize 1: Triporteur + Hisense Smart TV QLED 4K 55"
+  Prize 2: Triporteur + Samsung Galaxy Tab S9 Ultra + Samsung 75" Crystal UHD
+  Prize 3: 3x Triporteur + Samsung 85" + Samsung Galaxy Tab S9+ + Samsung Tab S10 Ultra
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg

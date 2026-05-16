@@ -1,0 +1,7 @@
+Drop the photos for PALIER 10 here.
+Threshold: 1200000 MAD
+  Prize 1: Infiniton Réfrigérateur Américain SBS-668 559L
+  Prize 2: Triporteur + Samsung 50" 4K UHD Crystal
+  Prize 3: Triporteur + Samsung Galaxy Tab S9 Ultra + Samsung 75" 4K UHD
+
+Filenames:  C1_*.jpg  C2_*.jpg  C3_*.jpg
